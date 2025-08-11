@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone", 
   serverExternalPackages: ['@tanstack/react-query', 'socket.io-client'],
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
