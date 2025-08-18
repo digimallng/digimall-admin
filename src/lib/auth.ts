@@ -17,7 +17,15 @@ export interface AdminLoginResponse {
   expiresIn: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4800/api/v1';
+// Environment-aware API base URL
+const getApiBaseUrl = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://admin.digimall.ng/api/v1';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4800/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -53,8 +61,8 @@ export const authOptions: NextAuthOptions = {
           const result = await response.json();
           
           // Handle the response from admin service
-          const user = result.user;
-          const tokens = result.tokens;
+          // Admin service returns: { user, tokens: { accessToken, refreshToken, expiresIn } }
+          const { user, tokens } = result;
 
           return {
             id: user.id,

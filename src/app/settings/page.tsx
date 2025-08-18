@@ -4,6 +4,22 @@ import { useState, useEffect } from 'react';
 import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatsCard } from '@/components/ui/StatsCard';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import {
+  usePlatformConfig,
+  useSystemNotifications,
+  useNotificationServices,
+  useSystemStatus,
+  useUpdatePlatformConfig,
+  useCreateSystemNotification,
+  useUpdateSystemNotification,
+  useTestNotificationService,
+  useUpdateMaintenanceMode,
+  type PlatformConfig,
+  type SystemNotification,
+  type NotificationService,
+} from '@/lib/hooks/use-settings';
 import {
   Settings,
   Globe,
@@ -31,60 +47,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { formatDistanceToNow } from 'date-fns';
 
-interface PlatformConfig {
-  id: string;
-  key: string;
-  label: string;
-  value: string | number | boolean;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'textarea';
-  category: string;
-  options?: string[];
-  description: string;
-  required: boolean;
-  editable: boolean;
-}
-
-interface SystemNotification {
-  id: string;
-  type: 'maintenance' | 'update' | 'security' | 'feature';
-  title: string;
-  message: string;
-  active: boolean;
-  priority: 'low' | 'medium' | 'high';
-  targetUsers: 'all' | 'vendors' | 'customers';
-  startDate: Date;
-  endDate?: Date;
-  createdAt: Date;
-}
-
-interface NotificationService {
-  id: string;
-  name: string;
-  type: 'email' | 'sms' | 'push' | 'webhook';
-  status: 'healthy' | 'degraded' | 'down' | 'maintenance';
-  uptime: number;
-  lastCheck: Date;
-  responseTime: number;
-  version: string;
-  queues: {
-    waiting: number;
-    active: number;
-    completed: number;
-    failed: number;
-    delayed: number;
-    paused: number;
-  };
-  stats: {
-    sent24h: number;
-    failed24h: number;
-    successRate: number;
-  };
-  config: {
-    provider: string;
-    endpoint: string;
-    rateLimit: number;
-  };
-}
+// Types are now imported from use-settings hook
 
 const mockPlatformConfig: PlatformConfig[] = [
   // General Settings
@@ -455,6 +418,37 @@ export default function SettingsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [refreshingServices, setRefreshingServices] = useState(false);
 
+  // Get filtered configs for active tab
+  const filteredConfigs = (configs || []).filter(config => config.category === activeTab);
+
+  // Loading states
+  if (configsLoading || notificationsLoading || servicesLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Error states
+  if (configsError || notificationsError || servicesError) {
+    const error = configsError || notificationsError || servicesError;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <ErrorMessage 
+          title="Failed to load settings" 
+          message={error?.message || 'Unknown error occurred'} 
+        />
+      </div>
+    );
+  }
+
+  // Safe fallbacks
+  const safeConfigs = configs || [];
+  const safeNotifications = notifications || [];
+  const safeNotificationServices = notificationServices || [];
+  const safeSystemStatus = systemStatus || { overall: 'unknown', services: {}, resources: {}, metrics: {} };
+
   const categories = [
     { id: 'general', label: 'General', icon: Globe },
     { id: 'commission', label: 'Commission', icon: DollarSign },
@@ -475,18 +469,24 @@ export default function SettingsPage() {
   });
 
   const handleConfigUpdate = (configId: string, newValue: any) => {
-    setConfigs(prev =>
-      prev.map(config => (config.id === configId ? { ...config, value: newValue } : config))
+    updateConfigMutation.mutate(
+      { id: configId, value: newValue },
+      {
+        onSuccess: () => {
+          setHasUnsavedChanges(false);
+          // Config will be updated via React Query cache
+        },
+        onError: (error) => {
+          console.error('Failed to update config:', error);
+          // TODO: Show error toast/notification
+        },
+      }
     );
-    setHasUnsavedChanges(true);
   };
 
   const handleSaveChanges = () => {
-    // Simulate API call
-    setTimeout(() => {
-      setHasUnsavedChanges(false);
-      // Show success message
-    }, 1000);
+    // This is now handled individually by handleConfigUpdate
+    setHasUnsavedChanges(false);
   };
 
   const handleRefreshServices = async () => {

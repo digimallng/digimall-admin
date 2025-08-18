@@ -7,10 +7,10 @@ export class VendorService {
     const response = await apiClient.get<any>('/vendors', filters);
     // API client's handleResponse already extracts the data from success responses
     return {
-      vendors: response.vendors || [],
+      vendors: response.data || response.vendors || [],
       total: response.total || 0,
       page: response.page || 1,
-      pages: response.pages || 1,
+      pages: response.pages || Math.ceil((response.total || 0) / (filters?.limit || 20)),
     };
   }
 
@@ -152,18 +152,21 @@ export class VendorService {
     const response = await apiClient.get<any>('/vendors/statistics');
     // API client's handleResponse already extracts the data from success responses
     
+    // Handle both possible response formats
+    const data = response.data || response;
+    
     // Transform API response to match UI expectations
     return {
-      totalVendors: response.total || 0,
-      approvedVendors: (response.byStatus?.verified || 0) + (response.byStatus?.approved || 0),
-      pendingVendors: (response.byStatus?.pending || 0) + (response.byStatus?.under_review || 0),
-      suspendedVendors: (response.byStatus?.suspended || 0) + (response.byStatus?.rejected || 0),
+      totalVendors: data.total || 0,
+      approvedVendors: (data.byStatus?.verified || 0) + (data.byStatus?.approved || 0),
+      pendingVendors: (data.byStatus?.pending || 0) + (data.byStatus?.under_review || 0),
+      suspendedVendors: (data.byStatus?.suspended || 0) + (data.byStatus?.rejected || 0),
       // Calculate growth percentages (mock for now since API doesn't provide historical data)
-      vendorGrowth: 0,
-      approvedGrowth: 0,
-      pendingGrowth: 0,
-      suspendedGrowth: 0,
-      recentActivity: response.recentActivity || [],
+      vendorGrowth: data.growth?.total || 0,
+      approvedGrowth: data.growth?.approved || 0,
+      pendingGrowth: data.growth?.pending || 0,
+      suspendedGrowth: data.growth?.suspended || 0,
+      recentActivity: data.recentActivity || [],
     };
   }
 

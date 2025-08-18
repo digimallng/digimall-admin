@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   MessageCircle,
   Search,
@@ -37,6 +38,8 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
 import { GlowingButton } from '@/components/ui/AnimatedCard';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import {
   ChatConversation,
   Message,
@@ -44,304 +47,65 @@ import {
   ChatFilter,
   TypingIndicator,
 } from '@/types/chat';
+import {
+  useConversations,
+  useMessages,
+  useSendMessage,
+  useMarkAsRead,
+  useUnreadCount,
+  useChatRealtime,
+} from '@/lib/hooks/use-chat';
 
 export default function ChatPage() {
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const { data: session } = useSession();
   const [activeConversation, setActiveConversation] = useState<ChatConversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<ChatFilter>({});
-  const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
-  const [showParticipants, setShowParticipants] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
-  const userId = 'admin-1';
-  const userName = 'Admin User';
+  const userId = session?.user?.id || 'admin';
+  const userName = session?.user?.name || 'Admin User';
 
-  // Mock data generator
-  const generateMockData = () => {
-    const participants: ChatParticipant[] = [
-      {
-        id: 'customer-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        type: 'customer',
-        isOnline: true,
-        avatar: undefined,
-      },
-      {
-        id: 'customer-2',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        type: 'customer',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 3600000),
-      },
-      {
-        id: 'vendor-1',
-        name: 'TechStore Nigeria',
-        email: 'support@techstore.ng',
-        type: 'vendor',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 3600000),
-      },
-      {
-        id: 'vendor-2',
-        name: 'Fashion Hub Lagos',
-        email: 'info@fashionhub.ng',
-        type: 'vendor',
-        isOnline: true,
-      },
-      {
-        id: 'staff-1',
-        name: 'Sarah Support',
-        email: 'sarah@digimall.ng',
-        type: 'staff',
-        isOnline: true,
-        role: 'Customer Support',
-        department: 'Support',
-      },
-      {
-        id: 'staff-2',
-        name: 'Mike Operations',
-        email: 'mike@digimall.ng',
-        type: 'staff',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 1800000),
-        role: 'Operations Manager',
-        department: 'Operations',
-      },
-    ];
+  // Real API hooks
+  const {
+    data: conversationsData,
+    isLoading: conversationsLoading,
+    error: conversationsError,
+  } = useConversations({ ...filter, search: searchTerm });
 
-    const mockConversations: ChatConversation[] = [
-      {
-        id: '1',
-        participantIds: [userId, 'customer-1'],
-        participants: [participants[0]],
-        lastMessage: {
-          id: '1',
-          senderId: 'customer-1',
-          senderName: 'John Doe',
-          senderType: 'customer',
-          content:
-            "Hi, I need help with my order #12345. It's been 3 days and I haven't received any updates.",
-          timestamp: new Date(Date.now() - 300000),
-          type: 'text',
-          readBy: [],
-        },
-        unreadCount: 2,
-        createdAt: new Date(Date.now() - 86400000),
-        updatedAt: new Date(Date.now() - 300000),
-        type: 'support',
-        status: 'active',
-        priority: 'high',
-        tags: ['order-issue', 'urgent'],
-        assignedTo: userId,
-      },
-      {
-        id: '2',
-        participantIds: [userId, 'customer-2'],
-        participants: [participants[1]],
-        lastMessage: {
-          id: '2',
-          senderId: 'customer-2',
-          senderName: 'Jane Smith',
-          senderType: 'customer',
-          content: 'Thank you for resolving my refund request so quickly!',
-          timestamp: new Date(Date.now() - 600000),
-          type: 'text',
-          readBy: [],
-        },
-        unreadCount: 1,
-        createdAt: new Date(Date.now() - 172800000),
-        updatedAt: new Date(Date.now() - 600000),
-        type: 'support',
-        status: 'active',
-        priority: 'medium',
-        tags: ['refund', 'resolved'],
-        assignedTo: userId,
-      },
-      {
-        id: '3',
-        participantIds: [userId, 'vendor-1'],
-        participants: [participants[2]],
-        lastMessage: {
-          id: '3',
-          senderId: 'vendor-1',
-          senderName: 'TechStore Nigeria',
-          senderType: 'vendor',
-          content: "I've updated the product inventory as requested. Please review the changes.",
-          timestamp: new Date(Date.now() - 1800000),
-          type: 'text',
-          readBy: [userId],
-        },
-        unreadCount: 0,
-        createdAt: new Date(Date.now() - 259200000),
-        updatedAt: new Date(Date.now() - 1800000),
-        type: 'direct',
-        status: 'active',
-        priority: 'medium',
-        tags: ['inventory', 'vendor-update'],
-      },
-      {
-        id: '4',
-        participantIds: [userId, 'vendor-2'],
-        participants: [participants[3]],
-        lastMessage: {
-          id: '4',
-          senderId: userId,
-          senderName: userName,
-          senderType: 'admin',
-          content: 'Your commission payment has been processed successfully.',
-          timestamp: new Date(Date.now() - 3600000),
-          type: 'text',
-          readBy: ['vendor-2'],
-        },
-        unreadCount: 0,
-        createdAt: new Date(Date.now() - 345600000),
-        updatedAt: new Date(Date.now() - 3600000),
-        type: 'direct',
-        status: 'active',
-        priority: 'low',
-        tags: ['commission', 'payment'],
-      },
-      {
-        id: '5',
-        participantIds: [userId, 'staff-1'],
-        participants: [participants[4]],
-        lastMessage: {
-          id: '5',
-          senderId: 'staff-1',
-          senderName: 'Sarah Support',
-          senderType: 'staff',
-          content: 'The weekly support report is ready for your review.',
-          timestamp: new Date(Date.now() - 7200000),
-          type: 'text',
-          readBy: [],
-        },
-        unreadCount: 1,
-        createdAt: new Date(Date.now() - 432000000),
-        updatedAt: new Date(Date.now() - 7200000),
-        type: 'direct',
-        status: 'active',
-        priority: 'medium',
-        tags: ['internal', 'report'],
-      },
-      {
-        id: '6',
-        participantIds: [userId, 'staff-2'],
-        participants: [participants[5]],
-        lastMessage: {
-          id: '6',
-          senderId: userId,
-          senderName: userName,
-          senderType: 'admin',
-          content: 'Please coordinate with the logistics team for the new delivery schedule.',
-          timestamp: new Date(Date.now() - 10800000),
-          type: 'text',
-          readBy: ['staff-2'],
-        },
-        unreadCount: 0,
-        createdAt: new Date(Date.now() - 518400000),
-        updatedAt: new Date(Date.now() - 10800000),
-        type: 'direct',
-        status: 'active',
-        priority: 'high',
-        tags: ['internal', 'logistics'],
-      },
-    ];
+  const {
+    data: messagesData,
+    isLoading: messagesLoading,
+    error: messagesError,
+  } = useMessages(activeConversation?.id || null);
 
-    setConversations(mockConversations);
-    if (mockConversations.length > 0) {
-      setActiveConversation(mockConversations[0]);
-      loadMessages(mockConversations[0].id);
-    }
-  };
+  const { data: unreadCount } = useUnreadCount();
 
-  const loadMessages = (conversationId: string) => {
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        senderId: 'customer-1',
-        senderName: 'John Doe',
-        senderType: 'customer',
-        content: 'Hi, I need help with my order #12345',
-        timestamp: new Date(Date.now() - 600000),
-        type: 'text',
-        readBy: [],
-      },
-      {
-        id: '2',
-        senderId: userId,
-        senderName: userName,
-        senderType: 'admin',
-        content:
-          "Hello John! I'd be happy to help you with your order. Let me look that up for you.",
-        timestamp: new Date(Date.now() - 540000),
-        type: 'text',
-        readBy: ['customer-1'],
-      },
-      {
-        id: '3',
-        senderId: 'customer-1',
-        senderName: 'John Doe',
-        senderType: 'customer',
-        content:
-          "The order was placed 3 days ago but I haven't received any updates. I'm getting worried.",
-        timestamp: new Date(Date.now() - 480000),
-        type: 'text',
-        readBy: [],
-      },
-      {
-        id: '4',
-        senderId: userId,
-        senderName: userName,
-        senderType: 'admin',
-        content:
-          'I understand your concern. I can see your order #12345 is currently being processed by our fulfillment team. You should receive a tracking number within the next 24 hours.',
-        timestamp: new Date(Date.now() - 420000),
-        type: 'text',
-        readBy: ['customer-1'],
-      },
-      {
-        id: '5',
-        senderId: 'customer-1',
-        senderName: 'John Doe',
-        senderType: 'customer',
-        content: "That's great to hear! Will I receive an email notification when it ships?",
-        timestamp: new Date(Date.now() - 360000),
-        type: 'text',
-        readBy: [],
-      },
-      {
-        id: '6',
-        senderId: userId,
-        senderName: userName,
-        senderType: 'admin',
-        content:
-          "Yes, absolutely! You'll receive an email with the tracking number and estimated delivery date. Is there anything else I can help you with?",
-        timestamp: new Date(Date.now() - 300000),
-        type: 'text',
-        readBy: ['customer-1'],
-      },
-    ];
+  const sendMessageMutation = useSendMessage();
+  const markAsReadMutation = useMarkAsRead();
 
-    setMessages(mockMessages);
-  };
+  // Enable real-time updates
+  useChatRealtime();
 
-  useEffect(() => {
-    generateMockData();
-  }, []);
+  // Get data from API hooks
+  const conversations = conversationsData?.conversations || [];
+  const messages = messagesData?.messages || [];
+  const totalUnreadCount = unreadCount || 0;
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Auto-select first conversation if none is selected
+    if (conversations.length > 0 && !activeConversation) {
+      setActiveConversation(conversations[0]);
+    }
+  }, [conversations, activeConversation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -350,30 +114,21 @@ export default function ChatPage() {
   const handleSendMessage = () => {
     if (!newMessage.trim() || !activeConversation) return;
 
-    const message: Message = {
-      id: Date.now().toString(),
-      senderId: userId,
-      senderName: userName,
-      senderType: 'admin',
+    sendMessageMutation.mutate({
+      conversationId: activeConversation.id,
       content: newMessage,
-      timestamp: new Date(),
       type: 'text',
-      readBy: [],
       replyTo: replyingTo?.id,
-    };
-
-    setMessages(prev => [...prev, message]);
-    setNewMessage('');
-    setReplyingTo(null);
-
-    // Update conversation's last message
-    setConversations(prev =>
-      prev.map(conv =>
-        conv.id === activeConversation.id
-          ? { ...conv, lastMessage: message, updatedAt: new Date() }
-          : conv
-      )
-    );
+    }, {
+      onSuccess: () => {
+        setNewMessage('');
+        setReplyingTo(null);
+      },
+      onError: (error) => {
+        console.error('Failed to send message:', error);
+        // TODO: Show error toast/notification
+      },
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -383,26 +138,8 @@ export default function ChatPage() {
     }
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const participantMatch = conv.participants.some(
-        p =>
-          p.name.toLowerCase().includes(searchLower) || p.email.toLowerCase().includes(searchLower)
-      );
-      const messageMatch = conv.lastMessage?.content.toLowerCase().includes(searchLower);
-      if (!participantMatch && !messageMatch) return false;
-    }
-
-    if (filter.type && filter.type !== 'all' && conv.type !== filter.type) return false;
-    if (filter.status && filter.status !== 'all' && conv.status !== filter.status) return false;
-    if (filter.priority && filter.priority !== 'all' && conv.priority !== filter.priority)
-      return false;
-    if (filter.unreadOnly && conv.unreadCount === 0) return false;
-    if (filter.assignedToMe && conv.assignedTo !== userId) return false;
-
-    return true;
-  });
+  // Filtering is now handled by the API hook
+  const filteredConversations = conversations;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -445,7 +182,25 @@ export default function ChatPage() {
     }
   };
 
-  const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
+  // Loading and error states
+  if (conversationsLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (conversationsError) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <ErrorMessage 
+          title="Failed to load conversations" 
+          message={conversationsError.message} 
+        />
+      </div>
+    );
+  }
 
   return (
     <div className='h-screen flex bg-gray-50'>
@@ -506,11 +261,12 @@ export default function ChatPage() {
               key={conversation.id}
               onClick={() => {
                 setActiveConversation(conversation);
-                loadMessages(conversation.id);
-                // Mark as read
-                setConversations(prev =>
-                  prev.map(c => (c.id === conversation.id ? { ...c, unreadCount: 0 } : c))
-                );
+                // Mark as read if there are unread messages
+                if (conversation.unreadCount > 0) {
+                  markAsReadMutation.mutate({
+                    conversationId: conversation.id,
+                  });
+                }
               }}
               className={cn(
                 'p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors',
@@ -645,7 +401,18 @@ export default function ChatPage() {
 
             {/* Messages Area */}
             <div className='flex-1 overflow-y-auto p-6 space-y-4'>
-              {messages.map((message, index) => {
+              {messagesLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <LoadingSpinner />
+                </div>
+              ) : messagesError ? (
+                <div className="flex items-center justify-center h-full">
+                  <ErrorMessage 
+                    title="Failed to load messages" 
+                    message={messagesError.message} 
+                  />
+                </div>
+              ) : messages.map((message, index) => {
                 const isFromAdmin = message.senderId === userId;
                 const showAvatar =
                   index === 0 || messages[index - 1]?.senderId !== message.senderId;
@@ -723,10 +490,14 @@ export default function ChatPage() {
                 </div>
                 <button
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() || sendMessageMutation.isPending}
                   className='p-3 bg-primary text-white rounded-full hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors'
                 >
-                  <Send className='h-4 w-4' />
+                  {sendMessageMutation.isPending ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className='h-4 w-4' />
+                  )}
                 </button>
               </div>
             </div>

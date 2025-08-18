@@ -179,18 +179,6 @@ export default function DashboardPage() {
     }).format(value);
   };
 
-  const generateMockRevenueData = () => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      days.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: Math.floor(Math.random() * 50000) + 10000,
-      });
-    }
-    return days;
-  };
 
   const metrics = [
     {
@@ -329,7 +317,7 @@ export default function DashboardPage() {
             </div>
             {revenueData ? (
               <ResponsiveContainer width='100%' height={320}>
-                <AreaChart data={generateMockRevenueData()}>
+                <AreaChart data={revenueData}>
                   <defs>
                     <linearGradient id='colorRevenue' x1='0' y1='0' x2='0' y2='1'>
                       <stop offset='5%' stopColor='#3B82F6' stopOpacity={0.3} />

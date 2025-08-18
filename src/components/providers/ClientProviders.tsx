@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { SetupWrapper } from '@/components/setup/SetupWrapper';
 
 const AuthProvider = dynamic(
   () => import('@/lib/providers/auth-provider').then(mod => ({ default: mod.AuthProvider })),
@@ -29,10 +30,10 @@ export default function ClientProviders({ children }: { children: React.ReactNod
 
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500/30 border-t-blue-500"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -41,7 +42,9 @@ export default function ClientProviders({ children }: { children: React.ReactNod
   return (
     <AuthProvider>
       <QueryProvider>
-        <ClientLayout>{children}</ClientLayout>
+        <SetupWrapper>
+          <ClientLayout>{children}</ClientLayout>
+        </SetupWrapper>
         <ToastProvider />
       </QueryProvider>
     </AuthProvider>

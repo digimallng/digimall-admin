@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import {
+  usePlatformMetrics,
+  useVendorPerformanceData,
+  useTopVendors,
+  useCategoryDistribution,
+  useVendorStatusDistribution,
+  useExportReport,
+} from '@/lib/hooks/use-reports';
 import {
   FileText,
   Download,
@@ -47,57 +57,51 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('30');
   const [reportType, setReportType] = useState('overview');
 
-  // Mock data for platform-wide reports
-  const platformMetrics = {
-    totalRevenue: 45000000,
-    revenueGrowth: 23.5,
-    totalCommission: 2250000,
-    commissionGrowth: 18.2,
-    totalVendors: 247,
-    vendorGrowth: 12.8,
-    totalCustomers: 15647,
-    customerGrowth: 31.4,
-    totalOrders: 8934,
-    orderGrowth: 19.7,
-    avgOrderValue: 87500,
-    avgOrderGrowth: 8.3,
-    disputeRate: 2.3,
-    disputeChange: -15.2,
-    vendorSatisfaction: 4.2,
-    satisfactionChange: 5.1,
+  // Determine period from date range
+  const getPeriod = (range: string) => {
+    switch (range) {
+      case '7': return 'week';
+      case '30': return 'month';
+      case '90': return 'month'; // 3 months
+      case '365': return 'year';
+      default: return 'month';
+    }
   };
 
-  const vendorPerformanceData = [
-    { name: 'Jan', revenue: 3200000, commission: 160000, vendors: 198, orders: 1245 },
-    { name: 'Feb', revenue: 3800000, commission: 190000, vendors: 210, orders: 1456 },
-    { name: 'Mar', revenue: 4100000, commission: 205000, vendors: 225, orders: 1598 },
-    { name: 'Apr', revenue: 4600000, commission: 230000, vendors: 235, orders: 1789 },
-    { name: 'May', revenue: 5200000, commission: 260000, vendors: 242, orders: 1923 },
-    { name: 'Jun', revenue: 5800000, commission: 290000, vendors: 247, orders: 2134 },
-  ];
+  const period = getPeriod(dateRange);
 
-  const topVendorsByRevenue = [
-    { name: 'TechHub Nigeria', revenue: 2100000, commission: 105000, orders: 567, growth: 34.2 },
-    { name: 'Fashion Forward', revenue: 1850000, commission: 92500, orders: 423, growth: 28.7 },
-    { name: 'Home Essentials', revenue: 1620000, commission: 81000, orders: 389, growth: 22.1 },
-    { name: 'Sports Arena', revenue: 1480000, commission: 74000, orders: 312, growth: 19.8 },
-    { name: 'Book Paradise', revenue: 1350000, commission: 67500, orders: 298, growth: 15.3 },
-  ];
+  // API hooks
+  const {
+    data: platformMetrics,
+    isLoading: metricsLoading,
+    error: metricsError,
+  } = usePlatformMetrics({ period });
 
-  const categoryDistribution = [
-    { category: 'Electronics', value: 35, revenue: 15750000 },
-    { category: 'Fashion', value: 25, revenue: 11250000 },
-    { category: 'Home & Garden', value: 18, revenue: 8100000 },
-    { category: 'Sports', value: 12, revenue: 5400000 },
-    { category: 'Books', value: 10, revenue: 4500000 },
-  ];
+  const {
+    data: vendorPerformanceData,
+    isLoading: performanceLoading,
+    error: performanceError,
+  } = useVendorPerformanceData({ period });
 
-  const vendorStatusDistribution = [
-    { status: 'Active', count: 198, percentage: 80.2 },
-    { status: 'Pending', count: 23, percentage: 9.3 },
-    { status: 'Suspended', count: 15, percentage: 6.1 },
-    { status: 'Under Review', count: 11, percentage: 4.5 },
-  ];
+  const {
+    data: topVendorsByRevenue,
+    isLoading: topVendorsLoading,
+    error: topVendorsError,
+  } = useTopVendors({ limit: 5, period, sortBy: 'revenue' });
+
+  const {
+    data: categoryDistribution,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useCategoryDistribution({ period });
+
+  const {
+    data: vendorStatusDistribution,
+    isLoading: statusLoading,
+    error: statusError,
+  } = useVendorStatusDistribution();
+
+  const exportReportMutation = useExportReport();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -113,8 +117,70 @@ export default function ReportsPage() {
   };
 
   const exportReport = (type: string) => {
-    // Mock export functionality
-    console.log(`Exporting ${type} report...`);
+    const reportTypeMap: Record<string, 'revenue' | 'vendors' | 'analytics' | 'issues'> = {
+      'Revenue Report': 'revenue',
+      'Vendor Report': 'vendors',
+      'Analytics Report': 'analytics',
+      'Issues Report': 'issues',
+    };
+
+    exportReportMutation.mutate({
+      reportType: reportTypeMap[type] || 'analytics',
+      format: 'pdf',
+      period: period as any,
+    }, {
+      onSuccess: (data) => {
+        // Create download link
+        const link = document.createElement('a');
+        link.href = data.downloadUrl;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+      onError: (error) => {
+        console.error('Export failed:', error);
+        // TODO: Show error toast/notification
+      },
+    });
+  };
+
+  // Loading state
+  if (metricsLoading || performanceLoading || topVendorsLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Error state
+  if (metricsError || performanceError || topVendorsError) {
+    const error = metricsError || performanceError || topVendorsError;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <ErrorMessage 
+          title="Failed to load reports data" 
+          message={error?.message || 'Unknown error occurred'} 
+        />
+      </div>
+    );
+  }
+
+  // Fallback to empty arrays if data is not available
+  const safeVendorPerformanceData = vendorPerformanceData || [];
+  const safeTopVendors = topVendorsByRevenue || [];
+  const safeCategoryDistribution = categoryDistribution || [];
+  const safeVendorStatusDistribution = vendorStatusDistribution || [];
+  const safePlatformMetrics = platformMetrics || {
+    totalRevenue: 0,
+    revenueGrowth: 0,
+    totalCommission: 0,
+    commissionGrowth: 0,
+    totalVendors: 0,
+    vendorGrowth: 0,
+    totalCustomers: 0,
+    customerGrowth: 0,
   };
 
   return (
@@ -144,9 +210,14 @@ export default function ReportsPage() {
                 <option value='90'>Last 90 days</option>
                 <option value='365'>Last year</option>
               </select>
-              <GlowingButton size='sm' variant='primary'>
+              <GlowingButton 
+                size='sm' 
+                variant='primary'
+                onClick={() => exportReport('Analytics Report')}
+                disabled={exportReportMutation.isPending}
+              >
                 <Download className='h-4 w-4 mr-2' />
-                Export All
+                {exportReportMutation.isPending ? 'Exporting...' : 'Export All'}
               </GlowingButton>
             </div>
           </div>
@@ -164,14 +235,14 @@ export default function ReportsPage() {
               <div className='flex items-center gap-1'>
                 <TrendingUp className='h-4 w-4 text-green-500' />
                 <span className='text-sm font-semibold text-green-500'>
-                  +{platformMetrics.revenueGrowth}%
+                  +{safePlatformMetrics.revenueGrowth}%
                 </span>
               </div>
             </div>
             <div className='space-y-2'>
               <p className='text-sm font-medium text-gray-600'>Total Platform Revenue</p>
               <p className='text-3xl font-bold text-gray-900'>
-                <AnimatedNumber value={platformMetrics.totalRevenue} prefix='₦' />
+                <AnimatedNumber value={safePlatformMetrics.totalRevenue} prefix='₦' />
               </p>
               <p className='text-xs text-gray-500'>vs previous period</p>
             </div>
@@ -187,14 +258,14 @@ export default function ReportsPage() {
               <div className='flex items-center gap-1'>
                 <TrendingUp className='h-4 w-4 text-green-500' />
                 <span className='text-sm font-semibold text-green-500'>
-                  +{platformMetrics.commissionGrowth}%
+                  +{safePlatformMetrics.commissionGrowth}%
                 </span>
               </div>
             </div>
             <div className='space-y-2'>
               <p className='text-sm font-medium text-gray-600'>Total Commission</p>
               <p className='text-3xl font-bold text-gray-900'>
-                <AnimatedNumber value={platformMetrics.totalCommission} prefix='₦' />
+                <AnimatedNumber value={safePlatformMetrics.totalCommission} prefix='₦' />
               </p>
               <p className='text-xs text-gray-500'>Platform earnings</p>
             </div>
@@ -210,14 +281,14 @@ export default function ReportsPage() {
               <div className='flex items-center gap-1'>
                 <TrendingUp className='h-4 w-4 text-green-500' />
                 <span className='text-sm font-semibold text-green-500'>
-                  +{platformMetrics.vendorGrowth}%
+                  +{safePlatformMetrics.vendorGrowth}%
                 </span>
               </div>
             </div>
             <div className='space-y-2'>
               <p className='text-sm font-medium text-gray-600'>Active Vendors</p>
               <p className='text-3xl font-bold text-gray-900'>
-                <AnimatedNumber value={platformMetrics.totalVendors} />
+                <AnimatedNumber value={safePlatformMetrics.totalVendors} />
               </p>
               <p className='text-xs text-gray-500'>Approved & selling</p>
             </div>
@@ -233,14 +304,14 @@ export default function ReportsPage() {
               <div className='flex items-center gap-1'>
                 <TrendingUp className='h-4 w-4 text-green-500' />
                 <span className='text-sm font-semibold text-green-500'>
-                  +{platformMetrics.customerGrowth}%
+                  +{safePlatformMetrics.customerGrowth}%
                 </span>
               </div>
             </div>
             <div className='space-y-2'>
               <p className='text-sm font-medium text-gray-600'>Total Customers</p>
               <p className='text-3xl font-bold text-gray-900'>
-                <AnimatedNumber value={platformMetrics.totalCustomers} />
+                <AnimatedNumber value={safePlatformMetrics.totalCustomers} />
               </p>
               <p className='text-xs text-gray-500'>Registered users</p>
             </div>
@@ -269,7 +340,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <ResponsiveContainer width='100%' height={320}>
-              <AreaChart data={vendorPerformanceData}>
+              <AreaChart data={safeVendorPerformanceData}>
                 <defs>
                   <linearGradient id='colorRevenue' x1='0' y1='0' x2='0' y2='1'>
                     <stop offset='5%' stopColor='#3B82F6' stopOpacity={0.3} />
@@ -312,7 +383,7 @@ export default function ReportsPage() {
               </div>
             </div>
             <div className='space-y-4'>
-              {vendorStatusDistribution.map((item, index) => (
+              {safeVendorStatusDistribution.map((item, index) => (
                 <div key={item.status} className='flex items-center justify-between'>
                   <div className='flex items-center gap-3'>
                     <div
@@ -366,7 +437,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody className='divide-y'>
-                {topVendorsByRevenue.map((vendor, index) => (
+                {safeTopVendors.map((vendor, index) => (
                   <tr key={vendor.name} className='hover:bg-gray-50'>
                     <td className='py-4'>
                       <div className='flex items-center gap-3'>
@@ -404,19 +475,39 @@ export default function ReportsPage() {
 
       {/* Quick Actions */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
-        <GlowingButton variant='primary' className='h-12 justify-center'>
+        <GlowingButton 
+          variant='primary' 
+          className='h-12 justify-center'
+          onClick={() => exportReport('Revenue Report')}
+          disabled={exportReportMutation.isPending}
+        >
           <Download className='h-4 w-4 mr-2' />
-          Revenue Report
+          {exportReportMutation.isPending ? 'Exporting...' : 'Revenue Report'}
         </GlowingButton>
-        <GlowingButton variant='secondary' className='h-12 justify-center'>
+        <GlowingButton 
+          variant='secondary' 
+          className='h-12 justify-center'
+          onClick={() => exportReport('Vendor Report')}
+          disabled={exportReportMutation.isPending}
+        >
           <FileText className='h-4 w-4 mr-2' />
           Vendor Report
         </GlowingButton>
-        <GlowingButton variant='success' className='h-12 justify-center'>
+        <GlowingButton 
+          variant='success' 
+          className='h-12 justify-center'
+          onClick={() => exportReport('Analytics Report')}
+          disabled={exportReportMutation.isPending}
+        >
           <BarChart3 className='h-4 w-4 mr-2' />
           Analytics Report
         </GlowingButton>
-        <GlowingButton variant='danger' className='h-12 justify-center'>
+        <GlowingButton 
+          variant='danger' 
+          className='h-12 justify-center'
+          onClick={() => exportReport('Issues Report')}
+          disabled={exportReportMutation.isPending}
+        >
           <AlertTriangle className='h-4 w-4 mr-2' />
           Issues Report
         </GlowingButton>

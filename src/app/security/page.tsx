@@ -275,12 +275,14 @@ export default function SecurityPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'open':
       case 'active':
         return 'bg-red-100 text-red-800';
       case 'investigating':
         return 'bg-yellow-100 text-yellow-800';
       case 'resolved':
         return 'bg-green-100 text-green-800';
+      case 'dismissed':
       case 'false_positive':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -493,10 +495,10 @@ export default function SecurityPage() {
                 className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
               >
                 <option value='all'>All Status</option>
-                <option value='active'>Active</option>
+                <option value='open'>Open</option>
                 <option value='investigating'>Investigating</option>
                 <option value='resolved'>Resolved</option>
-                <option value='false_positive'>False Positive</option>
+                <option value='dismissed'>Dismissed</option>
               </select>
             </div>
 

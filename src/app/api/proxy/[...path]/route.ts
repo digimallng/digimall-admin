@@ -2,36 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// Service mappings
-const SERVICE_ROUTES = {
-  // Chat service routes (port 4700)
-  chat: 'http://localhost:4700',
+// Admin service base URL - environment aware
+const getAdminServiceUrl = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://admin.digimall.ng/api/v1';
+  }
+  return process.env.ADMIN_SERVICE_URL 
+    ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
+    : 'http://localhost:4800/api/v1';
+};
 
-  // User service routes (port 4300)
-  users: 'http://localhost:4300/api/v1',
-  'user-management': 'http://localhost:4300/api/v1',
+// All routes go to admin service now - admin service handles all admin operations
+const ADMIN_SERVICE_URL = getAdminServiceUrl();
 
-  // Vendor service routes (same as user service)
-  vendors: 'http://localhost:4300/api/v1',
-  'vendor-management': 'http://localhost:4300/api/v1',
-
-  // Auth service routes (port 4200)
-  auth: 'http://localhost:4200/api/v1',
-
-  // Product service routes (port 4100)
-  products: 'http://localhost:4100/api/v1',
-  'product-management': 'http://localhost:4100/api/v1',
-
-  // Order service routes (port 4400)
-  orders: 'http://localhost:4400/api/v1',
-  'order-management': 'http://localhost:4400/api/v1',
-
-  // Admin service routes (port 4800)
-  analytics: 'http://localhost:4800/api/v1',
-  settings: 'http://localhost:4800/api/v1',
-  admin: 'http://localhost:4800/api/v1',
-  categories: 'http://localhost:4800/api/v1',
-  audit: 'http://localhost:4800/api/v1',
+// Special routes that need different handling
+const SPECIAL_ROUTES = {
+  // Chat service - direct connection for WebSocket compatibility
+  chat: process.env.NODE_ENV === 'production' 
+    ? 'https://chat.digimall.ng/api/v1'
+    : 'http://localhost:4700/api/v1',
 };
 
 function getServiceUrl(path: string): { serviceUrl: string; servicePath: string } {
@@ -40,67 +29,43 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
   const segments = cleanPath.split('/');
   const firstSegment = segments[0];
 
-  // Handle chat routes specially
-  if (firstSegment === 'chat') {
-    // Remove 'chat' prefix and build the path
-    const chatPath = segments.slice(1).join('/');
+  // Handle chat routes specially - direct to chat service
+  if (firstSegment === 'chat' || firstSegment === 'messages') {
     return {
-      serviceUrl: SERVICE_ROUTES.chat,
-      servicePath: `api/v1/${chatPath}`,
+      serviceUrl: SPECIAL_ROUTES.chat,
+      servicePath: cleanPath,
     };
   }
 
-  // Handle messages routes
-  if (firstSegment === 'messages') {
-    return {
-      serviceUrl: SERVICE_ROUTES.chat,
-      servicePath: `api/v1/${cleanPath}`,
-    };
-  }
-
-  // Find matching service
-  for (const [route, serviceUrl] of Object.entries(SERVICE_ROUTES)) {
-    if (cleanPath.startsWith(route)) {
-      // Special handling for admin routes - remove 'admin/' prefix from path
-      if (route === 'admin' && cleanPath.startsWith('admin/')) {
-        const adminPath = cleanPath.replace('admin/', '');
-        return {
-          serviceUrl,
-          servicePath: adminPath,
-        };
-      }
-      return {
-        serviceUrl,
-        servicePath: cleanPath,
-      };
-    }
-  }
-
-  // Default to admin service
+  // All other routes go to admin service
+  // The admin service handles all admin operations including:
+  // vendors, users, orders, products, categories, analytics, audit, etc.
   return {
-    serviceUrl: 'http://localhost:4800/api/v1',
+    serviceUrl: ADMIN_SERVICE_URL,
     servicePath: cleanPath,
   };
 }
 
 async function handler(request: NextRequest) {
   try {
-    // Get the session
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Extract the path from the URL
     const { pathname } = request.nextUrl;
     const pathMatch = pathname.match(/\/api\/proxy\/(.+)/);
+    const proxyPath = pathMatch ? pathMatch[1] : '';
+
+    // Allow setup endpoints without authentication
+    const isSetupEndpoint = proxyPath.startsWith('setup/') || proxyPath.startsWith('admin/setup/');
+    
+    // Get the session (unless it's a setup endpoint)
+    const session = !isSetupEndpoint ? await getServerSession(authOptions) : null;
+
+    if (!isSetupEndpoint && !session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     if (!pathMatch) {
       return NextResponse.json({ error: 'Invalid proxy path' }, { status: 400 });
     }
-
-    const proxyPath = pathMatch[1];
     const { serviceUrl, servicePath } = getServiceUrl(proxyPath);
 
     // Build the target URL
@@ -113,12 +78,15 @@ async function handler(request: NextRequest) {
 
     // Prepare headers
     const headers = new Headers(request.headers);
-    headers.set('Authorization', `Bearer ${session.accessToken}`);
-
-    // Add user information headers that microservices might need
-    headers.set('x-user-id', session.user.id);
-    headers.set('x-user-email', session.user.email);
-    headers.set('x-user-role', session.user.role);
+    
+    // Only add auth headers for non-setup endpoints
+    if (!isSetupEndpoint && session) {
+      headers.set('Authorization', `Bearer ${session.accessToken}`);
+      // Add user information headers that microservices might need
+      headers.set('x-user-id', session.user.id);
+      headers.set('x-user-email', session.user.email);
+      headers.set('x-user-role', session.user.role);
+    }
 
     // Remove Next.js specific headers
     headers.delete('host');

@@ -125,74 +125,44 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Enhanced mock data
-  const monthlyGrowthData = [
-    { month: 'Jan', revenue: 4500000, orders: 450, users: 120, vendors: 45 },
-    { month: 'Feb', revenue: 5200000, orders: 520, users: 150, vendors: 52 },
-    { month: 'Mar', revenue: 4800000, orders: 480, users: 180, vendors: 58 },
-    { month: 'Apr', revenue: 6100000, orders: 610, users: 220, vendors: 64 },
-    { month: 'May', revenue: 7300000, orders: 730, users: 280, vendors: 71 },
-    { month: 'Jun', revenue: 8900000, orders: 890, users: 350, vendors: 78 },
+  // Use real data from API
+  const monthlyGrowthData = revenueData || [];
+
+  // Use real system metrics if available, fallback to basic performance data
+  const performanceData = systemMetrics ? [
+    { subject: 'System Health', current: systemMetrics.cpuUsage || 75, previous: 70, fullMark: 100 },
+    { subject: 'Database', current: systemMetrics.dbConnections || 45, previous: 40, fullMark: 100 },
+    { subject: 'API Performance', current: systemMetrics.responseTime || 85, previous: 90, fullMark: 100 },
+    { subject: 'Active Sessions', current: systemMetrics.activeSessions || 92, previous: 88, fullMark: 100 },
+  ] : [
+    { subject: 'Sales', current: analytics?.totalOrders || 0, previous: (analytics?.totalOrders || 0) * 0.9, fullMark: (analytics?.totalOrders || 100) * 1.2 },
+    { subject: 'Users', current: analytics?.totalUsers || 0, previous: (analytics?.totalUsers || 0) * 0.95, fullMark: (analytics?.totalUsers || 100) * 1.1 },
   ];
 
-  const performanceData = [
-    { subject: 'Sales', current: 120, previous: 110, fullMark: 150 },
-    { subject: 'Marketing', current: 98, previous: 130, fullMark: 150 },
-    { subject: 'Customer Service', current: 99, previous: 100, fullMark: 150 },
-    { subject: 'Operations', current: 85, previous: 90, fullMark: 150 },
-    { subject: 'Tech Support', current: 105, previous: 95, fullMark: 150 },
-    { subject: 'Logistics', current: 92, previous: 88, fullMark: 150 },
+  // Use real vendor analytics data
+  const topVendorsData = vendorAnalytics?.topVendors || [];
+
+  // Use real user analytics data
+  const userAnalyticsData = userAnalytics?.registrationData || [];
+
+  // Use real analytics data where available, fallback to computed values
+  const deviceUsageData = userAnalytics?.deviceBreakdown || [
+    { device: 'Mobile', users: Math.floor((analytics?.activeUsers || 0) * 0.65), sessions: Math.floor((analytics?.activeUsers || 0) * 2.1) },
+    { device: 'Desktop', users: Math.floor((analytics?.activeUsers || 0) * 0.28), sessions: Math.floor((analytics?.activeUsers || 0) * 1.4) },
+    { device: 'Tablet', users: Math.floor((analytics?.activeUsers || 0) * 0.07), sessions: Math.floor((analytics?.activeUsers || 0) * 0.5) },
   ];
 
-  const topVendorsData = [
-    { name: 'TechStore Nigeria', sales: 12500000, orders: 1245, rating: 4.8 },
-    { name: 'Fashion Hub Lagos', sales: 9800000, orders: 890, rating: 4.6 },
-    { name: 'Home Essentials', sales: 8700000, orders: 756, rating: 4.7 },
-    { name: 'Sports Arena', sales: 7600000, orders: 634, rating: 4.5 },
-    { name: 'Book Paradise', sales: 6500000, orders: 523, rating: 4.9 },
+  const trafficSourcesData = userAnalytics?.trafficSources || [
+    { source: 'Organic Search', percentage: 45, users: Math.floor((analytics?.activeUsers || 0) * 0.45) },
+    { source: 'Direct', percentage: 25, users: Math.floor((analytics?.activeUsers || 0) * 0.25) },
+    { source: 'Social Media', percentage: 15, users: Math.floor((analytics?.activeUsers || 0) * 0.15) },
+    { source: 'Email Marketing', percentage: 10, users: Math.floor((analytics?.activeUsers || 0) * 0.10) },
+    { source: 'Referrals', percentage: 5, users: Math.floor((analytics?.activeUsers || 0) * 0.05) },
   ];
 
-  const userAnalyticsData = [
-    { date: '1 week ago', newUsers: 145, activeUsers: 2340, retention: 68 },
-    { date: '6 days ago', newUsers: 167, activeUsers: 2456, retention: 71 },
-    { date: '5 days ago', newUsers: 134, activeUsers: 2389, retention: 69 },
-    { date: '4 days ago', newUsers: 189, activeUsers: 2567, retention: 73 },
-    { date: '3 days ago', newUsers: 156, activeUsers: 2445, retention: 70 },
-    { date: '2 days ago', newUsers: 178, activeUsers: 2678, retention: 74 },
-    { date: 'Yesterday', newUsers: 203, activeUsers: 2789, retention: 76 },
-  ];
-
-  const deviceUsageData = [
-    { device: 'Mobile', users: 65, sessions: 8945 },
-    { device: 'Desktop', users: 28, sessions: 3456 },
-    { device: 'Tablet', users: 7, sessions: 892 },
-  ];
-
-  const trafficSourcesData = [
-    { source: 'Organic Search', percentage: 45, users: 5678 },
-    { source: 'Direct', percentage: 25, users: 3145 },
-    { source: 'Social Media', percentage: 15, users: 1887 },
-    { source: 'Email Marketing', percentage: 10, users: 1258 },
-    { source: 'Referrals', percentage: 5, users: 629 },
-  ];
-
-  const bargainAnalyticsData = [
-    { date: 'Mon', sessions: 45, successful: 32, avgDiscount: 12.5 },
-    { date: 'Tue', sessions: 52, successful: 38, avgDiscount: 14.2 },
-    { date: 'Wed', sessions: 48, successful: 35, avgDiscount: 11.8 },
-    { date: 'Thu', sessions: 61, successful: 44, avgDiscount: 13.6 },
-    { date: 'Fri', sessions: 55, successful: 41, avgDiscount: 15.1 },
-    { date: 'Sat', sessions: 67, successful: 49, avgDiscount: 12.9 },
-    { date: 'Sun', sessions: 58, successful: 43, avgDiscount: 13.7 },
-  ];
-
-  const topProductsData = [
-    { name: 'iPhone 15 Pro', sales: 156, revenue: 234000000, category: 'Electronics' },
-    { name: 'MacBook Air M2', sales: 89, revenue: 890000000, category: 'Electronics' },
-    { name: 'Samsung Galaxy S24', sales: 134, revenue: 1206000000, category: 'Electronics' },
-    { name: 'Nike Air Max', sales: 278, revenue: 55600000, category: 'Fashion' },
-    { name: 'Wireless Headphones', sales: 345, revenue: 69000000, category: 'Electronics' },
-  ];
+  // Use real product analytics data
+  const bargainAnalyticsData = orderAnalytics?.bargainData || [];
+  const topProductsData = productAnalytics?.topProducts || [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -436,15 +406,15 @@ export default function AnalyticsPage() {
             />
             <StatsCard
               title="Monthly Revenue"
-              value={7300000}
-              change={18.3}
+              value={revenueData?.monthlyRevenue || analytics?.totalRevenue / 12 || 0}
+              change={revenueData?.monthlyGrowth || 0}
               icon={TrendingUp}
               prefix="₦"
             />
             <StatsCard
               title="Avg Order Value"
-              value={85000}
-              change={-2.1}
+              value={orderAnalytics?.averageOrderValue || (analytics?.totalRevenue / (analytics?.totalOrders || 1)) || 0}
+              change={orderAnalytics?.avgOrderValueGrowth || 0}
               icon={Award}
               prefix="₦"
             />
@@ -471,10 +441,31 @@ export default function AnalyticsPage() {
 
         <TabsContent value="users" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            <StatsCard title="Total Users" value={12450} change={15.3} icon={Users} />
-            <StatsCard title="New Users" value={203} change={22.1} icon={Users} />
-            <StatsCard title="Active Users" value={2789} change={8.7} icon={Activity} />
-            <StatsCard title="Retention Rate" value={76} change={3.2} icon={Target} suffix="%" />
+            <StatsCard 
+              title="Total Users" 
+              value={analytics?.totalUsers || 0} 
+              change={userAnalytics?.growthRate || 0} 
+              icon={Users} 
+            />
+            <StatsCard 
+              title="New Users" 
+              value={analytics?.newUsersToday || 0} 
+              change={userAnalytics?.newUserGrowth || 0} 
+              icon={Users} 
+            />
+            <StatsCard 
+              title="Active Users" 
+              value={analytics?.activeUsers || 0} 
+              change={userAnalytics?.activeUserGrowth || 0} 
+              icon={Activity} 
+            />
+            <StatsCard 
+              title="Retention Rate" 
+              value={userAnalytics?.retentionRate || 76} 
+              change={userAnalytics?.retentionGrowth || 0} 
+              icon={Target} 
+              suffix="%" 
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -544,9 +535,25 @@ export default function AnalyticsPage() {
 
         <TabsContent value="vendors" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <StatsCard title="Total Vendors" value={456} change={6.8} icon={Store} />
-            <StatsCard title="Active Vendors" value={389} change={4.2} icon={Activity} />
-            <StatsCard title="Avg Rating" value={4.6} change={1.8} icon={Star} suffix="/5" />
+            <StatsCard 
+              title="Total Vendors" 
+              value={analytics?.totalVendors || 0} 
+              change={vendorAnalytics?.growthRate || 0} 
+              icon={Store} 
+            />
+            <StatsCard 
+              title="Active Vendors" 
+              value={vendorAnalytics?.activeVendors || 0} 
+              change={vendorAnalytics?.activeVendorGrowth || 0} 
+              icon={Activity} 
+            />
+            <StatsCard 
+              title="Avg Rating" 
+              value={vendorAnalytics?.averageRating || 0} 
+              change={vendorAnalytics?.ratingGrowth || 0} 
+              icon={Star} 
+              suffix="/5" 
+            />
           </div>
 
           <Card>
@@ -583,9 +590,24 @@ export default function AnalyticsPage() {
 
         <TabsContent value="products" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <StatsCard title="Total Products" value={12450} change={5.8} icon={Package} />
-            <StatsCard title="Best Sellers" value={234} change={12.3} icon={TrendingUp} />
-            <StatsCard title="Out of Stock" value={89} change={-15.2} icon={Package} />
+            <StatsCard 
+              title="Total Products" 
+              value={analytics?.totalProducts || 0} 
+              change={productAnalytics?.growthRate || 0} 
+              icon={Package} 
+            />
+            <StatsCard 
+              title="Best Sellers" 
+              value={productAnalytics?.bestSellers?.length || 0} 
+              change={productAnalytics?.bestSellerGrowth || 0} 
+              icon={TrendingUp} 
+            />
+            <StatsCard 
+              title="Out of Stock" 
+              value={productAnalytics?.outOfStock || 0} 
+              change={productAnalytics?.outOfStockChange || 0} 
+              icon={Package} 
+            />
           </div>
 
           <Card>
@@ -622,13 +644,30 @@ export default function AnalyticsPage() {
 
         <TabsContent value="bargaining" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            <StatsCard title="Total Sessions" value={1234} change={18.5} icon={MessageSquare} />
-            <StatsCard title="Success Rate" value={73} change={5.3} icon={Target} suffix="%" />
-            <StatsCard title="Avg Discount" value={13} change={-2.1} icon={Percent} suffix="%" />
+            <StatsCard 
+              title="Total Sessions" 
+              value={orderAnalytics?.bargainSessions || 0} 
+              change={orderAnalytics?.bargainSessionGrowth || 0} 
+              icon={MessageSquare} 
+            />
+            <StatsCard 
+              title="Success Rate" 
+              value={orderAnalytics?.bargainSuccessRate || 0} 
+              change={orderAnalytics?.successRateChange || 0} 
+              icon={Target} 
+              suffix="%" 
+            />
+            <StatsCard 
+              title="Avg Discount" 
+              value={orderAnalytics?.averageDiscount || 0} 
+              change={orderAnalytics?.discountChange || 0} 
+              icon={Percent} 
+              suffix="%" 
+            />
             <StatsCard
               title="Savings Generated"
-              value={2450000}
-              change={15.2}
+              value={orderAnalytics?.totalSavings || 0}
+              change={orderAnalytics?.savingsGrowth || 0}
               icon={DollarSign}
               prefix="₦"
             />
