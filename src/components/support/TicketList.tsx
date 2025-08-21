@@ -48,8 +48,36 @@ export function TicketList({
 
   const bulkActionMutation = useBulkTicketAction();
 
-  const tickets = ticketsData?.data || [];
-  const pagination = ticketsData?.pagination;
+  // Handle different possible data structures from API
+  let tickets = [];
+  let pagination = null;
+
+  if (ticketsData) {
+    // Check if data has expected paginated structure
+    if (Array.isArray(ticketsData?.data)) {
+      tickets = ticketsData.data;
+      pagination = ticketsData.pagination;
+    }
+    // Check if data is directly an array
+    else if (Array.isArray(ticketsData)) {
+      tickets = ticketsData;
+    }
+    // Check if data has tickets property (alternative structure)
+    else if (Array.isArray(ticketsData?.tickets)) {
+      tickets = ticketsData.tickets;
+      pagination = {
+        page: ticketsData.page || 1,
+        limit: ticketsData.limit || 10,
+        total: ticketsData.total || tickets.length,
+        totalPages: ticketsData.pages || Math.ceil((ticketsData.total || tickets.length) / (ticketsData.limit || 10))
+      };
+    }
+    // Check if it's a single ticket wrapped in an object
+    else if (ticketsData?.id) {
+      tickets = [ticketsData];
+    }
+  }
+
 
   const handleFilterChange = (key: keyof TicketFilters, value: any) => {
     setFilters(prev => ({

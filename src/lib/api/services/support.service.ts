@@ -35,7 +35,7 @@ export class SupportService {
   }
 
   async getTicketDetails(ticketId: string): Promise<SupportTicket> {
-    return apiClient.get<SupportTicket>(`/customer-support/tickets/${ticketId}`);
+    return apiClient.get<SupportTicket>(`/admin/customer-support/tickets/${ticketId}`);
   }
 
   async createTicket(data: CreateTicketRequest, createdBy?: string): Promise<SupportTicket> {
