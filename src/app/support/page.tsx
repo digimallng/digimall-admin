@@ -98,7 +98,6 @@ export default function SupportPage() {
           <PageHeader
             title="Customer Support"
             description="Comprehensive support management and customer service tools"
-            icon={Headphones}
             actions={[
               {
                 label: 'Export Report',

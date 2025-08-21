@@ -25,13 +25,13 @@ export class SupportService {
   
   async getDashboard(adminId?: string): Promise<SupportDashboard> {
     const params = adminId ? { adminId } : {};
-    return apiClient.get<SupportDashboard>('/customer-support/dashboard', params);
+    return apiClient.get<SupportDashboard>('/admin/customer-support/dashboard', params);
   }
 
   // ===== TICKET MANAGEMENT =====
 
   async getTickets(filters?: TicketFilters): Promise<PaginatedResponse<SupportTicket>> {
-    return apiClient.get<PaginatedResponse<SupportTicket>>('/customer-support/tickets', filters);
+    return apiClient.get<PaginatedResponse<SupportTicket>>('/admin/customer-support/tickets', filters);
   }
 
   async getTicketDetails(ticketId: string): Promise<SupportTicket> {
@@ -40,7 +40,7 @@ export class SupportService {
 
   async createTicket(data: CreateTicketRequest, createdBy?: string): Promise<SupportTicket> {
     const params = createdBy ? { createdBy } : {};
-    return apiClient.post<SupportTicket>('/customer-support/tickets', data, params);
+    return apiClient.post<SupportTicket>('/admin/customer-support/tickets', data, params);
   }
 
   async updateTicket(
@@ -123,7 +123,7 @@ export class SupportService {
   ): Promise<{ success: boolean; affectedTickets: string[]; errors?: string[] }> {
     const params = performedBy ? { performedBy } : {};
     return apiClient.post(
-      '/customer-support/tickets/bulk-action',
+      '/admin/customer-support/tickets/bulk-action',
       data,
       params
     );
@@ -132,7 +132,7 @@ export class SupportService {
   // ===== AGENT MANAGEMENT =====
 
   async getAgents(filters?: AgentFilters): Promise<PaginatedResponse<SupportAgent>> {
-    return apiClient.get<PaginatedResponse<SupportAgent>>('/customer-support/agents', filters);
+    return apiClient.get<PaginatedResponse<SupportAgent>>('/admin/customer-support/agents', filters);
   }
 
   async getAgentDetails(agentId: string): Promise<SupportAgent> {
@@ -172,7 +172,7 @@ export class SupportService {
   // ===== TEAM MANAGEMENT =====
 
   async getTeams(query?: Record<string, any>): Promise<PaginatedResponse<SupportTeam>> {
-    return apiClient.get<PaginatedResponse<SupportTeam>>('/customer-support/teams', query);
+    return apiClient.get<PaginatedResponse<SupportTeam>>('/admin/customer-support/teams', query);
   }
 
   async getTeamDetails(teamId: string): Promise<SupportTeam> {
@@ -201,7 +201,7 @@ export class SupportService {
   // ===== ANALYTICS =====
 
   async getAnalyticsOverview(query?: SupportAnalyticsQuery): Promise<SupportAnalytics> {
-    return apiClient.get<SupportAnalytics>('/customer-support/analytics/overview', query);
+    return apiClient.get<SupportAnalytics>('/admin/customer-support/analytics/overview', query);
   }
 
   async getTicketAnalytics(query?: SupportAnalyticsQuery): Promise<{
@@ -228,7 +228,7 @@ export class SupportService {
       percentage: number;
     }>;
   }> {
-    return apiClient.get('/customer-support/analytics/tickets', query);
+    return apiClient.get('/admin/customer-support/analytics/tickets', query);
   }
 
   async getPerformanceAnalytics(query?: SupportAnalyticsQuery): Promise<{
@@ -258,7 +258,7 @@ export class SupportService {
       customerSatisfactionScore: number;
     };
   }> {
-    return apiClient.get('/customer-support/analytics/performance', query);
+    return apiClient.get('/admin/customer-support/analytics/performance', query);
   }
 
   async getSatisfactionAnalytics(query?: SupportAnalyticsQuery): Promise<{
@@ -284,7 +284,7 @@ export class SupportService {
       totalRatings: number;
     }>;
   }> {
-    return apiClient.get('/customer-support/analytics/satisfaction', query);
+    return apiClient.get('/admin/customer-support/analytics/satisfaction', query);
   }
 
   async getSLAAnalytics(query?: SupportAnalyticsQuery): Promise<{
@@ -311,7 +311,7 @@ export class SupportService {
       avgResolutionTime: number;
     }>;
   }> {
-    return apiClient.get('/customer-support/analytics/sla', query);
+    return apiClient.get('/admin/customer-support/analytics/sla', query);
   }
 
   async getChannelAnalytics(query?: SupportAnalyticsQuery): Promise<{
@@ -334,7 +334,7 @@ export class SupportService {
       satisfactionRating: number;
     }>;
   }> {
-    return apiClient.get('/customer-support/analytics/channels', query);
+    return apiClient.get('/admin/customer-support/analytics/channels', query);
   }
 
   // ===== KNOWLEDGE BASE =====
@@ -348,7 +348,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<KnowledgeBaseArticle>> {
     return apiClient.get<PaginatedResponse<KnowledgeBaseArticle>>(
-      '/customer-support/knowledge-base',
+      '/admin/customer-support/knowledge-base',
       query
     );
   }
@@ -363,7 +363,7 @@ export class SupportService {
     relatedFAQs?: string[];
     audience?: 'customer' | 'agent' | 'both';
   }): Promise<KnowledgeBaseArticle> {
-    return apiClient.post<KnowledgeBaseArticle>('/customer-support/knowledge-base', data);
+    return apiClient.post<KnowledgeBaseArticle>('/admin/customer-support/knowledge-base', data);
   }
 
   async updateKnowledgeBaseArticle(
@@ -387,7 +387,7 @@ export class SupportService {
     limit?: number;
   }): Promise<KnowledgeBaseArticle[]> {
     return apiClient.get<KnowledgeBaseArticle[]>(
-      '/customer-support/knowledge-base/search',
+      '/admin/customer-support/knowledge-base/search',
       query
     );
   }
@@ -400,7 +400,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<SLAConfiguration>> {
     return apiClient.get<PaginatedResponse<SLAConfiguration>>(
-      '/customer-support/sla-configurations',
+      '/admin/customer-support/sla-configurations',
       query
     );
   }
@@ -417,7 +417,7 @@ export class SupportService {
     isActive?: boolean;
     businessHoursOnly?: boolean;
   }): Promise<SLAConfiguration> {
-    return apiClient.post<SLAConfiguration>('/customer-support/sla-configurations', data);
+    return apiClient.post<SLAConfiguration>('/admin/customer-support/sla-configurations', data);
   }
 
   async updateSLAConfiguration(
@@ -448,7 +448,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<CustomerSatisfactionRating>> {
     return apiClient.get<PaginatedResponse<CustomerSatisfactionRating>>(
-      '/customer-support/satisfaction-ratings',
+      '/admin/customer-support/satisfaction-ratings',
       query
     );
   }
@@ -463,7 +463,7 @@ export class SupportService {
     wouldRecommend?: boolean;
   }): Promise<CustomerSatisfactionRating> {
     return apiClient.post<CustomerSatisfactionRating>(
-      '/customer-support/satisfaction-ratings',
+      '/admin/customer-support/satisfaction-ratings',
       data
     );
   }
@@ -478,7 +478,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<ResponseTemplate>> {
     return apiClient.get<PaginatedResponse<ResponseTemplate>>(
-      '/customer-support/templates',
+      '/admin/customer-support/templates',
       query
     );
   }
@@ -492,7 +492,7 @@ export class SupportService {
     variables?: string[];
     tags?: string[];
   }): Promise<ResponseTemplate> {
-    return apiClient.post<ResponseTemplate>('/customer-support/templates', data);
+    return apiClient.post<ResponseTemplate>('/admin/customer-support/templates', data);
   }
 
   async updateResponseTemplate(
@@ -557,7 +557,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<SupportTicket>> {
     return apiClient.get<PaginatedResponse<SupportTicket>>(
-      '/customer-support/queue/unassigned',
+      '/admin/customer-support/queue/unassigned',
       query
     );
   }
@@ -571,7 +571,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<SupportTicket>> {
     return apiClient.get<PaginatedResponse<SupportTicket>>(
-      '/customer-support/queue/escalated',
+      '/admin/customer-support/queue/escalated',
       query
     );
   }
@@ -586,7 +586,7 @@ export class SupportService {
     limit?: number;
   }): Promise<PaginatedResponse<SupportTicket>> {
     return apiClient.get<PaginatedResponse<SupportTicket>>(
-      '/customer-support/queue/overdue',
+      '/admin/customer-support/queue/overdue',
       query
     );
   }
@@ -605,7 +605,7 @@ export class SupportService {
       businessHoursOnly?: boolean;
     }>;
   }): Promise<{ success: boolean; configuration: any }> {
-    return apiClient.post('/customer-support/auto-assignment/configure', data);
+    return apiClient.post('/admin/customer-support/auto-assignment/configure', data);
   }
 
   // ===== REPORTS & EXPORTS =====
@@ -616,7 +616,7 @@ export class SupportService {
     format?: 'csv' | 'xlsx' | 'pdf';
     includeDetails?: boolean;
   }): Promise<{ reportUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/reports/ticket-summary', query);
+    return apiClient.get('/admin/customer-support/reports/ticket-summary', query);
   }
 
   async generateAgentPerformanceReport(query?: {
@@ -625,7 +625,7 @@ export class SupportService {
     dateTo?: string;
     format?: 'csv' | 'xlsx' | 'pdf';
   }): Promise<{ reportUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/reports/agent-performance', query);
+    return apiClient.get('/admin/customer-support/reports/agent-performance', query);
   }
 
   async generateSLAComplianceReport(query?: {
@@ -633,7 +633,7 @@ export class SupportService {
     dateTo?: string;
     format?: 'csv' | 'xlsx' | 'pdf';
   }): Promise<{ reportUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/reports/sla-compliance', query);
+    return apiClient.get('/admin/customer-support/reports/sla-compliance', query);
   }
 
   async generateCustomerSatisfactionReport(query?: {
@@ -641,7 +641,7 @@ export class SupportService {
     dateTo?: string;
     format?: 'csv' | 'xlsx' | 'pdf';
   }): Promise<{ reportUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/reports/customer-satisfaction', query);
+    return apiClient.get('/admin/customer-support/reports/customer-satisfaction', query);
   }
 
   async exportTicketsData(query?: {
@@ -649,7 +649,7 @@ export class SupportService {
     format?: 'csv' | 'xlsx';
     includeResponses?: boolean;
   }): Promise<{ downloadUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/export/tickets', query);
+    return apiClient.get('/admin/customer-support/export/tickets', query);
   }
 
   async exportAnalyticsData(query?: {
@@ -658,7 +658,7 @@ export class SupportService {
     dateTo?: string;
     format?: 'csv' | 'xlsx';
   }): Promise<{ downloadUrl: string; expiresAt: string }> {
-    return apiClient.get('/customer-support/export/analytics', query);
+    return apiClient.get('/admin/customer-support/export/analytics', query);
   }
 
   // ===== NOTIFICATIONS =====
@@ -690,7 +690,7 @@ export class SupportService {
       notifyTeam: boolean;
     };
   }): Promise<{ success: boolean; configuration: any }> {
-    return apiClient.post('/customer-support/notifications/configure', data);
+    return apiClient.post('/admin/customer-support/notifications/configure', data);
   }
 
   // ===== INTEGRATIONS =====
@@ -705,7 +705,7 @@ export class SupportService {
     }>;
     overall: 'healthy' | 'degraded' | 'down';
   }> {
-    return apiClient.get('/customer-support/integrations/status');
+    return apiClient.get('/admin/customer-support/integrations/status');
   }
 
   async syncIntegrations(data?: {
@@ -720,7 +720,7 @@ export class SupportService {
       syncedAt: string;
     }>;
   }> {
-    return apiClient.post('/customer-support/integrations/sync', data);
+    return apiClient.post('/admin/customer-support/integrations/sync', data);
   }
 }
 
