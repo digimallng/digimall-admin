@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         password,
         firstName,
         lastName,
-        setupToken: 'DIGIMALL_SUPER_SETUP_2024_SECURE_TOKEN_X9K2M8P5'
+        setupToken: process.env.SETUP_TOKEN || 'DIGIMALL_SUPER_SETUP_2024_SECURE_TOKEN_X9K2M8P5'
       }),
     });
 

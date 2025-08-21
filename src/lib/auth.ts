@@ -42,6 +42,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          console.log('Attempting login with:', {
+            url: `${API_BASE_URL}/auth/login`,
+            email: credentials.email,
+            passwordLength: credentials.password.length
+          });
+
           const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
@@ -53,8 +59,11 @@ export const authOptions: NextAuthOptions = {
             }),
           });
 
+          console.log('Login response status:', response.status);
+
           if (!response.ok) {
             const error = await response.text();
+            console.log('Login error response:', error);
             throw new Error(error || 'Authentication failed');
           }
 

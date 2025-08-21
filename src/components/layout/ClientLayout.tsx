@@ -18,10 +18,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Don't render layout for auth pages
+  // Don't render layout for auth pages or setup pages
   const isAuthPage = pathname.startsWith('/auth');
+  const isSetupPage = pathname.startsWith('/setup');
 
-  if (isAuthPage) {
+  if (isAuthPage || isSetupPage) {
     return <>{children}</>;
   }
 

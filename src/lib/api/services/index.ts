@@ -11,6 +11,7 @@ export { escrowService, EscrowService } from './escrow.service';
 export { financialService, FinancialService } from './financial.service';
 export { securityService, SecurityService } from './security.service';
 export { systemService, SystemService } from './system.service';
+export { supportService, SupportService } from './support.service';
 
 // Export API client and types
 export { apiClient, api, ApiError } from '../client';

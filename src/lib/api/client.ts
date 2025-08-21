@@ -127,8 +127,7 @@ class AxiosApiClient {
           config.headers.Authorization = `Bearer ${session.accessToken}`;
         }
 
-        // Add request ID for tracking
-        config.headers['X-Request-ID'] = `admin-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+        // Request ID header removed to avoid CORS issues
         
         // Log request in development
         if (process.env.NODE_ENV === 'development') {

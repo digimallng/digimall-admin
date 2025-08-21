@@ -452,155 +452,155 @@ export default function PlansPage() {
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {plans.map(plan => {
-          const IconComponent = getIconComponent(plan.icon);
-          return (
-            <Card
-              key={plan.id}
-              className={cn(
-                'relative overflow-hidden transition-all duration-200 hover:shadow-lg',
-                plan.isPopular && 'ring-2 ring-blue-500',
-                plan.isFeatured && 'ring-2 ring-purple-500'
-              )}
-            >
-              {plan.badge && (
-                <div
-                  className={cn(
-                    'absolute top-4 right-4 rounded-full px-3 py-1 text-xs font-semibold',
-                    plan.isPopular
-                      ? 'bg-blue-100 text-blue-800'
-                      : plan.isFeatured
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-gray-100 text-gray-800'
-                  )}
-                >
-                  {plan.badge}
-                </div>
-              )}
+      {/*<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">*/}
+      {/*  {plans.map(plan => {*/}
+      {/*    const IconComponent = getIconComponent(plan.icon);*/}
+      {/*    return (*/}
+      {/*      <Card*/}
+      {/*        key={plan.id}*/}
+      {/*        className={cn(*/}
+      {/*          'relative overflow-hidden transition-all duration-200 hover:shadow-lg',*/}
+      {/*          plan.isPopular && 'ring-2 ring-blue-500',*/}
+      {/*          plan.isFeatured && 'ring-2 ring-purple-500'*/}
+      {/*        )}*/}
+      {/*      >*/}
+      {/*        {plan.badge && (*/}
+      {/*          <div*/}
+      {/*            className={cn(*/}
+      {/*              'absolute top-4 right-4 rounded-full px-3 py-1 text-xs font-semibold',*/}
+      {/*              plan.isPopular*/}
+      {/*                ? 'bg-blue-100 text-blue-800'*/}
+      {/*                : plan.isFeatured*/}
+      {/*                  ? 'bg-purple-100 text-purple-800'*/}
+      {/*                  : 'bg-gray-100 text-gray-800'*/}
+      {/*            )}*/}
+      {/*          >*/}
+      {/*            {plan.badge}*/}
+      {/*          </div>*/}
+      {/*        )}*/}
 
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-lg text-white"
-                    style={{ backgroundColor: plan.color || '#3B82F6' }}
-                  >
-                    <IconComponent className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-                    <p className="text-sm text-gray-600">{plan.description}</p>
-                  </div>
-                </div>
-              </CardHeader>
+      {/*        <CardHeader className="pb-4">*/}
+      {/*          <div className="flex items-center gap-3">*/}
+      {/*            <div*/}
+      {/*              className="flex h-12 w-12 items-center justify-center rounded-lg text-white"*/}
+      {/*              style={{ backgroundColor: plan.color || '#3B82F6' }}*/}
+      {/*            >*/}
+      {/*              <IconComponent className="h-6 w-6" />*/}
+      {/*            </div>*/}
+      {/*            <div>*/}
+      {/*              <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>*/}
+      {/*              <p className="text-sm text-gray-600">{plan.description}</p>*/}
+      {/*            </div>*/}
+      {/*          </div>*/}
+      {/*        </CardHeader>*/}
 
-              <CardContent className="pt-0">
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900">
-                      {plan.price === 0 ? 'Free' : formatCurrency(plan.price)}
-                    </span>
-                    {plan.price > 0 && <span className="text-gray-600">/{plan.billingCycle}</span>}
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {plan.commissionRate}% commission rate
-                  </p>
-                </div>
+      {/*        <CardContent className="pt-0">*/}
+      {/*          <div className="mb-6">*/}
+      {/*            <div className="flex items-baseline gap-2">*/}
+      {/*              <span className="text-3xl font-bold text-gray-900">*/}
+      {/*                {plan.price === 0 ? 'Free' : formatCurrency(plan.price)}*/}
+      {/*              </span>*/}
+      {/*              {plan.price > 0 && <span className="text-gray-600">/{plan.billingCycle}</span>}*/}
+      {/*            </div>*/}
+      {/*            <p className="mt-1 text-sm text-gray-600">*/}
+      {/*              {plan.commissionRate}% commission rate*/}
+      {/*            </p>*/}
+      {/*          </div>*/}
 
-                <div className="mb-6 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Products</span>
-                    <span className="font-medium">{formatLimit(plan.maxProducts)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Orders</span>
-                    <span className="font-medium">{formatLimit(plan.maxOrders)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Storage</span>
-                    <span className="font-medium">{plan.maxStorageGB}GB</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Support</span>
-                    <span className="font-medium">
-                      {formatLimit(plan.maxSupportTickets)} tickets
-                    </span>
-                  </div>
-                </div>
+      {/*          <div className="mb-6 space-y-3">*/}
+      {/*            <div className="flex justify-between text-sm">*/}
+      {/*              <span className="text-gray-600">Products</span>*/}
+      {/*              <span className="font-medium">{formatLimit(plan.maxProducts)}</span>*/}
+      {/*            </div>*/}
+      {/*            <div className="flex justify-between text-sm">*/}
+      {/*              <span className="text-gray-600">Orders</span>*/}
+      {/*              <span className="font-medium">{formatLimit(plan.maxOrders)}</span>*/}
+      {/*            </div>*/}
+      {/*            <div className="flex justify-between text-sm">*/}
+      {/*              <span className="text-gray-600">Storage</span>*/}
+      {/*              <span className="font-medium">{plan.maxStorageGB}GB</span>*/}
+      {/*            </div>*/}
+      {/*            <div className="flex justify-between text-sm">*/}
+      {/*              <span className="text-gray-600">Support</span>*/}
+      {/*              <span className="font-medium">*/}
+      {/*                {formatLimit(plan.maxSupportTickets)} tickets*/}
+      {/*              </span>*/}
+      {/*            </div>*/}
+      {/*          </div>*/}
 
-                <div className="mb-6 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    {plan.hasAnalytics ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className="text-gray-700">Analytics</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    {plan.hasAPIAccess ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className="text-gray-700">API Access</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    {plan.hasPrioritySupport ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className="text-gray-700">Priority Support</span>
-                  </div>
-                </div>
+      {/*          <div className="mb-6 space-y-2">*/}
+      {/*            <div className="flex items-center gap-2 text-sm">*/}
+      {/*              {plan.hasAnalytics ? (*/}
+      {/*                <Check className="h-4 w-4 text-green-500" />*/}
+      {/*              ) : (*/}
+      {/*                <X className="h-4 w-4 text-red-500" />*/}
+      {/*              )}*/}
+      {/*              <span className="text-gray-700">Analytics</span>*/}
+      {/*            </div>*/}
+      {/*            <div className="flex items-center gap-2 text-sm">*/}
+      {/*              {plan.hasAPIAccess ? (*/}
+      {/*                <Check className="h-4 w-4 text-green-500" />*/}
+      {/*              ) : (*/}
+      {/*                <X className="h-4 w-4 text-red-500" />*/}
+      {/*              )}*/}
+      {/*              <span className="text-gray-700">API Access</span>*/}
+      {/*            </div>*/}
+      {/*            <div className="flex items-center gap-2 text-sm">*/}
+      {/*              {plan.hasPrioritySupport ? (*/}
+      {/*                <Check className="h-4 w-4 text-green-500" />*/}
+      {/*              ) : (*/}
+      {/*                <X className="h-4 w-4 text-red-500" />*/}
+      {/*              )}*/}
+      {/*              <span className="text-gray-700">Priority Support</span>*/}
+      {/*            </div>*/}
+      {/*          </div>*/}
 
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">{(plan.subscribers || 0).toLocaleString()}</span>{' '}
-                    subscribers
-                  </div>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-1 text-xs',
-                      plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    )}
-                  >
-                    {plan.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
+      {/*          <div className="mb-4 flex items-center justify-between">*/}
+      {/*            <div className="text-sm text-gray-600">*/}
+      {/*              <span className="font-medium">{(plan.subscribers || 0).toLocaleString()}</span>{' '}*/}
+      {/*              subscribers*/}
+      {/*            </div>*/}
+      {/*            <span*/}
+      {/*              className={cn(*/}
+      {/*                'rounded-full px-2 py-1 text-xs',*/}
+      {/*                plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'*/}
+      {/*              )}*/}
+      {/*            >*/}
+      {/*              {plan.isActive ? 'Active' : 'Inactive'}*/}
+      {/*            </span>*/}
+      {/*          </div>*/}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditPlan(plan)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm text-blue-600 hover:bg-blue-50"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleToggleStatus(plan.id)}
-                    className={cn(
-                      'flex items-center gap-1 rounded-lg px-3 py-2 text-sm',
-                      plan.isActive
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-green-600 hover:bg-green-50'
-                    )}
-                  >
-                    {plan.isActive ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => handleDeletePlan(plan.id)}
-                    className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/*          <div className="flex items-center gap-2">*/}
+      {/*            <button*/}
+      {/*              onClick={() => handleEditPlan(plan)}*/}
+      {/*              className="flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm text-blue-600 hover:bg-blue-50"*/}
+      {/*            >*/}
+      {/*              <Edit className="h-4 w-4" />*/}
+      {/*              Edit*/}
+      {/*            </button>*/}
+      {/*            <button*/}
+      {/*              onClick={() => handleToggleStatus(plan.id)}*/}
+      {/*              className={cn(*/}
+      {/*                'flex items-center gap-1 rounded-lg px-3 py-2 text-sm',*/}
+      {/*                plan.isActive*/}
+      {/*                  ? 'text-red-600 hover:bg-red-50'*/}
+      {/*                  : 'text-green-600 hover:bg-green-50'*/}
+      {/*              )}*/}
+      {/*            >*/}
+      {/*              {plan.isActive ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}*/}
+      {/*            </button>*/}
+      {/*            <button*/}
+      {/*              onClick={() => handleDeletePlan(plan.id)}*/}
+      {/*              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"*/}
+      {/*            >*/}
+      {/*              <Trash2 className="h-4 w-4" />*/}
+      {/*            </button>*/}
+      {/*          </div>*/}
+      {/*        </CardContent>*/}
+      {/*      </Card>*/}
+      {/*    );*/}
+      {/*  })}*/}
+      {/*</div>*/}
 
       {/* Plans Management Table */}
       <div className="space-y-6">

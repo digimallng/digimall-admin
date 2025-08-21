@@ -54,6 +54,8 @@ jobs:
           echo "NEXT_PUBLIC_API_URL=${{secrets.NEXT_PUBLIC_API_URL}}" >> .env
           echo "ADMIN_SERVICE_URL=${{secrets.ADMIN_SERVICE_URL}}" >> .env
           echo "NEXT_PUBLIC_CHAT_WS_URL=${{secrets.NEXT_PUBLIC_CHAT_WS_URL}}" >> .env
+          echo "SETUP_TOKEN=${{secrets.SETUP_TOKEN}}" >> .env
+          echo "ADMIN_SETUP_TOKEN=${{secrets.ADMIN_SETUP_TOKEN}}" >> .env
 
           
 

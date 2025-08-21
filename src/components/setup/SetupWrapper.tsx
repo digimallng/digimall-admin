@@ -12,16 +12,17 @@ export function SetupWrapper({ children }: SetupWrapperProps) {
   const pathname = usePathname();
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
 
   const isSetupPage = pathname?.startsWith('/setup');
   const isAuthPage = pathname?.startsWith('/auth');
 
-  useEffect(() => {
-    checkSetupStatus();
-  }, []);
-
   const checkSetupStatus = async () => {
+    // Prevent multiple simultaneous checks
+    if (isChecking) return;
+    
     try {
+      setIsChecking(true);
       setIsLoading(true);
       
       // Check if super admin exists by calling the setup check endpoint
@@ -37,7 +38,7 @@ export function SetupWrapper({ children }: SetupWrapperProps) {
         const needsSetup = data.setupRequired || false;
         setSetupRequired(needsSetup);
 
-        // Redirect logic
+        // Only redirect if we're not already on the correct page
         if (needsSetup && !isSetupPage) {
           console.log('Setup required, redirecting to /setup');
           router.push('/setup');
@@ -62,8 +63,13 @@ export function SetupWrapper({ children }: SetupWrapperProps) {
       }
     } finally {
       setIsLoading(false);
+      setIsChecking(false);
     }
   };
+
+  useEffect(() => {
+    checkSetupStatus();
+  }, []); // Only run once on mount
 
   // Show loading while checking setup status
   if (isLoading) {

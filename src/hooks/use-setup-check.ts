@@ -25,16 +25,38 @@ export function useSetupCheck() {
     try {
       setStatus(prev => ({ ...prev, loading: true, error: null }));
 
-      // For now, let's skip the API call and assume setup is required
-      // This will allow the setup page to show while we debug
+      // Call the setup verify API endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/setup/verify-setup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Setup check failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Setup check response:', data);
+
+      // Check if setup is needed based on API response
+      const setupRequired = data.needsSetup === true;
+
       setStatus({
-        setupRequired: true,
+        setupRequired,
         loading: false,
         error: null,
       });
 
-      // Don't auto-redirect for now
-      console.log('Setup check: assuming setup is required');
+      // Redirect based on setup status
+      if (setupRequired) {
+        console.log('Setup required - redirecting to setup page');
+        router.push('/setup');
+      } else {
+        console.log('Setup completed - redirecting to login');
+        router.push('/auth/login');
+      }
 
     } catch (error) {
       console.error('Setup check error:', error);
@@ -43,6 +65,9 @@ export function useSetupCheck() {
         loading: false,
         error: error instanceof Error ? error.message : 'Failed to check setup status',
       });
+      
+      // If we can't check, redirect to setup to be safe
+      router.push('/setup');
     }
   };
 

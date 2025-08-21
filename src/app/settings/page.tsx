@@ -398,10 +398,6 @@ const mockNotificationServices: NotificationService[] = [
 ];
 
 export default function SettingsPage() {
-  const [configs, setConfigs] = useState<PlatformConfig[]>(mockPlatformConfig);
-  const [notifications, setNotifications] = useState<SystemNotification[]>(mockSystemNotifications);
-  const [notificationServices, setNotificationServices] =
-    useState<NotificationService[]>(mockNotificationServices);
   const [activeTab, setActiveTab] = useState<
     | 'general'
     | 'commission'
@@ -418,8 +414,18 @@ export default function SettingsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [refreshingServices, setRefreshingServices] = useState(false);
 
-  // Get filtered configs for active tab
-  const filteredConfigs = (configs || []).filter(config => config.category === activeTab);
+  // Using mock data directly for now
+  const configs = mockPlatformConfig;
+  const notifications = mockSystemNotifications;
+  const notificationServices = mockNotificationServices;
+  const configsLoading = false;
+  const notificationsLoading = false;
+  const servicesLoading = false;
+  const configsError = null;
+  const notificationsError = null;
+  const servicesError = null;
+  const systemStatus = null;
+  const updateConfigMutation = { mutate: () => {} };
 
   // Loading states
   if (configsLoading || notificationsLoading || servicesLoading) {
@@ -493,13 +499,7 @@ export default function SettingsPage() {
     setRefreshingServices(true);
     // Simulate API call to refresh service status
     setTimeout(() => {
-      setNotificationServices(prev =>
-        prev.map(service => ({
-          ...service,
-          lastCheck: new Date(),
-          responseTime: Math.floor(Math.random() * 200) + 50,
-        }))
-      );
+      // In a real implementation, this would update the services via API
       setRefreshingServices(false);
     }, 2000);
   };

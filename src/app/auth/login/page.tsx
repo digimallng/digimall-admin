@@ -129,7 +129,7 @@ export default function AdminLogin() {
                   className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-300"
                   disabled={isLoading}
                 >
-                  {showPassword ? <BsEyes className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>

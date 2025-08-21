@@ -103,6 +103,80 @@ export enum AuditAction {
   ACTIVATE = 'activate',
 }
 
+// ===== CUSTOMER SUPPORT ENUMS =====
+
+export enum TicketStatus {
+  OPEN = 'open',
+  IN_PROGRESS = 'in_progress',
+  PENDING_CUSTOMER = 'pending_customer',
+  RESOLVED = 'resolved',
+  CLOSED = 'closed',
+  ESCALATED = 'escalated',
+  ON_HOLD = 'on_hold',
+}
+
+export enum TicketPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  URGENT = 'urgent',
+  CRITICAL = 'critical',
+}
+
+export enum TicketCategory {
+  ACCOUNT_ISSUES = 'account_issues',
+  ORDER_PROBLEMS = 'order_problems',
+  PAYMENT_ISSUES = 'payment_issues',
+  PRODUCT_INQUIRY = 'product_inquiry',
+  VENDOR_COMPLAINT = 'vendor_complaint',
+  TECHNICAL_SUPPORT = 'technical_support',
+  REFUND_REQUEST = 'refund_request',
+  BILLING_DISPUTE = 'billing_dispute',
+  FEATURE_REQUEST = 'feature_request',
+  BUG_REPORT = 'bug_report',
+  SECURITY_CONCERN = 'security_concern',
+  PRIVACY_INQUIRY = 'privacy_inquiry',
+  GENERAL_INQUIRY = 'general_inquiry',
+}
+
+export enum TicketType {
+  CUSTOMER_INQUIRY = 'customer_inquiry',
+  VENDOR_INQUIRY = 'vendor_inquiry',
+  INTERNAL_ISSUE = 'internal_issue',
+  ESCALATION = 'escalation',
+  COMPLAINT = 'complaint',
+  FEEDBACK = 'feedback',
+}
+
+export enum SupportChannel {
+  EMAIL = 'email',
+  CHAT = 'chat',
+  PHONE = 'phone',
+  WEB_FORM = 'web_form',
+  SOCIAL_MEDIA = 'social_media',
+  IN_APP = 'in_app',
+  API = 'api',
+}
+
+export enum AgentStatus {
+  AVAILABLE = 'available',
+  BUSY = 'busy',
+  AWAY = 'away',
+  OFFLINE = 'offline',
+  IN_TRAINING = 'in_training',
+}
+
+export enum EscalationReason {
+  TECHNICAL_COMPLEXITY = 'technical_complexity',
+  CUSTOMER_REQUEST = 'customer_request',
+  POLICY_EXCEPTION = 'policy_exception',
+  HIGH_VALUE_CUSTOMER = 'high_value_customer',
+  LEGAL_CONCERN = 'legal_concern',
+  SECURITY_ISSUE = 'security_issue',
+  URGENT_REQUEST = 'urgent_request',
+  AGENT_UNAVAILABLE = 'agent_unavailable',
+}
+
 // ===== BASE INTERFACE TYPES =====
 
 export interface BaseEntity {
@@ -917,4 +991,332 @@ export interface PlanFilters {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
+}
+
+// ===== CUSTOMER SUPPORT TYPES =====
+
+export interface SupportTicket extends BaseEntity {
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  category: TicketCategory;
+  type: TicketType;
+  channel: SupportChannel;
+  customerId?: string;
+  customerEmail?: string;
+  customerName?: string;
+  assignedAgentId?: string;
+  teamId?: string;
+  firstResponseAt?: string;
+  resolvedAt?: string;
+  tags: string[];
+  orderId?: string;
+  productId?: string;
+  vendorId?: string;
+  attachments: string[];
+  responses: TicketResponse[];
+  internalNotes?: string;
+  slaBreached: boolean;
+  escalationLevel: number;
+  followUpDate?: string;
+  metadata?: Record<string, any>;
+  customerTimezone?: string;
+  preferredContactMethod?: SupportChannel;
+  expectedResolutionHours?: number;
+}
+
+export interface TicketResponse extends BaseEntity {
+  ticketId: string;
+  content: string;
+  responseType: 'public' | 'internal';
+  agentId: string;
+  agentName?: string;
+  attachments: string[];
+  scheduledAt?: string;
+  templateId?: string;
+}
+
+export interface SupportAgent extends BaseEntity {
+  name: string;
+  email: string;
+  status: AgentStatus;
+  teamId?: string;
+  skills: string[];
+  currentWorkload: number;
+  maxWorkload: number;
+  averageResolutionTime: number;
+  customerSatisfactionRating: number;
+  totalTicketsResolved: number;
+  activeTickets: string[];
+  timezone: string;
+  languagesSpoken: string[];
+  certifications: string[];
+  joinedAt: string;
+  lastActiveAt: string;
+}
+
+export interface SupportTeam extends BaseEntity {
+  name: string;
+  description: string;
+  isActive: boolean;
+  leadAgentId?: string;
+  agentIds: string[];
+  skills: string[];
+  currentWorkload: number;
+  maxWorkload: number;
+  averageResolutionTime: number;
+  customerSatisfactionRating: number;
+  totalTicketsResolved: number;
+  operatingHours: {
+    timezone: string;
+    schedule: Record<string, { start: string; end: string; isActive: boolean }>;
+  };
+}
+
+export interface KnowledgeBaseArticle extends BaseEntity {
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  isPublished: boolean;
+  priority: number;
+  relatedFAQs: string[];
+  audience: 'customer' | 'agent' | 'both';
+  viewCount: number;
+  helpfulCount: number;
+  authorId: string;
+  authorName?: string;
+  lastReviewedAt?: string;
+  publishedAt?: string;
+}
+
+export interface SLAConfiguration extends BaseEntity {
+  name: string;
+  description: string;
+  firstResponseTimeHours: number;
+  resolutionTimeHours: number;
+  escalationTimeHours?: number;
+  applicablePriorities: TicketPriority[];
+  applicableCategories: TicketCategory[];
+  customerTiers?: string[];
+  isActive: boolean;
+  businessHoursOnly: boolean;
+  businessHours?: {
+    timezone: string;
+    schedule: Record<string, { start: string; end: string; isActive: boolean }>;
+  };
+}
+
+export interface CustomerSatisfactionRating extends BaseEntity {
+  ticketId: string;
+  rating: number;
+  feedback?: string;
+  agentRating?: number;
+  responseTimeRating?: number;
+  resolutionQualityRating?: number;
+  wouldRecommend?: boolean;
+  customerId: string;
+  agentId?: string;
+}
+
+export interface ResponseTemplate extends BaseEntity {
+  name: string;
+  subject?: string;
+  content: string;
+  category: TicketCategory;
+  isActive: boolean;
+  usageCount: number;
+  authorId: string;
+  authorName?: string;
+  variables: string[];
+  tags: string[];
+}
+
+export interface SupportDashboard {
+  overview: {
+    totalTickets: number;
+    openTickets: number;
+    inProgressTickets: number;
+    resolvedTickets: number;
+    escalatedTickets: number;
+    avgResponseTime: number;
+    avgResolutionTime: number;
+    customerSatisfactionScore: number;
+    slaComplianceRate: number;
+  };
+  recentActivity: {
+    recentTickets: SupportTicket[];
+    recentResolutions: SupportTicket[];
+    urgentTickets: SupportTicket[];
+  };
+  teamMetrics: {
+    agentsOnline: number;
+    totalAgents: number;
+    avgAgentWorkload: number;
+    topPerformingAgents: SupportAgent[];
+  };
+  trends: {
+    ticketVolumeByDate: Array<{ date: string; count: number }>;
+    resolutionTimeByDate: Array<{ date: string; avgTime: number }>;
+    satisfactionByDate: Array<{ date: string; avgRating: number }>;
+    channelDistribution: Array<{ channel: SupportChannel; count: number; percentage: number }>;
+  };
+}
+
+export interface SupportAnalytics {
+  period: {
+    startDate: string;
+    endDate: string;
+    groupBy: 'hour' | 'day' | 'week' | 'month';
+  };
+  ticketMetrics: {
+    totalTickets: number;
+    ticketsByStatus: Record<TicketStatus, number>;
+    ticketsByPriority: Record<TicketPriority, number>;
+    ticketsByCategory: Record<TicketCategory, number>;
+    ticketsByChannel: Record<SupportChannel, number>;
+    trendsData: Array<{
+      date: string;
+      totalTickets: number;
+      resolvedTickets: number;
+      avgResolutionTime: number;
+      avgResponseTime: number;
+    }>;
+  };
+  performanceMetrics: {
+    avgResponseTime: number;
+    avgResolutionTime: number;
+    firstContactResolutionRate: number;
+    escalationRate: number;
+    reopenRate: number;
+    slaComplianceRate: number;
+  };
+  satisfactionMetrics: {
+    avgSatisfactionRating: number;
+    responseDistribution: Record<number, number>;
+    wouldRecommendRate: number;
+    feedbackCount: number;
+  };
+  agentMetrics: {
+    totalAgents: number;
+    agentsAvailable: number;
+    avgAgentWorkload: number;
+    topPerformers: SupportAgent[];
+    workloadDistribution: Array<{
+      agentId: string;
+      agentName: string;
+      activeTickets: number;
+      resolvedToday: number;
+      avgResolutionTime: number;
+      satisfactionRating: number;
+    }>;
+  };
+}
+
+// Filter and Query Interfaces
+export interface TicketFilters {
+  search?: string;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  category?: TicketCategory;
+  type?: TicketType;
+  channel?: SupportChannel;
+  customerId?: string;
+  assignedAgentId?: string;
+  teamId?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  unassignedOnly?: boolean;
+  overdueOnly?: boolean;
+  escalatedOnly?: boolean;
+  followUpRequired?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface AgentFilters {
+  search?: string;
+  status?: AgentStatus;
+  teamId?: string;
+  skills?: string[];
+  availableOnly?: boolean;
+  hasCapacity?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface SupportAnalyticsQuery {
+  startDate?: string;
+  endDate?: string;
+  groupBy?: 'hour' | 'day' | 'week' | 'month';
+  teamId?: string;
+  agentId?: string;
+  includeSatisfaction?: boolean;
+  includeResolutionTime?: boolean;
+  includeWorkload?: boolean;
+}
+
+// Request/Response DTOs
+export interface CreateTicketRequest {
+  subject: string;
+  description: string;
+  category: TicketCategory;
+  type: TicketType;
+  channel: SupportChannel;
+  priority?: TicketPriority;
+  customerId?: string;
+  customerEmail?: string;
+  customerName?: string;
+  orderId?: string;
+  productId?: string;
+  vendorId?: string;
+  attachments?: string[];
+  metadata?: Record<string, any>;
+  customerTimezone?: string;
+  preferredContactMethod?: SupportChannel;
+}
+
+export interface UpdateTicketRequest {
+  subject?: string;
+  description?: string;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  category?: TicketCategory;
+  assignedAgentId?: string;
+  teamId?: string;
+  internalNotes?: string;
+  tags?: string[];
+  expectedResolutionHours?: number;
+  followUpDate?: string;
+}
+
+export interface TicketResponseRequest {
+  content: string;
+  responseType?: 'public' | 'internal';
+  attachments?: string[];
+  autoClose?: boolean;
+  notifyCustomer?: boolean;
+  scheduledAt?: string;
+  templateId?: string;
+}
+
+export interface EscalateTicketRequest {
+  reason: EscalationReason;
+  notes: string;
+  escalateTo?: string;
+  newPriority?: TicketPriority;
+  urgentNotification?: boolean;
+}
+
+export interface BulkTicketActionRequest {
+  ticketIds: string[];
+  action: 'assign' | 'close' | 'escalate' | 'update_priority' | 'add_tags' | 'update_status';
+  actionParams?: Record<string, any>;
+  reason: string;
+  notifyCustomers?: boolean;
 }
