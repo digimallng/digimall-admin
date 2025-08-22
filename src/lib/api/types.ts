@@ -863,6 +863,299 @@ export interface UserRegistrationData {
   vendors: number;
 }
 
+// ===== ESCROW MANAGEMENT TYPES =====
+
+export enum EscrowStatus {
+  CREATED = 'created',
+  FUNDED = 'funded',
+  ACTIVE = 'active',
+  PENDING = 'pending',
+  RELEASED = 'released',
+  REFUNDED = 'refunded',
+  DISPUTED = 'disputed',
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired'
+}
+
+export enum EscrowType {
+  ORDER_PAYMENT = 'order_payment',
+  SERVICE_PAYMENT = 'service_payment',
+  DEPOSIT = 'deposit',
+  MILESTONE = 'milestone',
+  CUSTOM = 'custom'
+}
+
+export enum EscrowAction {
+  RELEASE = 'release',
+  REFUND = 'refund',
+  EXTEND = 'extend',
+  CANCEL = 'cancel',
+  DISPUTE = 'dispute',
+  FORCE_RELEASE = 'force_release',
+  PARTIAL_RELEASE = 'partial_release'
+}
+
+export enum DisputeReason {
+  PRODUCT_NOT_RECEIVED = 'product_not_received',
+  PRODUCT_DAMAGED = 'product_damaged',
+  PRODUCT_NOT_AS_DESCRIBED = 'product_not_as_described',
+  SERVICE_NOT_PROVIDED = 'service_not_provided',
+  SERVICE_UNSATISFACTORY = 'service_unsatisfactory',
+  FRAUDULENT_ACTIVITY = 'fraudulent_activity',
+  BILLING_DISPUTE = 'billing_dispute',
+  OTHER = 'other'
+}
+
+export enum DisputeStatus {
+  OPEN = 'open',
+  UNDER_REVIEW = 'under_review',
+  RESOLVED = 'resolved',
+  CLOSED = 'closed',
+  ESCALATED = 'escalated'
+}
+
+export enum DisputeResolution {
+  RELEASE_TO_VENDOR = 'release_to_vendor',
+  REFUND_TO_CUSTOMER = 'refund_to_customer',
+  PARTIAL_REFUND = 'partial_refund',
+  NO_ACTION = 'no_action'
+}
+
+export interface Escrow {
+  id: string;
+  orderId: string;
+  customerId: string;
+  vendorId: string;
+  amount: number;
+  currency: string;
+  status: EscrowStatus;
+  type: EscrowType;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string;
+  releasedAt?: string;
+  refundedAt?: string;
+  metadata?: Record<string, any>;
+  
+  // Related entities
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  vendor?: {
+    id: string;
+    name: string;
+    email: string;
+    businessName?: string;
+  };
+  order?: {
+    id: string;
+    orderNumber: string;
+    totalAmount: number;
+    status: string;
+  };
+  dispute?: EscrowDispute;
+  transactions?: EscrowTransaction[];
+}
+
+export interface EscrowDispute {
+  id: string;
+  escrowId: string;
+  reason: DisputeReason;
+  status: DisputeStatus;
+  description: string;
+  resolution?: DisputeResolution;
+  resolutionNotes?: string;
+  createdBy: string;
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  
+  // Evidence
+  customerEvidence?: DisputeEvidence[];
+  vendorEvidence?: DisputeEvidence[];
+  adminNotes?: string;
+}
+
+export interface DisputeEvidence {
+  id: string;
+  type: 'image' | 'document' | 'text';
+  url?: string;
+  content?: string;
+  description?: string;
+  uploadedAt: string;
+}
+
+export interface EscrowTransaction {
+  id: string;
+  escrowId: string;
+  type: 'fund' | 'release' | 'refund' | 'fee';
+  amount: number;
+  currency: string;
+  status: 'pending' | 'completed' | 'failed';
+  description?: string;
+  createdAt: string;
+  completedAt?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface EscrowFilters {
+  search?: string;
+  status?: EscrowStatus;
+  type?: EscrowType;
+  customerId?: string;
+  vendorId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  createdAfter?: string;
+  createdBefore?: string;
+  startDate?: string;
+  endDate?: string;
+  expiringWithinHours?: number;
+  disputedOnly?: boolean;
+  overdueOnly?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface EscrowActionRequest {
+  action: EscrowAction;
+  amount?: number; // For partial releases/refunds
+  reason?: string;
+  notes?: string;
+  expiryExtension?: number; // In days
+  metadata?: Record<string, any>;
+}
+
+export interface CreateDisputeRequest {
+  escrowId: string;
+  reason: DisputeReason;
+  description: string;
+  evidence?: Array<{
+    type: 'image' | 'document' | 'text';
+    url?: string;
+    content?: string;
+    description?: string;
+  }>;
+}
+
+export interface BulkEscrowActionRequest {
+  escrowIds: string[];
+  action: EscrowAction;
+  reason?: string;
+  notes?: string;
+}
+
+export interface EscrowStatistics {
+  total: number;
+  totalValue: number;
+  byStatus: Record<EscrowStatus, { count: number; value: number }>;
+  byType: Record<EscrowType, { count: number; value: number }>;
+  averageAmount: number;
+  averageProcessingTime: number; // In hours
+  disputeRate: number; // Percentage
+  expiringSoon: number; // Count of escrows expiring within 24 hours
+  monthlyTrend: Array<{
+    month: string;
+    count: number;
+    value: number;
+    disputes: number;
+  }>;
+}
+
+export interface EscrowDashboard {
+  statistics: EscrowStatistics;
+  recentActivity: {
+    newEscrows: Escrow[];
+    recentReleases: Escrow[];
+    recentDisputes: EscrowDispute[];
+    expiringSoon: Escrow[];
+  };
+  performance: {
+    averageProcessingTime: number;
+    successRate: number;
+    disputeResolutionTime: number;
+    customerSatisfaction: number;
+  };
+  alerts: Array<{
+    id: string;
+    type: 'warning' | 'error' | 'info';
+    message: string;
+    escrowId?: string;
+    createdAt: string;
+  }>;
+}
+
+export interface EscrowAnalytics {
+  performance: {
+    totalProcessed: number;
+    averageProcessingTime: number;
+    successRate: number;
+    volumeTrend: Array<{
+      date: string;
+      count: number;
+      value: number;
+    }>;
+  };
+  disputes: {
+    totalDisputes: number;
+    disputeRate: number;
+    averageResolutionTime: number;
+    resolutionBreakdown: Record<DisputeResolution, number>;
+    reasonBreakdown: Record<DisputeReason, number>;
+    trend: Array<{
+      date: string;
+      disputes: number;
+      resolved: number;
+    }>;
+  };
+  timeouts: {
+    totalTimeouts: number;
+    timeoutRate: number;
+    averageTimeToExpiry: number;
+    preventionActions: number;
+    trend: Array<{
+      date: string;
+      timeouts: number;
+      prevented: number;
+    }>;
+  };
+}
+
+export interface EscrowComplianceReport {
+  reportId: string;
+  generatedAt: string;
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalEscrows: number;
+    totalValue: number;
+    complianceScore: number;
+    issuesFound: number;
+  };
+  metrics: {
+    averageHoldTime: number;
+    disputeResolutionCompliance: number;
+    timeoutCompliance: number;
+    documentationCompliance: number;
+  };
+  issues: Array<{
+    escrowId: string;
+    type: 'timeout' | 'documentation' | 'process' | 'other';
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    description: string;
+    recommendation: string;
+  }>;
+  recommendations: string[];
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   data?: T;
@@ -877,6 +1170,9 @@ export interface PaginatedResponse<T> {
   page: number;
   pages: number;
   limit?: number;
+  // Additional fields for compatibility
+  currentPage?: number;
+  totalPages?: number;
 }
 
 export interface UsersPaginatedResponse {
