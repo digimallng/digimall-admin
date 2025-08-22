@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Escrow } from '@/lib/api/types';
 import { useEscrowManagement } from '@/lib/hooks/use-escrow';
 import { EscrowStatusBadge } from './EscrowStatusBadge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
