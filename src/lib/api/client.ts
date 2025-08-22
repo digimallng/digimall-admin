@@ -101,7 +101,7 @@ class AxiosApiClient {
   private isRefreshing = false;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4800/api/v1';
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || '/api/proxy';
     
     this.instance = axios.create({
       baseURL: this.baseURL,

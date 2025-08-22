@@ -8,7 +8,7 @@ import { EscrowStats } from '@/components/escrow/EscrowStats';
 import { EscrowActionModal } from '@/components/escrow/EscrowActionModal';
 import { EscrowAnalytics } from '@/components/escrow/EscrowAnalytics';
 // import { EscrowDisputeManagement } from '@/components/escrow/EscrowDisputeManagement';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
