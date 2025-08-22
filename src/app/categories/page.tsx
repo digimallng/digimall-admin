@@ -27,15 +27,18 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
 import {
   useCategories,
-  useCategoryStats,
+  useCategoryStatistics,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
   useToggleCategoryStatus,
   useExportCategories,
+  useUploadImage,
   useUploadCategoryImage,
+  useCategoryBulkAction,
+  useCategoryTree,
 } from '@/lib/hooks/use-categories';
-import { Category, CategoryFilters, PaginatedResponse } from '@/lib/api/types';
+import { Category, CategoryFilters, PaginatedResponse, CategoryStatistics } from '@/lib/api/types';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 
@@ -60,6 +63,7 @@ export default function CategoriesPage() {
     description: '',
     parentId: undefined as string | undefined,
     isActive: true,
+    featured: false,
     sortOrder: 0,
     icon: '',
     image: '',
@@ -83,68 +87,34 @@ export default function CategoriesPage() {
     data: categoriesData,
     isLoading: loadingCategories,
     error: categoriesError,
-  } = useCategories(filters) as {
-    data: PaginatedResponse<Category> | undefined;
-    isLoading: boolean;
-    error: any;
-  };
+  } = useCategories(filters);
+  
   const {
     data: statsData,
     isLoading: loadingStats,
     error: statsError,
-  } = useCategoryStats() as {
-    data:
-      | {
-          totalCategories: number;
-          activeCategories: number;
-          inactiveCategories: number;
-          featuredCategories: number;
-          totalProducts: number;
-          totalSales: number;
-          categoriesGrowth: number;
-          productsGrowth: number;
-          salesGrowth: number;
-        }
-      | undefined;
-    isLoading: boolean;
-    error: any;
-  };
+  } = useCategoryStatistics();
 
   const createCategoryMutation = useCreateCategory();
   const updateCategoryMutation = useUpdateCategory();
   const deleteCategoryMutation = useDeleteCategory();
   const toggleStatusMutation = useToggleCategoryStatus();
   const exportCategoriesMutation = useExportCategories();
-  const uploadImageMutation = useUploadCategoryImage();
+  const uploadImageMutation = useUploadImage();
+  const uploadCategoryImageMutation = useUploadCategoryImage();
 
-  const categories = categoriesData?.categories || [];
-  // Handle stats with fallback if there's an error
-  type CategoryStats = {
-    total: number;
-    active: number;
-    inactive: number;
-    featured: number;
-    totalProducts: number;
-    totalSales: number;
+  const categories = categoriesData?.data || categoriesData?.categories || [];
+  const totalPages = categoriesData?.totalPages || 0;
+  
+  // Handle stats with proper typing
+  const stats = {
+    total: statsData?.total || 0,
+    active: statsData?.active || 0,
+    inactive: statsData?.inactive || 0,
+    featured: statsData?.featured || 0,
+    totalProducts: statsData?.totalProducts || 0,
+    totalSales: statsData?.totalSales || 0,
   };
-
-  const stats: CategoryStats = statsData
-    ? {
-        total: statsData.totalCategories || 0,
-        active: statsData.activeCategories || 0,
-        inactive: statsData.inactiveCategories || 0,
-        featured: statsData.featuredCategories || 0,
-        totalProducts: statsData.totalProducts || 0,
-        totalSales: statsData.totalSales || 0,
-      }
-    : {
-        total: categories?.length || 0,
-        active: categories?.filter(c => c.isVisible).length || 0,
-        inactive: categories?.filter(c => !c.isVisible).length || 0,
-        featured: categories?.filter(c => c.featured).length || 0,
-        totalProducts: categories?.reduce((sum, c) => sum + (c.productCount || 0), 0) || 0,
-        totalSales: categories?.reduce((sum, c) => sum + (c.totalSales || 0), 0) || 0,
-      };
 
   const handleAddCategory = () => {
     console.log('Add Category button clicked');
@@ -158,6 +128,7 @@ export default function CategoriesPage() {
       description: '',
       parentId: undefined,
       isActive: true,
+      featured: false,
       sortOrder: 0,
       icon: '',
       image: '',
@@ -176,7 +147,8 @@ export default function CategoriesPage() {
       slug: category.slug,
       description: category.description || '',
       parentId: category.parentId,
-      isActive: category.isVisible, // Map isVisible from API to isActive for form
+      isActive: category.isActive,
+      featured: category.isFeatured || false, // Map isFeatured to featured
       sortOrder: category.sortOrder,
       icon: category.icon || '',
       image: category.image || '',
@@ -232,6 +204,25 @@ export default function CategoriesPage() {
     }
 
     try {
+      let imageUrl = formData.image; // Keep existing image URL if no new file
+      
+      // Upload image first if a new file was selected
+      if (imageFile) {
+        console.log('Uploading image to S3...');
+        const uploadResult = await uploadImageMutation.mutateAsync(imageFile);
+        imageUrl = uploadResult.url; // Get CloudFront URL
+        console.log('Image uploaded successfully:', imageUrl);
+      }
+      
+      // Prepare data for API with image URL (map frontend 'featured' to backend 'isFeatured')
+      const { featured, ...formDataWithoutFeatured } = formData;
+      const apiData = {
+        ...formDataWithoutFeatured,
+        image: imageUrl,
+        parentId: formData.parentId || undefined,
+        isFeatured: featured,
+      };
+
       let categoryId: string;
 
       if (editingCategory) {
@@ -239,7 +230,7 @@ export default function CategoriesPage() {
         // Update existing category
         await updateCategoryMutation.mutateAsync({
           id: editingCategory.id,
-          data: formData,
+          data: apiData,
         });
         categoryId = editingCategory.id;
       } else {
@@ -251,25 +242,10 @@ export default function CategoriesPage() {
           error: createCategoryMutation.error,
         });
 
-        // Prepare data for API (remove undefined parentId)
-        const apiData = {
-          ...formData,
-          parentId: formData.parentId || undefined,
-        };
-
         // Add new category
         const result = await createCategoryMutation.mutateAsync(apiData);
         console.log('Category creation result:', result);
         categoryId = result.id;
-      }
-
-      // Upload image if a new file was selected
-      if (imageFile && categoryId) {
-        console.log('Uploading image for category:', categoryId);
-        await uploadImageMutation.mutateAsync({
-          categoryId,
-          file: imageFile,
-        });
       }
 
       setShowModal(false);
@@ -608,6 +584,17 @@ export default function CategoriesPage() {
                   Active (visible to customers)
                 </label>
               </div>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='checkbox'
+                  id='featured'
+                  checked={formData.featured}
+                  onChange={e => setFormData(prev => ({ ...prev, featured: e.target.checked }))}
+                />
+                <label htmlFor='featured' className='text-sm text-gray-700'>
+                  Featured category
+                </label>
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>
@@ -624,7 +611,7 @@ export default function CategoriesPage() {
             <GlowingButton
               variant='primary'
               onClick={handleSaveCategory}
-              loading={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+              loading={createCategoryMutation.isPending || updateCategoryMutation.isPending || uploadImageMutation.isPending}
             >
               {editingCategory ? 'Update Category' : 'Create Category'}
             </GlowingButton>
@@ -791,18 +778,18 @@ export default function CategoriesPage() {
                       </div>
                     </div>
                     <div className='flex items-center gap-2'>
-                      {category.featured && (
+                      {category.isFeatured && (
                         <Star className='h-4 w-4 text-yellow-500 fill-current' />
                       )}
                       <span
                         className={cn(
                           'px-2 py-1 text-xs rounded-full',
-                          category.isVisible
+                          category.isActive
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         )}
                       >
-                        {category.isVisible ? 'Active' : 'Inactive'}
+                        {category.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
@@ -812,8 +799,8 @@ export default function CategoriesPage() {
                   </p>
 
                   <div className='flex items-center justify-between text-sm text-gray-500 mb-4'>
-                    <span>Sales: {formatCurrency(category.totalSales || 0)}</span>
-                    <span>Rating: {category.averageRating || 0}/5</span>
+                    <span>Products: {category.productCount || 0}</span>
+                    <span>Level: {category.level || 0}</span>
                   </div>
 
                   <div className='flex items-center gap-2'>
@@ -828,12 +815,12 @@ export default function CategoriesPage() {
                       onClick={() => handleToggleStatus(category.id)}
                       className={cn(
                         'flex items-center gap-1 px-3 py-1 text-sm rounded',
-                        category.isVisible
+                        category.isActive
                           ? 'text-red-600 hover:bg-red-50'
                           : 'text-green-600 hover:bg-green-50'
                       )}
                     >
-                      {category.isVisible ? (
+                      {category.isActive ? (
                         <>
                           <X className='h-3 w-3' />
                           Deactivate
@@ -863,8 +850,8 @@ export default function CategoriesPage() {
                   <tr className='border-b'>
                     <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
                     <th className='pb-3 text-left font-medium text-gray-600'>Products</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Sales</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Rating</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Level</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Featured</th>
                     <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
                     <th className='pb-3 text-left font-medium text-gray-600'>Updated</th>
                     <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
@@ -897,19 +884,21 @@ export default function CategoriesPage() {
                       </td>
                       <td className='py-4 text-gray-600'>{category.productCount || 0}</td>
                       <td className='py-4 text-gray-600'>
-                        {formatCurrency(category.totalSales || 0)}
+                        Level {category.level || 0}
                       </td>
-                      <td className='py-4 text-gray-600'>{category.averageRating || 0}/5</td>
+                      <td className='py-4 text-gray-600'>
+                        {category.isFeatured ? 'Yes' : 'No'}
+                      </td>
                       <td className='py-4'>
                         <span
                           className={cn(
                             'px-2 py-1 text-xs rounded-full',
-                            category.isVisible
+                            category.isActive
                               ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           )}
                         >
-                          {category.isVisible ? 'Active' : 'Inactive'}
+                          {category.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className='py-4 text-gray-600'>
@@ -1079,6 +1068,17 @@ export default function CategoriesPage() {
               />
               <label htmlFor='isActiveMain' className='text-sm text-gray-700'>
                 Active (visible to customers)
+              </label>
+            </div>
+            <div className='flex items-center gap-2'>
+              <input
+                type='checkbox'
+                id='featuredMain'
+                checked={formData.featured}
+                onChange={e => setFormData(prev => ({ ...prev, featured: e.target.checked }))}
+              />
+              <label htmlFor='featuredMain' className='text-sm text-gray-700'>
+                Featured category
               </label>
             </div>
           </div>

@@ -1,30 +1,24 @@
 import { apiClient } from '../client';
-import { Category, CategoryFilters, CategoriesPaginatedResponse } from '../types';
-
-export interface CreateCategoryDto {
-  name: string;
-  slug: string;
-  description?: string;
-  parentId?: string;
-  icon?: string;
-  isActive?: boolean;
-  sortOrder?: number;
-}
-
-export interface UpdateCategoryDto extends Partial<CreateCategoryDto> {
-  id?: string;
-}
+import {
+  Category,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CategoryFilters,
+  CategoryBulkActionDto,
+  CategoryReorderDto,
+  CategoryMoveDto,
+  CategoryStatistics,
+  CategoryPerformance,
+  CategoryTree,
+  UploadResponse,
+  PaginatedResponse,
+} from '../types';
 
 export class CategoryService {
   // List categories with filters and pagination
-  async getCategories(filters?: CategoryFilters): Promise<CategoriesPaginatedResponse> {
-    const response = await apiClient.get<any>('/categories', filters);
-    return {
-      categories: response.categories || response.data || [],
-      total: response.total || 0,
-      page: response.page || 1,
-      pages: response.pages || 1,
-    };
+  async getCategories(filters?: CategoryFilters): Promise<PaginatedResponse<Category>> {
+    const response = await apiClient.get<PaginatedResponse<Category>>('/categories', filters);
+    return response;
   }
 
   // Get single category by ID
@@ -56,119 +50,128 @@ export class CategoryService {
   }
 
   // Get category tree (hierarchical structure)
-  async getCategoryTree(): Promise<Category[]> {
-    const response = await apiClient.get<any>('/categories/tree');
-    return response.categories || response.data || [];
+  async getCategoryTree(includeInactive = false): Promise<CategoryTree[]> {
+    const response = await apiClient.get<CategoryTree[]>('/categories/tree', { includeInactive });
+    return response;
   }
 
   // Get category statistics
-  async getCategoryStats(): Promise<{
-    totalCategories: number;
-    activeCategories: number;
-    inactiveCategories: number;
-    featuredCategories: number;
-    totalProducts: number;
-    totalSales: number;
-    categoriesGrowth: number;
-    productsGrowth: number;
-    salesGrowth: number;
-  }> {
-    const response = await apiClient.get<any>('/categories/statistics');
-    
-    return {
-      totalCategories: response.total || 0,
-      activeCategories: response.active || 0,
-      inactiveCategories: response.inactive || 0,
-      featuredCategories: response.featured || 0,
-      totalProducts: response.totalProducts || 0,
-      totalSales: response.totalSales || 0,
-      categoriesGrowth: response.categoriesGrowth || 0,
-      productsGrowth: response.productsGrowth || 0,
-      salesGrowth: response.salesGrowth || 0,
-    };
+  async getCategoryStatistics(): Promise<CategoryStatistics> {
+    const response = await apiClient.get<CategoryStatistics>('/categories/statistics');
+    return response;
   }
 
   // Search categories
-  async searchCategories(query: string, filters?: {
-    status?: 'active' | 'inactive';
-    featured?: boolean;
-    limit?: number;
-  }): Promise<Category[]> {
-    const response = await apiClient.get<any>('/categories/search', {
+  async searchCategories(query: string, filters?: Partial<CategoryFilters>): Promise<PaginatedResponse<Category>> {
+    const response = await apiClient.get<PaginatedResponse<Category>>('/categories/search', {
       q: query,
-      ...filters
+      ...filters,
     });
-    return response.categories || response.data || [];
+    return response;
   }
 
   // Bulk operations
-  async bulkUpdateCategories(data: {
-    categoryIds: string[];
-    action: 'activate' | 'deactivate' | 'delete' | 'feature' | 'unfeature';
-  }): Promise<{ success: number; failed: number; errors: any[] }> {
-    return apiClient.post('/categories/bulk-update', data);
+  async bulkAction(data: CategoryBulkActionDto): Promise<void> {
+    await apiClient.post('/categories/bulk-action', data);
   }
 
   // Export categories
-  async exportCategories(filters?: CategoryFilters & { format: 'csv' | 'excel' }): Promise<Blob> {
-    return apiClient.get('/categories/export', filters);
+  async exportCategories(format: 'csv' | 'excel' = 'csv'): Promise<Blob> {
+    const response = await apiClient.get<Blob>(`/categories/export?format=${format}`, {}, {
+      responseType: 'blob',
+    });
+    return response;
   }
 
   // Reorder categories
-  async reorderCategories(data: { categoryId: string; newSortOrder: number }[]): Promise<void> {
-    await apiClient.post('/categories/reorder', { categories: data });
+  async reorderCategories(reorderData: CategoryReorderDto[]): Promise<void> {
+    await apiClient.post('/categories/reorder', reorderData);
   }
 
   // Get category performance metrics
-  async getCategoryPerformance(categoryId: string, params?: {
-    startDate?: string;
-    endDate?: string;
-    metrics?: string[];
-  }): Promise<{
-    sales: number;
-    orders: number;
-    products: number;
-    growth: number;
-    topProducts: any[];
-    salesTrend: any[];
-  }> {
-    return apiClient.get(`/categories/${categoryId}/performance`, params);
+  async getCategoryPerformance(id: string): Promise<CategoryPerformance> {
+    const response = await apiClient.get<CategoryPerformance>(`/categories/${id}/performance`);
+    return response;
   }
 
   // Get subcategories
-  async getSubcategories(parentId: string): Promise<Category[]> {
-    const response = await apiClient.get<any>(`/categories/${parentId}/subcategories`);
-    return response.categories || response.data || [];
+  async getSubcategories(parentId: string, filters?: Partial<CategoryFilters>): Promise<PaginatedResponse<Category>> {
+    const response = await apiClient.get<PaginatedResponse<Category>>(`/categories/${parentId}/subcategories`, filters);
+    return response;
   }
 
   // Move category (change parent)
-  async moveCategory(categoryId: string, newParentId?: string): Promise<Category> {
-    const response = await apiClient.patch<any>(`/categories/${categoryId}/move`, {
-      parentId: newParentId
-    });
-    return response.category || response.data || response;
+  async moveCategory(id: string, data: CategoryMoveDto): Promise<Category> {
+    const response = await apiClient.post<Category>(`/categories/${id}/move`, data);
+    return response;
   }
 
   // Duplicate category
-  async duplicateCategory(categoryId: string, data?: {
-    name?: string;
-    slug?: string;
-  }): Promise<Category> {
-    const response = await apiClient.post<any>(`/categories/${categoryId}/duplicate`, data);
-    return response.category || response.data || response;
+  async duplicateCategory(id: string, newName?: string): Promise<Category> {
+    const response = await apiClient.post<Category>(`/categories/${id}/duplicate`, {
+      name: newName,
+    });
+    return response;
   }
 
-  // Upload category image
-  async uploadCategoryImage(categoryId: string, file: File): Promise<{
-    url: string;
-    cdnUrl?: string;
-    key: string;
-  }> {
+  // Upload image and get CloudFront URL (for category creation)
+  async uploadImage(file: File): Promise<{ url: string }> {
     const formData = new FormData();
     formData.append('image', file);
-    
-    // Don't set Content-Type header, let the browser set it with boundary
-    return apiClient.post(`/categories/${categoryId}/upload-image`, formData);
+
+    const response = await apiClient.post<{ url: string }>(
+      '/categories/upload-image',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  }
+
+  // Upload category image (legacy - for existing categories)
+  async uploadCategoryImage(id: string, file: File): Promise<UploadResponse> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await apiClient.post<UploadResponse>(
+      `/categories/${id}/upload-image`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  }
+
+  // Utility methods
+  async validateSlug(slug: string, excludeId?: string): Promise<boolean> {
+    try {
+      await apiClient.get('/categories/validate-slug', {
+        slug,
+        excludeId,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async generateSlug(name: string): Promise<string> {
+    const response = await apiClient.post<{ slug: string }>('/categories/generate-slug', {
+      name,
+    });
+    return response.slug;
+  }
+
+  // Get public categories for external services
+  async getPublicCategories(filters?: Partial<CategoryFilters>): Promise<PaginatedResponse<Category>> {
+    const response = await apiClient.get<PaginatedResponse<Category>>('/categories/public', filters);
+    return response;
   }
 }
 

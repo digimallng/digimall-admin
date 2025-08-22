@@ -91,6 +91,12 @@ export enum NotificationType {
   WEBHOOK = 'webhook',
 }
 
+export enum CategoryStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  DRAFT = 'draft',
+}
+
 export enum AuditAction {
   CREATE = 'create',
   UPDATE = 'update',
@@ -1615,4 +1621,165 @@ export interface BulkTicketActionRequest {
   actionParams?: Record<string, any>;
   reason: string;
   notifyCustomers?: boolean;
+}
+
+// ===== CATEGORIES MANAGEMENT =====
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  icon?: string;
+  banner?: string;
+  parentId?: string;
+  level: number;
+  position: number;
+  sortOrder: number;
+  status: CategoryStatus;
+  isActive: boolean;
+  isFeatured: boolean;
+  isVisible: boolean;
+  allowProducts: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string[];
+  commissionRate?: number;
+  productCount: number;
+  activeProductCount: number;
+  attributes?: Record<string, any>;
+  filters?: Record<string, any>;
+  customFields?: Record<string, any>;
+  adminNotes?: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+  
+  // Relationships
+  parent?: Category;
+  children?: Category[];
+  
+  // Computed properties
+  fullPath: string;
+  breadcrumb: string[];
+  hasChildren: boolean;
+  isLeaf: boolean;
+  isRoot: boolean;
+  depth: number;
+  displayName: string;
+  productDensity: number;
+  isPopular: boolean;
+}
+
+export interface CreateCategoryDto {
+  name: string;
+  slug: string;
+  description?: string;
+  parentId?: string;
+  icon?: string;
+  image?: string;
+  color?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  featured?: boolean;
+  showInMenu?: boolean;
+  showInHomepage?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateCategoryDto {
+  name?: string;
+  description?: string;
+  slug?: string;
+  parentId?: string;
+  icon?: string;
+  image?: string;
+  color?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  featured?: boolean;
+  showInMenu?: boolean;
+  showInHomepage?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface CategoryFilters {
+  search?: string;
+  parentId?: string;
+  isActive?: boolean;
+  isFeatured?: boolean;
+  includeChildren?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface CategoryBulkActionDto {
+  categoryIds: string[];
+  action: 'activate' | 'deactivate' | 'delete' | 'feature' | 'unfeature';
+}
+
+export interface CategoryReorderDto {
+  categoryId: string;
+  newPosition: number;
+  parentId?: string;
+}
+
+export interface CategoryMoveDto {
+  parentId?: string;
+}
+
+export interface CategoryStatistics {
+  total: number;
+  active: number;
+  inactive: number;
+  featured: number;
+  totalProducts: number;
+  totalSales: number;
+  categoriesGrowth: number;
+  productsGrowth: number;
+  salesGrowth: number;
+}
+
+export interface CategoryPerformance {
+  sales: number;
+  orders: number;
+  products: number;
+  growth: number;
+  topProducts: any[];
+  salesTrend: Array<{
+    date: string;
+    sales: number;
+    orders: number;
+  }>;
+}
+
+export interface CategoryTree {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string;
+  level: number;
+  children: CategoryTree[];
+  productCount: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface UploadResponse {
+  url: string;
+  cdnUrl: string;
+  key: string;
+  bucket: string;
+  size: number;
 }
