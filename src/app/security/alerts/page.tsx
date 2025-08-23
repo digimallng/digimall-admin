@@ -2,33 +2,20 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+
 import {
   AlertTriangle,
   Shield,
   Search,
-  Filter,
-  Clock,
   Eye,
   CheckCircle,
   XCircle,
   AlertCircle,
   User,
-  MapPin,
-  Globe,
-  Calendar,
   MoreHorizontal,
   Ban,
   Flag,
   Activity,
-  Zap,
-  CreditCard,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -60,6 +47,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { securityService, SecurityAlert } from '@/lib/api/services/security.service';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Card } from '@/components';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
 export default function SecurityAlertsPage() {
   const [searchTerm, setSearchTerm] = useState('');

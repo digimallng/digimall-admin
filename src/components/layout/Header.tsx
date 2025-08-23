@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Bell, Search, User, Sun, Moon, Command, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
-import { notificationsService, NotificationItem } from '@/lib/api/services';
+import { notificationsService } from '@/lib/api/services';
 import { MobileMenuButton } from './Sidebar';
 
 interface HeaderProps {

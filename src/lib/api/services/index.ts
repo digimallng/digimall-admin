@@ -18,3 +18,5 @@ export { notificationsService, NotificationsService } from './notifications.serv
 export { apiClient, api, ApiError } from '../client';
 export type { ApiResponse, PaginatedResponse } from '../client';
 export * from '../types';
+
+export class NotificationItem {}
