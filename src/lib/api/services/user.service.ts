@@ -4,7 +4,71 @@ import { User, UserFilters, PaginatedResponse } from '../types';
 export class UserService {
   // List users with filters and pagination
   async getUsers(filters?: UserFilters): Promise<PaginatedResponse<User>> {
-    return apiClient.get<PaginatedResponse<User>>('/users', filters);
+    console.log('🔥 UserService.getUsers() called with filters:', filters);
+    
+    const params = new URLSearchParams();
+    
+    if (filters?.role) params.append('role', filters.role);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.query) params.append('search', filters.query);
+    if (filters?.isEmailVerified !== undefined) params.append('emailVerified', String(filters.isEmailVerified));
+    if (filters?.isPhoneVerified !== undefined) params.append('phoneVerified', String(filters.isPhoneVerified));
+    if (filters?.page) params.append('page', String(filters.page));
+    if (filters?.limit) params.append('limit', String(filters.limit));
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
+
+    console.log('🔥 UserService making API call to /users with params:', params.toString());
+    
+    const response = await apiClient.get<any>(`/users?${params.toString()}`);
+    
+    console.log('🔥 UserService received API response:', response);
+    
+    // Handle various response formats from the admin service
+    let users: User[] = [];
+    let total = 0;
+    let page = filters?.page || 1;
+    let pages = 1;
+    let limit = filters?.limit || 20;
+
+    // Try nested data format: { data: { data: { users: [...] } } }
+    if (response?.data?.data?.users && Array.isArray(response.data.data.users)) {
+      users = response.data.data.users;
+      total = response.data.data.total || users.length;
+      page = response.data.data.page || page;
+      pages = response.data.data.pages || Math.ceil(total / limit);
+      limit = response.data.data.limit || limit;
+    }
+    // Try simple data format: { data: [...] } or { users: [...] }
+    else if (response?.data?.users && Array.isArray(response.data.users)) {
+      users = response.data.users;
+      total = response.data.total || users.length;
+      page = response.data.page || page;
+      pages = response.data.pages || Math.ceil(total / limit);
+      limit = response.data.limit || limit;
+    }
+    // Try direct array in data: { data: [...] }
+    else if (Array.isArray(response?.data)) {
+      users = response.data;
+      total = users.length;
+      pages = Math.ceil(total / limit);
+    }
+    // Try direct array response: [...]
+    else if (Array.isArray(response)) {
+      users = response;
+      total = users.length;
+      pages = Math.ceil(total / limit);
+    }
+    
+    console.log(`Debug - Fetched ${users.length} users from API (total: ${total})`);
+
+    return {
+      users,
+      total,
+      page,
+      pages,
+      limit,
+    };
   }
 
   // Create new staff member
@@ -25,71 +89,134 @@ export class UserService {
 
   // Get single user by ID
   async getUser(id: string): Promise<User> {
-    return apiClient.get<User>(`/users/${id}`);
+    const response = await apiClient.get<any>(`/admin/users/${id}`);
+    
+    console.log('Debug - Get user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Update user
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    return apiClient.put<User>(`/users/${id}`, data);
+    const response = await apiClient.put<any>(`/admin/users/${id}`, data);
+    
+    console.log('Debug - Update user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Delete user
   async deleteUser(id: string): Promise<void> {
-    return apiClient.delete(`/users/${id}`);
+    return apiClient.delete(`/admin/users/${id}`);
   }
 
   // Activate user
   async activateUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
       status: 'active', 
       reason: 'Activated by admin' 
     });
-    return response?.user || response;
+    
+    console.log('Debug - Activate user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Deactivate user
   async deactivateUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
       status: 'inactive', 
       reason: reason || 'Deactivated by admin' 
     });
-    return response?.user || response;
+    
+    console.log('Debug - Deactivate user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Suspend user
   async suspendUser(id: string, reason: string, duration?: number): Promise<User> {
-    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
       status: 'suspended', 
       reason,
       duration 
     });
-    return response?.user || response;
+    
+    console.log('Debug - Suspend user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Unsuspend user
   async unsuspendUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
       status: 'active', 
       reason: 'Unsuspended by admin' 
     });
-    return response?.user || response;
+    
+    console.log('Debug - Unsuspend user API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Verify email
   async verifyEmail(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/users/${id}/verify-email`);
-    return response?.user || response;
+    const response = await apiClient.post<any>(`/admin/users/${id}/verify-email`);
+    
+    console.log('Debug - Verify email API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Verify phone
   async verifyPhone(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/users/${id}/verify-phone`);
-    return response?.user || response;
+    const response = await apiClient.post<any>(`/admin/users/${id}/verify-phone`);
+    
+    console.log('Debug - Verify phone API response:', response);
+    
+    // Handle different response formats
+    if (response?.data?.user) return response.data.user;
+    if (response?.user) return response.user;
+    if (response?.data) return response.data;
+    return response;
   }
 
   // Reset password
   async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const response = await apiClient.post<any>(`/users/${id}/reset-password`);
+    const response = await apiClient.post<any>(`/admin/users/${id}/reset-password`);
+    
+    console.log('Debug - Reset password API response:', response);
+    
+    // Handle different response formats
+    if (response?.data) return response.data;
     return response || {};
   }
 
@@ -100,7 +227,7 @@ export class UserService {
     reason?: string;
     duration?: number;
   }): Promise<{ success: number; failed: number; errors: any[] }> {
-    return apiClient.post('/users/bulk-update', data);
+    return apiClient.post('/admin/users/bulk-update', data);
   }
 
   // Export users
@@ -116,22 +243,95 @@ export class UserService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/users/${id}/activity`, params);
+    return apiClient.get(`/admin/users/${id}/activity`, params);
   }
 
   // Get user sessions
   async getUserSessions(id: string) {
-    return apiClient.get(`/users/${id}/sessions`);
+    return apiClient.get(`/admin/users/${id}/sessions`);
   }
 
   // Revoke user session
   async revokeUserSession(userId: string, sessionId: string): Promise<void> {
-    return apiClient.delete(`/users/${userId}/sessions/${sessionId}`);
+    return apiClient.delete(`/admin/users/${userId}/sessions/${sessionId}`);
   }
 
   // Get user statistics
   async getUserStats() {
-    return apiClient.get('/users/statistics');
+    console.log('🔥 getUserStats() called - calculating stats from user data');
+    
+    try {
+      // Fetch users with a large limit to get all users for accurate stats
+      const usersResponse = await this.getUsers({ 
+        page: 1, 
+        limit: 10000, // Get all users
+        sortBy: 'createdAt',
+        sortOrder: 'DESC' 
+      });
+      
+      const users = usersResponse.users || [];
+      console.log('🔥 Got users for stats calculation:', users.length);
+
+      // Calculate stats from user data
+      const total = users.length;
+      const active = users.filter(user => user.status === 'active' || user.status === 'ACTIVE').length;
+      const inactive = users.filter(user => user.status === 'inactive' || user.status === 'INACTIVE').length;
+      const suspended = users.filter(user => user.status === 'suspended' || user.status === 'SUSPENDED').length;
+      const pending = users.filter(user => user.status === 'pending' || user.status === 'PENDING').length;
+      
+      // Count by role
+      const customers = users.filter(user => 
+        user.role === 'customer' || user.role === 'CUSTOMER'
+      ).length;
+      const vendors = users.filter(user => 
+        user.role === 'vendor' || user.role === 'VENDOR'
+      ).length;
+      const admins = users.filter(user => 
+        user.role === 'admin' || user.role === 'super_admin' || 
+        user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+      ).length;
+      
+      // Count verified users
+      const emailVerified = users.filter(user => user.isEmailVerified).length;
+      const phoneVerified = users.filter(user => user.isPhoneVerified).length;
+      
+      // Get recent users (last 10)
+      const recentUsers = users.slice(0, 10);
+      
+      const result = {
+        total,
+        active,
+        inactive,
+        suspended,
+        pending,
+        customers,
+        vendors,
+        admins,
+        emailVerified,
+        phoneVerified,
+        recentUsers,
+      };
+      
+      console.log('🔥 Calculated stats result:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('🔥 Error in getUserStats:', error);
+      // Return default stats on error
+      return {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        suspended: 0,
+        pending: 0,
+        customers: 0,
+        vendors: 0,
+        admins: 0,
+        emailVerified: 0,
+        phoneVerified: 0,
+        recentUsers: [],
+      };
+    }
   }
 
   // Search users

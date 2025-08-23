@@ -20,11 +20,21 @@ export function useUsers(
   filters?: UserFilters,
   options?: Omit<UseQueryOptions<PaginatedResponse<User>, Error>, 'queryKey' | 'queryFn'>
 ) {
-  return useQuery({
+  const query = useQuery({
     queryKey: userKeys.list(filters),
-    queryFn: () => userService.getUsers(filters),
+    queryFn: async () => {
+      const result = await userService.getUsers(filters);
+      return result;
+    },
+    enabled: true,
+    retry: 1,
+    staleTime: 30000, // 30 seconds
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
     ...options,
   });
+
+  return query;
 }
 
 // Get single user
@@ -47,14 +57,16 @@ export function useUserStats(
   return useQuery({
     queryKey: userKeys.stats(),
     queryFn: async () => {
+      console.log('🔥 useUserStats queryFn called - about to call userService.getUserStats()');
       const response = await userService.getUserStats();
+      console.log('🔥 useUserStats got response from getUserStats:', response);
       // Transform the API response to match expected format
       const data = (response as any)?.data || response;
-      return {
-        totalUsers: data.totalUsers || 0,
-        activeUsers: data.usersByStatus?.active || 0,
-        totalVendors: data.usersByRole?.vendor || 0,
-        totalCustomers: data.usersByRole?.customer || 0,
+      const result = {
+        totalUsers: data.total || 0,
+        activeUsers: data.active || 0,
+        totalVendors: data.vendors || 0,
+        totalCustomers: data.customers || 0,
         // Add growth calculations if needed
         userGrowth: 0,
         activeUserGrowth: 0,
@@ -62,7 +74,13 @@ export function useUserStats(
         customerGrowth: 0,
         ...data
       };
+      console.log('🔥 useUserStats returning result:', result);
+      return result;
     },
+    staleTime: 0, // Always consider data stale to force refresh
+    cacheTime: 0, // Don't cache results
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     ...options,
   });
