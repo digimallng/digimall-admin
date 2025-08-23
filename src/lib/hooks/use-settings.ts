@@ -424,7 +424,7 @@ export function useNotificationServices(
           uptime: 97.2,
           lastCheck: new Date(Date.now() - 60000), // 1 minute ago
           responseTime: 450,
-          version: '2.0.0',
+          version: '2.0',
           queues: {
             waiting: 89,
             active: 3,

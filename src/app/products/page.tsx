@@ -61,7 +61,7 @@ export default function ProductsPage() {
         productService.getStats(),
       ]);
       
-      setProducts(productsData.data);
+      setProducts(productsData.products);
       setTotal(productsData.total);
       setStats(statsData);
     } catch (err) {

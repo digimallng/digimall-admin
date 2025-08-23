@@ -68,10 +68,16 @@ export const authOptions: NextAuthOptions = {
           }
 
           const result = await response.json();
+          console.log('Full login result:', JSON.stringify(result, null, 2));
           
           // Handle the response from admin service
-          // Admin service returns: { user, tokens: { accessToken, refreshToken, expiresIn } }
+          // Admin service returns: { message, user, tokens: { accessToken, refreshToken, expiresIn } }
           const { user, tokens } = result;
+          
+          if (!user || !tokens) {
+            console.error('Missing user or tokens in response:', { user: !!user, tokens: !!tokens });
+            throw new Error('Invalid response structure from server');
+          }
 
           return {
             id: user.id,

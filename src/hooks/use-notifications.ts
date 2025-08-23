@@ -137,3 +137,44 @@ export function useNotifications() {
     playNotificationSound,
   };
 }
+
+// Toast hook for simple notifications
+export function useToast() {
+  return {
+    toast: (options: {
+      title: string;
+      description?: string;
+      type?: 'success' | 'error' | 'warning' | 'info';
+      duration?: number;
+    }) => {
+      const { title, description, type = 'info', duration = 4000 } = options;
+      
+      switch (type) {
+        case 'success':
+          toast.success(title, {
+            description,
+            duration,
+          });
+          break;
+        case 'error':
+          toast.error(title, {
+            description,
+            duration,
+          });
+          break;
+        case 'warning':
+          toast.warning(title, {
+            description,
+            duration,
+          });
+          break;
+        default:
+          toast.info(title, {
+            description,
+            duration,
+          });
+          break;
+      }
+    },
+  };
+}

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
-import { api } from '../api/client';
+import { systemService } from '@/lib/api/services/system.service';
+import { useToast } from '@/hooks/use-notifications';
 
 // Query keys
 export const systemKeys = {
@@ -26,7 +27,387 @@ export const systemKeys = {
   configuration: () => [...systemKeys.all, 'configuration'] as const,
 } as const;
 
-// ===== QUERY HOOKS =====
+// ===== REAL SYSTEM API HOOKS =====
+
+// System Configuration Hooks
+export function useSystemConfig() {
+  return useQuery({
+    queryKey: ['system', 'config'],
+    queryFn: () => systemService.getSystemConfig(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
+  });
+}
+
+export function useUpdateSystemConfig() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (config: any) => systemService.updateSystemConfig(config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system', 'config'] });
+      toast({
+        title: 'Configuration Updated',
+        description: 'System configuration has been successfully updated.',
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Failed to update system configuration.',
+        type: 'error',
+      });
+    },
+  });
+}
+
+// System Status and Health Hooks
+export function useSystemStatus() {
+  return useQuery({
+    queryKey: ['system', 'status'],
+    queryFn: () => systemService.getSystemStatus(),
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15 * 1000, // Consider stale after 15 seconds
+    retry: 3,
+  });
+}
+
+export function useSystemMetricsReal() {
+  return useQuery({
+    queryKey: ['system', 'metrics'],
+    queryFn: () => systemService.getSystemMetrics(),
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 30 * 1000, // Consider stale after 30 seconds
+    retry: 3,
+  });
+}
+
+// Health Check Hooks
+export function useHealthCheck() {
+  return useQuery({
+    queryKey: ['health', 'check'],
+    queryFn: () => systemService.getHealthCheck(),
+    refetchInterval: 30000,
+    retry: 3,
+  });
+}
+
+export function useReadinessCheck() {
+  return useQuery({
+    queryKey: ['health', 'readiness'],
+    queryFn: () => systemService.getReadinessCheck(),
+    refetchInterval: 30000,
+    retry: 3,
+  });
+}
+
+export function useLivenessCheck() {
+  return useQuery({
+    queryKey: ['health', 'liveness'],
+    queryFn: () => systemService.getLivenessCheck(),
+    refetchInterval: 30000,
+    retry: 3,
+  });
+}
+
+export function useDetailedHealth() {
+  return useQuery({
+    queryKey: ['health', 'detailed'],
+    queryFn: () => systemService.getDetailedHealth(),
+    refetchInterval: 60000,
+    retry: 3,
+  });
+}
+
+export function useDatabaseHealth() {
+  return useQuery({
+    queryKey: ['health', 'database'],
+    queryFn: () => systemService.getDatabaseHealth(),
+    refetchInterval: 60000,
+    retry: 3,
+  });
+}
+
+// Maintenance Mode Hooks
+export function useMaintenanceMode() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ enabled, message }: { enabled: boolean; message?: string }) =>
+      systemService.toggleMaintenanceMode(enabled, message),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['system', 'config'] });
+      toast({
+        title: data.maintenance.enabled ? 'Maintenance Mode Enabled' : 'Maintenance Mode Disabled',
+        description: data.maintenance.enabled 
+          ? 'The system is now in maintenance mode.' 
+          : 'The system is back online.',
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Operation Failed',
+        description: error.message || 'Failed to toggle maintenance mode.',
+        type: 'error',
+      });
+    },
+  });
+
+  return {
+    toggleMaintenanceMode: toggleMutation.mutate,
+    isToggling: toggleMutation.isPending,
+    error: toggleMutation.error,
+  };
+}
+
+// Cache Management Hooks
+export function useClearCacheReal() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => systemService.clearCache(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['system'] });
+      toast({
+        title: 'Cache Cleared Successfully',
+        description: data.message || 'System cache has been cleared.',
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Cache Clear Failed',
+        description: error.message || 'Failed to clear system cache.',
+        type: 'error',
+      });
+    },
+  });
+}
+
+// Backup Management Hooks
+export function useTriggerBackupReal() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => systemService.triggerBackup(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['system'] });
+      toast({
+        title: 'Backup Initiated',
+        description: `${data.backup.id} has been started and will complete in approximately ${data.backup.estimatedTime}.`,
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Backup Failed',
+        description: error.message || 'Failed to initiate backup.',
+        type: 'error',
+      });
+    },
+  });
+}
+
+// System Logs Hooks
+export function useSystemLogsReal(limit: number = 50, offset: number = 0) {
+  return useQuery({
+    queryKey: ['system', 'logs', { limit, offset }],
+    queryFn: () => systemService.getSystemLogs(limit, offset),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 3,
+  });
+}
+
+// S3 Status Hooks
+export function useS3Status() {
+  return useQuery({
+    queryKey: ['system', 's3', 'status'],
+    queryFn: () => systemService.getS3Status(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
+  });
+}
+
+export function useTestS3Connection() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => systemService.testS3Connection(),
+    onSuccess: (data) => {
+      toast({
+        title: 'S3 Connection Test',
+        description: data.success ? 'S3 connection successful' : 'S3 connection failed',
+        type: data.success ? 'success' : 'error',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'S3 Connection Test Failed',
+        description: error.message || 'Failed to test S3 connection.',
+        type: 'error',
+      });
+    },
+  });
+}
+
+// Combined System Overview Hook
+export function useSystemOverview() {
+  const config = useSystemConfig();
+  const status = useSystemStatus();
+  const metrics = useSystemMetricsReal();
+  const health = useHealthCheck();
+
+  return {
+    config: config.data,
+    status: status.data,
+    metrics: metrics.data,
+    health: health.data,
+    isLoading: config.isLoading || status.isLoading || metrics.isLoading || health.isLoading,
+    hasError: config.error || status.error || metrics.error || health.error,
+    refetch: () => {
+      config.refetch();
+      status.refetch();
+      metrics.refetch();
+      health.refetch();
+    },
+  };
+}
+
+// System Real-time Monitoring Hook
+export function useSystemMonitoring(options?: {
+  enableRealTime?: boolean;
+  refetchInterval?: number;
+}) {
+  const { enableRealTime = true, refetchInterval = 30000 } = options || {};
+
+  const config = useQuery({
+    queryKey: ['system', 'config'],
+    queryFn: () => systemService.getSystemConfig(),
+    refetchInterval: enableRealTime ? refetchInterval * 2 : false,
+    staleTime: 60000,
+  });
+
+  const status = useQuery({
+    queryKey: ['system', 'status'],
+    queryFn: () => systemService.getSystemStatus(),
+    refetchInterval: enableRealTime ? refetchInterval : false,
+    staleTime: 15000,
+  });
+
+  const metrics = useQuery({
+    queryKey: ['system', 'metrics'],
+    queryFn: () => systemService.getSystemMetrics(),
+    refetchInterval: enableRealTime ? refetchInterval : false,
+    staleTime: 30000,
+  });
+
+  const health = useQuery({
+    queryKey: ['health', 'check'],
+    queryFn: () => systemService.getHealthCheck(),
+    refetchInterval: enableRealTime ? refetchInterval : false,
+    staleTime: 20000,
+  });
+
+  const overallHealth = () => {
+    if (!status.data || !health.data) return 0;
+    
+    let healthScore = 0;
+    if (status.data.status === 'operational') healthScore += 25;
+    if (health.data.status === 'ok') healthScore += 25;
+    
+    // Add metrics-based health scoring
+    if (metrics.data) {
+      const errorRate = metrics.data.requests?.failed / (metrics.data.requests?.total || 1);
+      if (errorRate < 0.01) healthScore += 25; // Less than 1% error rate
+      else if (errorRate < 0.05) healthScore += 15; // Less than 5% error rate
+      else if (errorRate < 0.1) healthScore += 10; // Less than 10% error rate
+      
+      const cacheHitRate = metrics.data.cache?.hitRate || 0;
+      if (cacheHitRate > 0.9) healthScore += 25; // Greater than 90% cache hit rate
+      else if (cacheHitRate > 0.8) healthScore += 15; // Greater than 80% cache hit rate
+      else if (cacheHitRate > 0.7) healthScore += 10; // Greater than 70% cache hit rate
+    }
+
+    return Math.min(100, healthScore);
+  };
+
+  const getSystemAlerts = () => {
+    const alerts: Array<{
+      level: 'info' | 'warning' | 'error';
+      message: string;
+      timestamp: string;
+    }> = [];
+
+    if (status.data?.status !== 'operational') {
+      alerts.push({
+        level: 'error',
+        message: 'System is not operational',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (health.data?.status !== 'ok') {
+      alerts.push({
+        level: 'error',
+        message: 'Health check failing',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (metrics.data) {
+      const errorRate = metrics.data.requests?.failed / (metrics.data.requests?.total || 1);
+      if (errorRate > 0.1) {
+        alerts.push({
+          level: 'error',
+          message: `High error rate: ${(errorRate * 100).toFixed(1)}%`,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (errorRate > 0.05) {
+        alerts.push({
+          level: 'warning',
+          message: `Elevated error rate: ${(errorRate * 100).toFixed(1)}%`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const cacheHitRate = metrics.data.cache?.hitRate || 0;
+      if (cacheHitRate < 0.7) {
+        alerts.push({
+          level: 'warning',
+          message: `Low cache hit rate: ${(cacheHitRate * 100).toFixed(1)}%`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    return alerts;
+  };
+
+  return {
+    config: config.data,
+    status: status.data,
+    metrics: metrics.data,
+    health: health.data,
+    isLoading: config.isLoading || status.isLoading || metrics.isLoading || health.isLoading,
+    hasError: !!(config.error || status.error || metrics.error || health.error),
+    overallHealth: overallHealth(),
+    alerts: getSystemAlerts(),
+    refetch: () => {
+      config.refetch();
+      status.refetch();
+      metrics.refetch();
+      health.refetch();
+    },
+  };
+}
+
+// ===== LEGACY QUERY HOOKS =====
 
 // Get system settings
 export function useSystemSettings(

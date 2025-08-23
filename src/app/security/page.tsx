@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
 import {
   Shield,
@@ -51,6 +52,8 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
+import { securityService } from '@/lib/api/services/security.service';
+import Link from 'next/link';
 
 interface SecurityAlert {
   id: string;
@@ -210,13 +213,58 @@ const mockFraudPatterns: FraudPattern[] = [
 ];
 
 export default function SecurityPage() {
-  const [alerts, setAlerts] = useState<SecurityAlert[]>(mockSecurityAlerts);
-  const [patterns, setPatterns] = useState<FraudPattern[]>(mockFraudPatterns);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'alerts' | 'patterns' | 'monitoring'>('alerts');
+
+  const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
+    queryKey: ['security-alerts', typeFilter, severityFilter, statusFilter],
+    queryFn: () => securityService.getSecurityAlerts({
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      severity: severityFilter !== 'all' ? severityFilter : undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      limit: 20
+    }),
+  });
+
+  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
+    queryKey: ['security-dashboard'],
+    queryFn: () => securityService.getSecurityDashboard(),
+    retry: 1,
+    retryOnMount: false,
+  });
+
+  const { data: securityScore, isLoading: scoreLoading } = useQuery({
+    queryKey: ['security-score'],
+    queryFn: () => securityService.getSecurityScore(),
+    retry: 1,
+    retryOnMount: false,
+  });
+
+  const { data: recentEvents, isLoading: eventsLoading } = useQuery({
+    queryKey: ['security-events', 'recent'],
+    queryFn: () => securityService.getRecentSecurityEvents(10),
+    retry: 1,
+    retryOnMount: false,
+  });
+
+  const { data: vulnerabilities, isLoading: vulnLoading } = useQuery({
+    queryKey: ['vulnerabilities'],
+    queryFn: () => securityService.getVulnerabilities(),
+    retry: 1,
+    retryOnMount: false,
+  });
+
+  const { data: fraudRulesData, isLoading: fraudRulesLoading } = useQuery({
+    queryKey: ['fraud-rules'],
+    queryFn: () => securityService.getFraudRules(),
+    retry: 1,
+    retryOnMount: false,
+  });
+
+  const patterns = fraudRulesData?.items || mockFraudPatterns;
 
   const securityMetrics = [
     { name: 'Jan', threats: 45, blocked: 42, false_positives: 3 },
@@ -237,7 +285,8 @@ export default function SecurityPage() {
 
   const COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6'];
 
-  const filteredAlerts = alerts.filter(alert => {
+  const alertsList = alerts?.items || [];
+  const filteredAlerts = alertsList.filter(alert => {
     const matchesSearch =
       alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       alert.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -250,10 +299,10 @@ export default function SecurityPage() {
   });
 
   const stats = {
-    totalAlerts: alerts.length,
-    activeAlerts: alerts.filter(a => a.status === 'active').length,
-    resolvedAlerts: alerts.filter(a => a.status === 'resolved').length,
-    criticalAlerts: alerts.filter(a => a.severity === 'critical').length,
+    totalAlerts: alertsList.length,
+    activeAlerts: alertsList.filter(a => a.status === 'open' || a.status === 'active').length,
+    resolvedAlerts: alertsList.filter(a => a.status === 'resolved').length,
+    criticalAlerts: alertsList.filter(a => a.severity === 'critical').length,
     avgResponseTime: 2.4, // hours
     detectionRate: 94.8, // percentage
   };
@@ -309,20 +358,37 @@ export default function SecurityPage() {
     }
   };
 
-  const handleStatusChange = (alertId: string, newStatus: string) => {
-    setAlerts(prev =>
-      prev.map(alert =>
-        alert.id === alertId
-          ? {
-              ...alert,
-              status: newStatus as any,
-              updatedAt: new Date(),
-              resolvedAt: newStatus === 'resolved' ? new Date() : undefined,
-            }
-          : alert
-      )
-    );
+  const handleStatusChange = async (alertId: string, newStatus: string) => {
+    try {
+      await securityService.resolveAlert(alertId, { 
+        status: newStatus as any,
+        resolution: `Status updated to ${newStatus}` 
+      });
+      refetchAlerts();
+    } catch (error) {
+      console.error('Failed to update alert status:', error);
+    }
   };
+
+  if (alertsLoading || dashboardLoading || scoreLoading || eventsLoading || vulnLoading || fraudRulesLoading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-8'>
@@ -341,11 +407,13 @@ export default function SecurityPage() {
               </p>
             </div>
             <div className='flex items-center gap-3'>
-              <GlowingButton size='sm' variant='secondary'>
-                <Download className='h-4 w-4 mr-2' />
-                Export Logs
+              <GlowingButton size='sm' variant='secondary' asChild>
+                <Link href="/security/alerts">
+                  <Eye className='h-4 w-4 mr-2' />
+                  Manage Alerts
+                </Link>
               </GlowingButton>
-              <GlowingButton size='sm' variant='primary'>
+              <GlowingButton size='sm' variant='primary' onClick={() => refetchAlerts()}>
                 <RefreshCw className='h-4 w-4 mr-2' />
                 Refresh
               </GlowingButton>
@@ -573,7 +641,7 @@ export default function SecurityPage() {
                             <button className='text-blue-600 hover:text-blue-800 font-medium'>
                               View Details
                             </button>
-                            {alert.status === 'active' && (
+                            {(alert.status === 'active' || alert.status === 'open') && (
                               <button
                                 onClick={() => handleStatusChange(alert.id, 'investigating')}
                                 className='text-yellow-600 hover:text-yellow-800 font-medium'

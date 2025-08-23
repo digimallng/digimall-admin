@@ -53,7 +53,7 @@ export interface AdminProductActions {
 }
 
 export class ProductService {
-  private readonly baseUrl = '/admin/products';
+  private readonly baseUrl = '/products';
 
   async findAll(query: ProductQuery = {}): Promise<ProductsPaginatedResponse> {
     const params = new URLSearchParams();
@@ -80,7 +80,7 @@ export class ProductService {
       total: response.total,
       page: response.page,
       limit: response.limit,
-      totalPages: response.totalPages,
+      totalPages: response.pages || response.totalPages || 0,
     };
   }
 
@@ -113,8 +113,8 @@ export class ProductService {
         p.trackInventory && p.stockQuantity <= (p.lowStockThreshold || 5)
       ).length,
       featured: products.filter(p => p.isFeatured).length,
-      totalViews: products.reduce((sum, p) => sum + p.viewCount, 0),
-      totalSales: products.reduce((sum, p) => sum + p.soldQuantity, 0),
+      totalViews: products.reduce((sum, p) => sum + (p.viewCount || 0), 0),
+      totalSales: products.reduce((sum, p) => sum + (p.soldQuantity || 0), 0),
     };
   }
 

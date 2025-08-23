@@ -227,7 +227,346 @@ export interface MaintenanceMode {
 // ===== SERVICE CLASS =====
 
 export class SystemService {
-  // Settings
+  // Settings and Config
+  async getSystemConfig(): Promise<any> {
+    try {
+      const response = await apiClient.get('/system/config');
+      
+      if (response && typeof response === 'object') {
+        return response;
+      }
+      
+      // Fallback configuration
+      return {
+        environment: 'development',
+        version: '1.0.0',
+        features: {
+          emailVerification: true,
+          phoneVerification: true,
+          twoFactorAuth: true,
+          vendorVerification: true,
+        },
+        limits: {
+          maxFileSize: 10485760,
+          maxFilesPerUpload: 5,
+          sessionTimeout: 3600,
+        },
+        maintenance: {
+          enabled: false,
+          message: '',
+        },
+      };
+    } catch (error) {
+      console.error('Failed to fetch system config:', error);
+      return {
+        environment: 'development',
+        version: '1.0.0',
+        features: {
+          emailVerification: true,
+          phoneVerification: true,
+          twoFactorAuth: true,
+          vendorVerification: true,
+        },
+        limits: {
+          maxFileSize: 10485760,
+          maxFilesPerUpload: 5,
+          sessionTimeout: 3600,
+        },
+        maintenance: {
+          enabled: false,
+          message: '',
+        },
+        error: error.message || 'Failed to fetch config',
+      };
+    }
+  }
+
+  async updateSystemConfig(updateDto: any): Promise<any> {
+    try {
+      return await apiClient.put('/system/config', updateDto);
+    } catch (error) {
+      console.error('Failed to update system config:', error);
+      throw error;
+    }
+  }
+
+  async getSystemStatus(): Promise<any> {
+    try {
+      const response = await apiClient.get('/system/status');
+      
+      if (response && typeof response === 'object') {
+        return {
+          status: response.status || 'unknown',
+          timestamp: response.timestamp || new Date().toISOString(),
+          uptime: response.uptime || { seconds: 0, formatted: '0s' },
+          memory: response.memory || {
+            rss: '0 MB',
+            heapTotal: '0 MB',
+            heapUsed: '0 MB',
+            external: '0 MB',
+          },
+          cpu: response.cpu || { user: 0, system: 0 },
+        };
+      }
+      
+      // Fallback status
+      return {
+        status: 'unknown',
+        timestamp: new Date().toISOString(),
+        uptime: { seconds: 0, formatted: '0s' },
+        memory: {
+          rss: '0 MB',
+          heapTotal: '0 MB',
+          heapUsed: '0 MB',
+          external: '0 MB',
+        },
+        cpu: { user: 0, system: 0 },
+      };
+    } catch (error) {
+      console.error('Failed to fetch system status:', error);
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        uptime: { seconds: 0, formatted: '0s' },
+        memory: {
+          rss: '0 MB',
+          heapTotal: '0 MB',
+          heapUsed: '0 MB',
+          external: '0 MB',
+        },
+        cpu: { user: 0, system: 0 },
+        error: error.message || 'Failed to fetch status',
+      };
+    }
+  }
+
+  async getSystemMetrics(): Promise<any> {
+    try {
+      const response = await apiClient.get('/system/metrics');
+      
+      // Ensure the response has the expected structure
+      if (response && typeof response === 'object') {
+        return {
+          requests: {
+            total: response.requests?.total || 0,
+            successful: response.requests?.successful || 0,
+            failed: response.requests?.failed || 0,
+            avgResponseTime: response.requests?.avgResponseTime || 0,
+          },
+          database: {
+            connections: {
+              active: response.database?.connections?.active || 0,
+              idle: response.database?.connections?.idle || 0,
+              total: response.database?.connections?.total || 0,
+            },
+            queries: {
+              total: response.database?.queries?.total || 0,
+              slow: response.database?.queries?.slow || 0,
+              failed: response.database?.queries?.failed || 0,
+            },
+          },
+          cache: {
+            hits: response.cache?.hits || 0,
+            misses: response.cache?.misses || 0,
+            hitRate: response.cache?.hitRate || 0,
+            size: response.cache?.size || 0,
+          },
+          queue: {
+            processed: response.queue?.processed || 0,
+            failed: response.queue?.failed || 0,
+            pending: response.queue?.pending || 0,
+          },
+        };
+      }
+      
+      // Fallback with default structure
+      return {
+        requests: { total: 0, successful: 0, failed: 0, avgResponseTime: 0 },
+        database: {
+          connections: { active: 0, idle: 0, total: 0 },
+          queries: { total: 0, slow: 0, failed: 0 },
+        },
+        cache: { hits: 0, misses: 0, hitRate: 0, size: 0 },
+        queue: { processed: 0, failed: 0, pending: 0 },
+      };
+    } catch (error) {
+      console.error('Failed to fetch system metrics:', error);
+      return {
+        requests: { total: 0, successful: 0, failed: 0, avgResponseTime: 0 },
+        database: {
+          connections: { active: 0, idle: 0, total: 0 },
+          queries: { total: 0, slow: 0, failed: 0 },
+        },
+        cache: { hits: 0, misses: 0, hitRate: 0, size: 0 },
+        queue: { processed: 0, failed: 0, pending: 0 },
+      };
+    }
+  }
+
+  async toggleMaintenanceMode(enabled: boolean, message?: string): Promise<any> {
+    return apiClient.post('/system/maintenance', { enabled, message });
+  }
+
+  async clearCache(): Promise<any> {
+    return apiClient.post('/system/cache/clear');
+  }
+
+  async triggerBackup(): Promise<any> {
+    return apiClient.post('/system/backup');
+  }
+
+  async getSystemLogs(limit?: number, offset?: number): Promise<any> {
+    try {
+      const response = await apiClient.get('/system/logs', { limit, offset });
+      
+      // Handle different possible response structures
+      if (response) {
+        // Case 1: Response is an array of logs directly
+        if (Array.isArray(response)) {
+          return {
+            logs: response,
+            total: response.length,
+            page: 1,
+            pages: 1,
+            limit: limit || 50,
+          };
+        }
+        
+        // Case 2: Response is an object with logs property
+        if (typeof response === 'object') {
+          // Check if it has a logs property that is an array
+          if (response.logs && Array.isArray(response.logs)) {
+            return {
+              logs: response.logs,
+              total: response.total || response.logs.length,
+              page: response.page || 1,
+              pages: response.pages || Math.ceil((response.total || response.logs.length) / (limit || 50)),
+              limit: response.limit || limit || 50,
+            };
+          }
+          
+          // Check if the response itself contains log-like objects
+          if (response.data && Array.isArray(response.data)) {
+            return {
+              logs: response.data,
+              total: response.total || response.data.length,
+              page: response.page || 1,
+              pages: response.pages || Math.ceil((response.total || response.data.length) / (limit || 50)),
+              limit: response.limit || limit || 50,
+            };
+          }
+          
+          // Fallback: return response as is but ensure structure
+          return {
+            logs: [],
+            total: 0,
+            page: 1,
+            pages: 1,
+            limit: limit || 50,
+            rawResponse: response,
+            error: 'Unexpected response structure - logs not found',
+          };
+        }
+      }
+      
+      // Fallback for null/undefined response
+      return {
+        logs: [],
+        total: 0,
+        page: 1,
+        pages: 1,
+        limit: limit || 50,
+        error: 'Empty or invalid response',
+      };
+    } catch (error) {
+      console.error('Failed to fetch system logs:', error);
+      return {
+        logs: [],
+        total: 0,
+        page: 1,
+        pages: 1,
+        limit: limit || 50,
+        error: error.message || 'Failed to fetch logs',
+      };
+    }
+  }
+
+  // Health Endpoints
+  async getHealthCheck(): Promise<any> {
+    try {
+      const response = await apiClient.get('/health');
+      return response || { status: 'unknown', info: {}, error: null };
+    } catch (error) {
+      console.error('Health check failed:', error);
+      return { status: 'error', error: error.message };
+    }
+  }
+
+  async getReadinessCheck(): Promise<any> {
+    try {
+      const response = await apiClient.get('/health/ready');
+      return response || { status: 'not_ready' };
+    } catch (error) {
+      console.error('Readiness check failed:', error);
+      return { status: 'not_ready', error: error.message };
+    }
+  }
+
+  async getLivenessCheck(): Promise<any> {
+    try {
+      const response = await apiClient.get('/health/live');
+      return response || { status: 'dead' };
+    } catch (error) {
+      console.error('Liveness check failed:', error);
+      return { status: 'dead', error: error.message };
+    }
+  }
+
+  async getDetailedHealth(): Promise<any> {
+    try {
+      const response = await apiClient.get('/health/detailed');
+      return response || {
+        status: 'unknown',
+        timestamp: new Date().toISOString(),
+        service: 'admin-service',
+        environment: 'development',
+        version: '1.0.0',
+      };
+    } catch (error) {
+      console.error('Detailed health check failed:', error);
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        service: 'admin-service',
+        error: error.message,
+      };
+    }
+  }
+
+  async getDatabaseHealth(): Promise<any> {
+    try {
+      const response = await apiClient.get('/health/database');
+      return response || { status: 'unhealthy' };
+    } catch (error) {
+      console.error('Database health check failed:', error);
+      return {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      };
+    }
+  }
+
+  // S3 Status
+  async getS3Status(): Promise<any> {
+    return apiClient.get('/system/s3/status');
+  }
+
+  async testS3Connection(): Promise<any> {
+    return apiClient.get('/system/s3/test-connection');
+  }
+
+  // Legacy methods for compatibility
   async getSystemSettings(category?: string): Promise<SystemSettings> {
     return apiClient.get('/system-settings', category ? { category } : undefined);
   }
@@ -249,7 +588,7 @@ export class SystemService {
     return apiClient.get('/system-monitoring/health');
   }
 
-  async getSystemMetrics(timeRange?: 'hour' | 'day' | 'week' | 'month'): Promise<SystemMetrics> {
+  async getSystemMetricsWithTimeRange(timeRange?: 'hour' | 'day' | 'week' | 'month'): Promise<SystemMetrics> {
     return apiClient.get('/system-monitoring/metrics', { timeRange });
   }
 

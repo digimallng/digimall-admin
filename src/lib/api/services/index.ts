@@ -12,6 +12,7 @@ export { financialService, FinancialService } from './financial.service';
 export { securityService, SecurityService } from './security.service';
 export { systemService, SystemService } from './system.service';
 export { supportService, SupportService } from './support.service';
+export { notificationsService, NotificationsService } from './notifications.service';
 
 // Export API client and types
 export { apiClient, api, ApiError } from '../client';

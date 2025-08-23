@@ -44,6 +44,7 @@ import {
   useDashboardAnalytics,
   useRevenueData,
   useOrderAnalytics,
+  useSystemMetrics,
 } from '@/lib/hooks/use-analytics';
 import { Order } from '@/lib/api/types';
 
@@ -78,13 +79,21 @@ export default function DashboardPage() {
     enabled: !!session?.accessToken,
   } as any);
 
+  const {
+    data: performanceData,
+    isLoading: performanceLoading,
+    error: performanceError,
+  } = useSystemMetrics({
+    enabled: !!session?.accessToken,
+  });
+
   // Handle loading state
-  if (analyticsLoading || revenueLoading || orderLoading) {
+  if (analyticsLoading || revenueLoading || orderLoading || performanceLoading) {
     return <LoadingDashboard />;
   }
 
   // Handle error state
-  if (analyticsError || revenueError || orderError) {
+  if (analyticsError || revenueError || orderError || performanceError) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
         <ErrorMessage
@@ -93,6 +102,7 @@ export default function DashboardPage() {
             analyticsError?.message ||
             revenueError?.message ||
             orderError?.message ||
+            performanceError?.message ||
             'Unknown error occurred'
           }
           onRetry={() => refetchAnalytics()}
@@ -183,8 +193,8 @@ export default function DashboardPage() {
   const metrics = [
     {
       title: 'Total Revenue',
-      value: analytics.totalRevenue,
-      change: analytics.revenueGrowth || 0,
+      value: analytics?.totalRevenue || 0,
+      change: analytics?.revenueGrowth || 0,
       icon: DollarSign,
       gradient: 'from-blue-500 to-purple-600',
       bgGradient: 'from-blue-500/10 to-purple-600/10',
@@ -193,8 +203,8 @@ export default function DashboardPage() {
     },
     {
       title: 'Total Orders',
-      value: analytics.totalOrders,
-      change: analytics.orderGrowth || 0,
+      value: analytics?.totalOrders || 0,
+      change: analytics?.orderGrowth || 0,
       icon: ShoppingCart,
       gradient: 'from-green-500 to-emerald-600',
       bgGradient: 'from-green-500/10 to-emerald-600/10',
@@ -203,8 +213,8 @@ export default function DashboardPage() {
     },
     {
       title: 'Total Users',
-      value: analytics.totalUsers,
-      change: analytics.userGrowth || Math.floor(Math.random() * 20), // Simulate growth
+      value: analytics?.totalUsers || 0,
+      change: analytics?.userGrowth || Math.floor(Math.random() * 20), // Simulate growth
       icon: Users,
       gradient: 'from-purple-500 to-pink-600',
       bgGradient: 'from-purple-500/10 to-pink-600/10',
@@ -213,8 +223,8 @@ export default function DashboardPage() {
     },
     {
       title: 'Total Vendors',
-      value: analytics.totalVendors,
-      change: analytics.vendorGrowth || 0,
+      value: analytics?.totalVendors || 0,
+      change: analytics?.vendorGrowth || 0,
       icon: Store,
       gradient: 'from-orange-500 to-red-600',
       bgGradient: 'from-orange-500/10 to-red-600/10',
@@ -228,7 +238,6 @@ export default function DashboardPage() {
       <PageHeader
         title='Dashboard Overview'
         description={`Welcome back, ${session?.user?.name || 'Admin'}`}
-        icon={Activity}
         actions={[
           {
             label: 'Refresh Data',
@@ -315,7 +324,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            {revenueData ? (
+            {revenueData && revenueData.length > 0 ? (
               <ResponsiveContainer width='100%' height={320}>
                 <AreaChart data={revenueData}>
                   <defs>
@@ -375,34 +384,60 @@ export default function DashboardPage() {
               <p className='text-sm text-gray-600'>Overall platform health</p>
             </div>
             <div className='flex justify-center mb-6'>
-              <ProgressRing progress={85} size={140} strokeWidth={8} color='#3B82F6' />
+              <ProgressRing 
+                progress={performanceData?.performance?.uptime || 85} 
+                size={140} 
+                strokeWidth={8} 
+                color='#3B82F6' 
+              />
             </div>
             <div className='space-y-3'>
               <div className='flex items-center justify-between'>
                 <span className='text-sm text-gray-600'>Orders</span>
                 <div className='flex items-center gap-2'>
                   <div className='w-full bg-gray-200 rounded-full h-2 w-16'>
-                    <div className='bg-green-500 h-2 rounded-full' style={{ width: '78%' }}></div>
+                    <div 
+                      className='bg-green-500 h-2 rounded-full' 
+                      style={{ 
+                        width: `${orderData ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) : 78}%` 
+                      }}
+                    ></div>
                   </div>
-                  <span className='text-sm font-medium'>78%</span>
+                  <span className='text-sm font-medium'>
+                    {orderData ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) : 78}%
+                  </span>
                 </div>
               </div>
               <div className='flex items-center justify-between'>
                 <span className='text-sm text-gray-600'>Users</span>
                 <div className='flex items-center gap-2'>
                   <div className='w-full bg-gray-200 rounded-full h-2 w-16'>
-                    <div className='bg-primary h-2 rounded-full' style={{ width: '92%' }}></div>
+                    <div 
+                      className='bg-primary h-2 rounded-full' 
+                      style={{ 
+                        width: `${analytics ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) : 92}%` 
+                      }}
+                    ></div>
                   </div>
-                  <span className='text-sm font-medium'>92%</span>
+                  <span className='text-sm font-medium'>
+                    {analytics ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) : 92}%
+                  </span>
                 </div>
               </div>
               <div className='flex items-center justify-between'>
                 <span className='text-sm text-gray-600'>Revenue</span>
                 <div className='flex items-center gap-2'>
                   <div className='w-full bg-gray-200 rounded-full h-2 w-16'>
-                    <div className='bg-purple-500 h-2 rounded-full' style={{ width: '85%' }}></div>
+                    <div 
+                      className='bg-purple-500 h-2 rounded-full' 
+                      style={{ 
+                        width: `${Math.max(performanceData?.performance?.uptime || 85, 0)}%` 
+                      }}
+                    ></div>
                   </div>
-                  <span className='text-sm font-medium'>85%</span>
+                  <span className='text-sm font-medium'>
+                    {Math.round(performanceData?.performance?.uptime || 85)}%
+                  </span>
                 </div>
               </div>
             </div>
@@ -423,51 +458,62 @@ export default function DashboardPage() {
             </div>
             {orderData ? (
               <div className='space-y-4'>
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-3 h-3 rounded-full bg-green-500' />
-                    <span className='text-sm font-medium text-gray-900'>Completed Orders</span>
-                  </div>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-24 bg-gray-200 rounded-full h-2'>
-                      <div
-                        className='bg-green-500 h-2 rounded-full transition-all duration-1000'
-                        style={{ width: '85%' }}
-                      />
-                    </div>
-                    <span className='text-sm text-gray-600 w-12 text-right'>85%</span>
-                  </div>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-3 h-3 rounded-full bg-primary' />
-                    <span className='text-sm font-medium text-gray-900'>Processing Orders</span>
-                  </div>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-24 bg-gray-200 rounded-full h-2'>
-                      <div
-                        className='bg-primary h-2 rounded-full transition-all duration-1000'
-                        style={{ width: '10%' }}
-                      />
-                    </div>
-                    <span className='text-sm text-gray-600 w-12 text-right'>10%</span>
-                  </div>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-3 h-3 rounded-full bg-red-500' />
-                    <span className='text-sm font-medium text-gray-900'>Cancelled Orders</span>
-                  </div>
-                  <div className='flex items-center gap-3'>
-                    <div className='w-24 bg-gray-200 rounded-full h-2'>
-                      <div
-                        className='bg-red-500 h-2 rounded-full transition-all duration-1000'
-                        style={{ width: '5%' }}
-                      />
-                    </div>
-                    <span className='text-sm text-gray-600 w-12 text-right'>5%</span>
-                  </div>
-                </div>
+                {(() => {
+                  const total = orderData.totalOrders || 1;
+                  const completedPercent = Math.round((orderData.completedOrders / total) * 100);
+                  const processingPercent = Math.round((orderData.pendingOrders / total) * 100);
+                  const cancelledPercent = Math.round((orderData.cancelledOrders / total) * 100);
+                  
+                  return (
+                    <>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-3 h-3 rounded-full bg-green-500' />
+                          <span className='text-sm font-medium text-gray-900'>Completed Orders</span>
+                        </div>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-24 bg-gray-200 rounded-full h-2'>
+                            <div
+                              className='bg-green-500 h-2 rounded-full transition-all duration-1000'
+                              style={{ width: `${completedPercent}%` }}
+                            />
+                          </div>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{completedPercent}%</span>
+                        </div>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-3 h-3 rounded-full bg-primary' />
+                          <span className='text-sm font-medium text-gray-900'>Processing Orders</span>
+                        </div>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-24 bg-gray-200 rounded-full h-2'>
+                            <div
+                              className='bg-primary h-2 rounded-full transition-all duration-1000'
+                              style={{ width: `${processingPercent}%` }}
+                            />
+                          </div>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{processingPercent}%</span>
+                        </div>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-3 h-3 rounded-full bg-red-500' />
+                          <span className='text-sm font-medium text-gray-900'>Cancelled Orders</span>
+                        </div>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-24 bg-gray-200 rounded-full h-2'>
+                            <div
+                              className='bg-red-500 h-2 rounded-full transition-all duration-1000'
+                              style={{ width: `${cancelledPercent}%` }}
+                            />
+                          </div>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{cancelledPercent}%</span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             ) : (
               <div className='py-8 text-center text-gray-500'>
@@ -490,7 +536,7 @@ export default function DashboardPage() {
                 View All
               </GlowingButton>
             </div>
-            {analytics.recentOrders && analytics.recentOrders.length > 0 ? (
+            {analytics?.recentOrders && analytics.recentOrders.length > 0 ? (
               <div className='space-y-4'>
                 {analytics.recentOrders.slice(0, 5).map((order, index) => (
                   <div

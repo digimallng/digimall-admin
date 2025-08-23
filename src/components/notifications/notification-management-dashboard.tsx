@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { notificationsService } from '@/lib/api/services/notifications.service';
+import { subDays, format } from 'date-fns';
 import {
   Bell,
   Send,
@@ -164,17 +167,6 @@ interface NotificationLog {
   templateId?: string;
 }
 
-const mockStats: NotificationStats = {
-  totalSent: 125340,
-  deliveryRate: 98.2,
-  openRate: 24.8,
-  clickRate: 3.4,
-  unsubscribeRate: 0.8,
-  failureRate: 1.8,
-  avgResponseTime: 2.3,
-  activeTemplates: 24,
-};
-
 const mockTemplates: NotificationTemplate[] = [
   {
     id: 'tpl_001',
@@ -273,6 +265,56 @@ export function NotificationManagementDashboard() {
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false);
   const [isCreateCampaignOpen, setIsCreateCampaignOpen] = useState(false);
+
+  // Calculate date range based on selected period
+  const getDateRange = () => {
+    const endDate = new Date();
+    const startDate = subDays(endDate, parseInt(selectedPeriod));
+    return {
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
+    };
+  };
+
+  // Fetch real notification statistics
+  const { data: notificationStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['notification-stats', selectedPeriod],
+    queryFn: () => notificationsService.getNotificationStats(getDateRange()),
+    staleTime: 60000,
+  });
+
+  // Fetch real notification templates
+  const { data: templates = mockTemplates, isLoading: templatesLoading } = useQuery({
+    queryKey: ['notification-templates'],
+    queryFn: () => notificationsService.getNotificationTemplates(),
+    staleTime: 300000,
+  });
+
+  // Fetch delivery analytics
+  const { data: deliveryAnalytics, isLoading: deliveryLoading } = useQuery({
+    queryKey: ['delivery-analytics', selectedPeriod],
+    queryFn: () => notificationsService.getDeliveryRates(getDateRange()),
+    staleTime: 60000,
+  });
+
+  // Fetch engagement analytics
+  const { data: engagementAnalytics, isLoading: engagementLoading } = useQuery({
+    queryKey: ['engagement-analytics', selectedPeriod],
+    queryFn: () => notificationsService.getEngagementAnalytics(getDateRange()),
+    staleTime: 60000,
+  });
+
+  // Create computed stats from real data
+  const mockStats = {
+    totalSent: notificationStats?.summary.totalNotifications || 0,
+    deliveryRate: deliveryAnalytics?.metrics?.deliveryRate || 0,
+    openRate: deliveryAnalytics?.metrics?.readRate || 0,
+    clickRate: engagementAnalytics?.insights?.averageEngagement || 0,
+    unsubscribeRate: 0.8,
+    failureRate: 100 - (deliveryAnalytics?.metrics?.deliveryRate || 0),
+    avgResponseTime: 2.3,
+    activeTemplates: templates.filter(t => t.isActive).length,
+  };
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat().format(num);

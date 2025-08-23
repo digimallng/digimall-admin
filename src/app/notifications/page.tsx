@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatedCard, GlowingButton } from '@/components/ui/AnimatedCard';
 import {
   Bell,
@@ -20,93 +21,109 @@ import {
   ShoppingCart,
   Package,
   DollarSign,
+  RefreshCw,
+  Zap,
+  Shield,
+  Gift,
+  CheckSquare,
+  Square,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
-
-interface Notification {
-  id: string;
-  type: 'success' | 'warning' | 'error' | 'info';
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-  category: 'orders' | 'users' | 'products' | 'payments' | 'system';
-  priority: 'high' | 'medium' | 'low';
-  actionUrl?: string;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'warning',
-    title: 'Low Stock Alert',
-    message: 'iPhone 15 Pro Max is running low on stock (5 units remaining)',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000),
-    read: false,
-    category: 'products',
-    priority: 'high',
-    actionUrl: '/products',
-  },
-  {
-    id: '2',
-    type: 'success',
-    title: 'Payment Received',
-    message: 'Payment of ₦85,000 received from John Doe for Order #12345',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000),
-    read: false,
-    category: 'payments',
-    priority: 'medium',
-  },
-  {
-    id: '3',
-    type: 'error',
-    title: 'Failed Payment',
-    message: 'Payment failed for Order #12346. Customer card was declined.',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    read: true,
-    category: 'payments',
-    priority: 'high',
-  },
-  {
-    id: '4',
-    type: 'info',
-    title: 'New Vendor Registration',
-    message: 'TechHub Nigeria has submitted a vendor application for review',
-    timestamp: new Date(Date.now() - 60 * 60 * 1000),
-    read: false,
-    category: 'users',
-    priority: 'medium',
-  },
-  {
-    id: '5',
-    type: 'success',
-    title: 'Order Completed',
-    message: 'Order #12344 has been successfully delivered to customer',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: true,
-    category: 'orders',
-    priority: 'low',
-  },
-  {
-    id: '6',
-    type: 'warning',
-    title: 'System Maintenance',
-    message: 'Scheduled maintenance will begin at 2:00 AM tomorrow',
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    read: false,
-    category: 'system',
-    priority: 'medium',
-  },
-];
+import { toast } from 'sonner';
+import { 
+  notificationsService, 
+  NotificationItem, 
+  NotificationFilters 
+} from '@/lib/api/services/notifications.service';
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const queryClient = useQueryClient();
+  const [filters, setFilters] = useState<NotificationFilters>({
+    status: 'all',
+    page: 1,
+    limit: 20,
+  });
+  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const getNotificationIcon = (type: Notification['type']) => {
+  // Fetch notifications with real data
+  const { data: notificationResponse, isLoading, error, refetch } = useQuery({
+    queryKey: ['notifications', filters, searchTerm],
+    queryFn: () => notificationsService.getNotifications({
+      ...filters,
+      searchTerm: searchTerm || undefined,
+    }),
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+
+  // Mutations for notification actions
+  const markAsReadMutation = useMutation({
+    mutationFn: (notificationId: string) => notificationsService.markAsRead(notificationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notification marked as read');
+    },
+    onError: () => {
+      toast.error('Failed to mark notification as read');
+    },
+  });
+
+  const markAsUnreadMutation = useMutation({
+    mutationFn: (notificationId: string) => notificationsService.markAsUnread(notificationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notification marked as unread');
+    },
+    onError: () => {
+      toast.error('Failed to mark notification as unread');
+    },
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () => notificationsService.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('All notifications marked as read');
+    },
+    onError: () => {
+      toast.error('Failed to mark all notifications as read');
+    },
+  });
+
+  const deleteNotificationMutation = useMutation({
+    mutationFn: (notificationId: string) => notificationsService.deleteNotification(notificationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notification deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete notification');
+    },
+  });
+
+  const bulkActionMutation = useMutation({
+    mutationFn: ({ action, notificationIds }: { action: 'mark_read' | 'mark_unread' | 'delete', notificationIds: string[] }) =>
+      notificationsService.bulkAction({ action, notificationIds }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      const actionText = variables.action === 'mark_read' ? 'marked as read' : 
+                        variables.action === 'mark_unread' ? 'marked as unread' : 'deleted';
+      toast.success(`${variables.notificationIds.length} notifications ${actionText}`);
+      setSelectedNotifications([]);
+    },
+    onError: () => {
+      toast.error('Failed to perform bulk action');
+    },
+  });
+
+  const notifications = notificationResponse?.notifications || [];
+  const unreadCount = notificationResponse?.unreadCount || 0;
+  const totalPages = notificationResponse?.totalPages || 1;
+
+  const getNotificationIcon = (type: NotificationItem['type']) => {
     switch (type) {
       case 'success':
         return CheckCircle;
@@ -116,12 +133,24 @@ export default function NotificationsPage() {
         return XCircle;
       case 'info':
         return Info;
+      case 'system':
+        return Settings;
+      case 'order':
+        return ShoppingCart;
+      case 'payment':
+        return DollarSign;
+      case 'vendor':
+        return Users;
+      case 'security':
+        return Shield;
+      case 'promotion':
+        return Gift;
       default:
         return Bell;
     }
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
+  const getNotificationColor = (type: NotificationItem['type']) => {
     switch (type) {
       case 'success':
         return 'from-green-500 to-emerald-600';
@@ -131,12 +160,24 @@ export default function NotificationsPage() {
         return 'from-red-500 to-pink-600';
       case 'info':
         return 'from-blue-500 to-purple-600';
+      case 'system':
+        return 'from-gray-500 to-slate-600';
+      case 'order':
+        return 'from-blue-500 to-indigo-600';
+      case 'payment':
+        return 'from-green-500 to-teal-600';
+      case 'vendor':
+        return 'from-purple-500 to-violet-600';
+      case 'security':
+        return 'from-red-500 to-rose-600';
+      case 'promotion':
+        return 'from-pink-500 to-rose-600';
       default:
         return 'from-gray-500 to-gray-600';
     }
   };
 
-  const getCategoryIcon = (category: Notification['category']) => {
+  const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'orders':
         return ShoppingCart;
@@ -148,44 +189,82 @@ export default function NotificationsPage() {
         return DollarSign;
       case 'system':
         return Settings;
+      case 'security':
+        return Shield;
+      case 'vendor_management':
+        return Users;
+      case 'disputes':
+        return AlertCircle;
       default:
         return Bell;
     }
   };
 
-  const filteredNotifications = notifications.filter(notification => {
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'read' && notification.read) ||
-      (filter === 'unread' && !notification.read);
+  const handleNotificationClick = async (notification: NotificationItem) => {
+    if (!notification.read && !notification.isRead) {
+      await markAsReadMutation.mutateAsync(notification.id);
+    }
+    
+    if (notification.actionUrl) {
+      window.location.href = notification.actionUrl;
+    }
+  };
 
-    const matchesCategory = categoryFilter === 'all' || notification.category === categoryFilter;
-
-    const matchesSearch =
-      searchTerm === '' ||
-      notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notification.message.toLowerCase().includes(searchTerm.toLowerCase());
-
-    return matchesFilter && matchesCategory && matchesSearch;
-  });
-
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
+  const handleSelectNotification = (notificationId: string) => {
+    setSelectedNotifications(prev => 
+      prev.includes(notificationId) 
+        ? prev.filter(id => id !== notificationId)
+        : [...prev, notificationId]
     );
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notification => ({ ...notification, read: true })));
+  const handleSelectAll = () => {
+    if (selectedNotifications.length === notifications.length) {
+      setSelectedNotifications([]);
+    } else {
+      setSelectedNotifications(notifications.map(n => n.id));
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  const handleBulkAction = (action: 'mark_read' | 'mark_unread' | 'delete') => {
+    if (selectedNotifications.length === 0) {
+      toast.error('Please select notifications first');
+      return;
+    }
+    bulkActionMutation.mutate({ action, notificationIds: selectedNotifications });
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const updateFilters = (newFilters: Partial<NotificationFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
+  };
+
+  const loadMoreNotifications = () => {
+    if (filters.page && filters.page < totalPages) {
+      setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }));
+    }
+  };
+
+  if (error) {
+    return (
+      <div className='space-y-8'>
+        <AnimatedCard className='text-center py-12'>
+          <div className='flex flex-col items-center gap-4'>
+            <div className='rounded-full bg-red-100 p-4'>
+              <XCircle className='h-8 w-8 text-red-600' />
+            </div>
+            <div>
+              <h3 className='text-lg font-semibold text-gray-900'>Error Loading Notifications</h3>
+              <p className='text-gray-600 mb-4'>Failed to connect to notification service</p>
+              <GlowingButton onClick={() => refetch()} variant='primary'>
+                <RefreshCw className='h-4 w-4 mr-2' />
+                Retry
+              </GlowingButton>
+            </div>
+          </div>
+        </AnimatedCard>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-8'>
@@ -207,29 +286,71 @@ export default function NotificationsPage() {
               <GlowingButton
                 size='sm'
                 variant='secondary'
-                onClick={markAllAsRead}
+                onClick={() => refetch()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+                Refresh
+              </GlowingButton>
+              <GlowingButton
+                size='sm'
+                variant='secondary'
+                onClick={() => markAllAsReadMutation.mutate()}
+                disabled={markAllAsReadMutation.isPending || unreadCount === 0}
                 className='flex items-center gap-2'
               >
-                <CheckCircle className='h-4 w-4' />
+                {markAllAsReadMutation.isPending ? (
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                ) : (
+                  <CheckCircle className='h-4 w-4' />
+                )}
                 Mark All Read
-              </GlowingButton>
-              <GlowingButton size='sm' variant='primary'>
-                <Settings className='h-4 w-4 mr-2' />
-                Settings
               </GlowingButton>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
-        <div className='flex items-center gap-4'>
+      {/* Filters and Search */}
+      <div className='flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between'>
+        <div className='flex flex-wrap items-center gap-4'>
+          {/* Bulk Actions */}
+          {selectedNotifications.length > 0 && (
+            <div className='flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2'>
+              <span className='text-sm text-blue-700 font-medium'>
+                {selectedNotifications.length} selected
+              </span>
+              <div className='flex items-center gap-1'>
+                <button
+                  onClick={() => handleBulkAction('mark_read')}
+                  className='p-1 text-blue-600 hover:text-blue-800 transition-colors'
+                  title='Mark as read'
+                >
+                  <Eye className='h-4 w-4' />
+                </button>
+                <button
+                  onClick={() => handleBulkAction('mark_unread')}
+                  className='p-1 text-blue-600 hover:text-blue-800 transition-colors'
+                  title='Mark as unread'
+                >
+                  <EyeOff className='h-4 w-4' />
+                </button>
+                <button
+                  onClick={() => handleBulkAction('delete')}
+                  className='p-1 text-red-600 hover:text-red-800 transition-colors'
+                  title='Delete'
+                >
+                  <Trash2 className='h-4 w-4' />
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className='flex items-center gap-2'>
             <Filter className='h-4 w-4 text-gray-500' />
             <select
-              value={filter}
-              onChange={e => setFilter(e.target.value as 'all' | 'unread' | 'read')}
+              value={filters.status}
+              onChange={e => updateFilters({ status: e.target.value as 'all' | 'unread' | 'read' })}
               className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
             >
               <option value='all'>All Notifications</option>
@@ -239,16 +360,33 @@ export default function NotificationsPage() {
           </div>
 
           <select
-            value={categoryFilter}
-            onChange={e => setCategoryFilter(e.target.value)}
+            value={filters.type || 'all'}
+            onChange={e => updateFilters({ type: e.target.value === 'all' ? undefined : e.target.value })}
             className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
           >
-            <option value='all'>All Categories</option>
-            <option value='orders'>Orders</option>
-            <option value='users'>Users</option>
-            <option value='products'>Products</option>
-            <option value='payments'>Payments</option>
+            <option value='all'>All Types</option>
+            <option value='info'>Info</option>
+            <option value='success'>Success</option>
+            <option value='warning'>Warning</option>
+            <option value='error'>Error</option>
             <option value='system'>System</option>
+            <option value='order'>Orders</option>
+            <option value='payment'>Payments</option>
+            <option value='vendor'>Vendors</option>
+            <option value='security'>Security</option>
+            <option value='promotion'>Promotions</option>
+          </select>
+
+          <select
+            value={filters.priority || 'all'}
+            onChange={e => updateFilters({ priority: e.target.value === 'all' ? undefined : e.target.value })}
+            className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+          >
+            <option value='all'>All Priorities</option>
+            <option value='urgent'>Urgent</option>
+            <option value='high'>High</option>
+            <option value='medium'>Medium</option>
+            <option value='low'>Low</option>
           </select>
         </div>
 
@@ -264,9 +402,41 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* Select All */}
+      {notifications.length > 0 && (
+        <div className='flex items-center gap-2 text-sm text-gray-600'>
+          <button
+            onClick={handleSelectAll}
+            className='flex items-center gap-2 hover:text-gray-900 transition-colors'
+          >
+            {selectedNotifications.length === notifications.length ? (
+              <CheckSquare className='h-4 w-4' />
+            ) : (
+              <Square className='h-4 w-4' />
+            )}
+            Select All
+          </button>
+        </div>
+      )}
+
       {/* Notifications List */}
       <div className='space-y-4'>
-        {filteredNotifications.length === 0 ? (
+        {isLoading && notifications.length === 0 ? (
+          <div className='space-y-4'>
+            {[...Array(5)].map((_, i) => (
+              <AnimatedCard key={i} className='p-6'>
+                <div className='animate-pulse flex items-start gap-4'>
+                  <div className='rounded-xl bg-gray-200 h-12 w-12' />
+                  <div className='flex-1 space-y-2'>
+                    <div className='h-4 bg-gray-200 rounded w-3/4' />
+                    <div className='h-3 bg-gray-200 rounded w-1/2' />
+                    <div className='h-3 bg-gray-200 rounded w-1/4' />
+                  </div>
+                </div>
+              </AnimatedCard>
+            ))}
+          </div>
+        ) : notifications.length === 0 ? (
           <AnimatedCard className='text-center py-12'>
             <div className='flex flex-col items-center gap-4'>
               <div className='rounded-full bg-gray-100 p-4'>
@@ -279,22 +449,40 @@ export default function NotificationsPage() {
             </div>
           </AnimatedCard>
         ) : (
-          filteredNotifications.map((notification, index) => {
+          notifications.map((notification, index) => {
             const Icon = getNotificationIcon(notification.type);
             const CategoryIcon = getCategoryIcon(notification.category);
+            const isRead = notification.read || notification.isRead;
+            const isSelected = selectedNotifications.includes(notification.id);
 
             return (
               <AnimatedCard
                 key={notification.id}
                 delay={index * 50}
                 className={cn(
-                  'group cursor-pointer transition-all duration-200',
-                  !notification.read && 'border-l-4 border-blue-500 bg-blue-50/20'
+                  'group cursor-pointer transition-all duration-200 hover:shadow-md',
+                  !isRead && 'border-l-4 border-blue-500 bg-blue-50/20',
+                  isSelected && 'ring-2 ring-blue-500 bg-blue-50/30'
                 )}
-                onClick={() => !notification.read && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className='p-6'>
                   <div className='flex items-start gap-4'>
+                    {/* Selection Checkbox */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectNotification(notification.id);
+                      }}
+                      className='mt-1 text-gray-400 hover:text-blue-600 transition-colors'
+                    >
+                      {isSelected ? (
+                        <CheckSquare className='h-4 w-4' />
+                      ) : (
+                        <Square className='h-4 w-4' />
+                      )}
+                    </button>
+
                     {/* Icon */}
                     <div
                       className={cn(
@@ -314,36 +502,43 @@ export default function NotificationsPage() {
                             <h3
                               className={cn(
                                 'text-sm font-semibold',
-                                notification.read ? 'text-gray-700' : 'text-gray-900'
+                                isRead ? 'text-gray-700' : 'text-gray-900'
                               )}
                             >
                               {notification.title}
                             </h3>
                             <CategoryIcon className='h-4 w-4 text-gray-400' />
-                            <span
-                              className={cn(
-                                'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
-                                notification.priority === 'high'
-                                  ? 'bg-red-100 text-red-800'
-                                  : notification.priority === 'medium'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-green-100 text-green-800'
-                              )}
-                            >
-                              {notification.priority}
-                            </span>
+                            {notification.priority && (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
+                                  notification.priority === 'urgent'
+                                    ? 'bg-red-100 text-red-800'
+                                    : notification.priority === 'high'
+                                      ? 'bg-orange-100 text-orange-800'
+                                      : notification.priority === 'medium'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-green-100 text-green-800'
+                                )}
+                              >
+                                {notification.priority}
+                              </span>
+                            )}
+                            {!isRead && (
+                              <div className='w-2 h-2 bg-blue-500 rounded-full' />
+                            )}
                           </div>
                           <p
                             className={cn(
                               'text-sm mb-2',
-                              notification.read ? 'text-gray-500' : 'text-gray-700'
+                              isRead ? 'text-gray-500' : 'text-gray-700'
                             )}
                           >
                             {notification.message}
                           </p>
                           <div className='flex items-center gap-2 text-xs text-gray-500'>
                             <Clock className='h-3 w-3' />
-                            {format(notification.timestamp, 'MMM dd, yyyy - hh:mm a')}
+                            {format(new Date(notification.timestamp), 'MMM dd, yyyy - hh:mm a')}
                           </div>
                         </div>
 
@@ -352,12 +547,17 @@ export default function NotificationsPage() {
                           <button
                             onClick={e => {
                               e.stopPropagation();
-                              markAsRead(notification.id);
+                              if (isRead) {
+                                markAsUnreadMutation.mutate(notification.id);
+                              } else {
+                                markAsReadMutation.mutate(notification.id);
+                              }
                             }}
                             className='rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors'
-                            title={notification.read ? 'Mark as unread' : 'Mark as read'}
+                            title={isRead ? 'Mark as unread' : 'Mark as read'}
+                            disabled={markAsReadMutation.isPending || markAsUnreadMutation.isPending}
                           >
-                            {notification.read ? (
+                            {isRead ? (
                               <EyeOff className='h-4 w-4' />
                             ) : (
                               <Eye className='h-4 w-4' />
@@ -366,15 +566,15 @@ export default function NotificationsPage() {
                           <button
                             onClick={e => {
                               e.stopPropagation();
-                              deleteNotification(notification.id);
+                              if (confirm('Are you sure you want to delete this notification?')) {
+                                deleteNotificationMutation.mutate(notification.id);
+                              }
                             }}
                             className='rounded-lg p-2 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors'
                             title='Delete notification'
+                            disabled={deleteNotificationMutation.isPending}
                           >
                             <Trash2 className='h-4 w-4' />
-                          </button>
-                          <button className='rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors'>
-                            <MoreVertical className='h-4 w-4' />
                           </button>
                         </div>
                       </div>
@@ -388,11 +588,30 @@ export default function NotificationsPage() {
       </div>
 
       {/* Load More */}
-      {filteredNotifications.length > 0 && (
+      {notifications.length > 0 && filters.page && filters.page < totalPages && (
         <div className='text-center'>
-          <GlowingButton variant='secondary' size='sm'>
-            Load More Notifications
+          <GlowingButton 
+            variant='secondary' 
+            size='sm' 
+            onClick={loadMoreNotifications}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+                Loading...
+              </>
+            ) : (
+              'Load More Notifications'
+            )}
           </GlowingButton>
+        </div>
+      )}
+
+      {/* No more notifications */}
+      {notifications.length > 0 && filters.page === totalPages && (
+        <div className='text-center py-4'>
+          <p className='text-gray-500 text-sm'>No more notifications to load</p>
         </div>
       )}
     </div>
