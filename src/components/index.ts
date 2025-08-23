@@ -64,7 +64,6 @@ export { AnimatedCard } from './ui/AnimatedCard';
 export { Card } from './ui/Card';
 export { ErrorMessage } from './ui/ErrorMessage';
 export { LoadingDashboard } from './ui/LoadingDashboard';
-export { LoadingSpinner } from './ui/LoadingSpinner';
 export { Modal } from './ui/Modal';
 export { PageHeader } from './ui/PageHeader';
 export { StatsCard } from './ui/StatsCard';
