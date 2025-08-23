@@ -34,6 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.539.0",
     "next": "^15.4.6",
@@ -48,12 +49,14 @@
     "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.4.6",
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/file-saver": "^2.0.7",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.7",

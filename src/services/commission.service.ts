@@ -174,6 +174,68 @@ export class CommissionService {
     const response = await apiClient.get<CommissionPerformance>(url);
     return response;
   }
+
+  async exportCommissionRules(
+    filter?: CommissionFilterDto,
+    format: 'csv' | 'excel' = 'csv'
+  ): Promise<Blob> {
+    console.log('📊 CommissionService: Exporting commission rules');
+    console.log('📍 Endpoint:', `${this.basePath}/export`);
+    console.log('📦 Filter:', filter);
+    console.log('📋 Format:', format);
+    
+    const params = new URLSearchParams();
+    params.append('format', format);
+    
+    if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
+
+    try {
+      const response = await apiClient.get<Blob>(
+        `${this.basePath}/export?${params.toString()}`,
+        {
+          responseType: 'blob',
+        }
+      );
+      console.log('✅ CommissionService: Rules exported successfully');
+      return response;
+    } catch (error) {
+      console.error('❌ CommissionService: Failed to export rules');
+      console.error('🚨 Export Error:', error);
+      throw error;
+    }
+  }
+
+  async exportCommissionReport(
+    reportDto: CommissionReportDto,
+    format: 'csv' | 'excel' = 'csv'
+  ): Promise<Blob> {
+    console.log('📊 CommissionService: Exporting commission report');
+    console.log('📍 Endpoint:', `${this.basePath}/reports/export`);
+    console.log('📦 Report data:', reportDto);
+    console.log('📋 Format:', format);
+    
+    try {
+      const response = await apiClient.post<Blob>(
+        `${this.basePath}/reports/export`,
+        { ...reportDto, format },
+        {
+          responseType: 'blob',
+        }
+      );
+      console.log('✅ CommissionService: Report exported successfully');
+      return response;
+    } catch (error) {
+      console.error('❌ CommissionService: Failed to export report');
+      console.error('🚨 Export Error:', error);
+      throw error;
+    }
+  }
 }
 
 export const commissionService = new CommissionService();

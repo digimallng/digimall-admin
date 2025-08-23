@@ -41,6 +41,8 @@ import { CommissionReports } from '@/components/commission/CommissionReports';
 import { BulkUpdateModal } from '@/components/commission/BulkUpdateModal';
 import { VendorCommissionView } from '@/components/commission/VendorCommissionView';
 import { CategoryCommissionView } from '@/components/commission/CategoryCommissionView';
+import { ExportService } from '@/services/export.service';
+import { saveAs } from 'file-saver';
 
 
 export default function CommissionsPage() {
@@ -216,6 +218,34 @@ export default function CommissionsPage() {
     },
   });
 
+  // Export mutations
+  const exportRulesMutation = useMutation({
+    mutationFn: ({ format }: { format: 'csv' | 'excel' }) => {
+      return commissionService.exportCommissionRules(filter, format);
+    },
+    onSuccess: (blob: Blob, variables) => {
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+      const extension = variables.format === 'excel' ? 'xlsx' : 'csv';
+      const filename = `commission-rules_${timestamp}.${extension}`;
+      
+      saveAs(blob, filename);
+      
+      toast({
+        title: 'Success',
+        description: `Commission rules exported successfully as ${variables.format.toUpperCase()}`,
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: error?.message || 'Failed to export commission rules',
+        type: 'error',
+      });
+    },
+  });
+
   // Filter rules based on search term
   const filteredRules = rulesData?.rules?.filter((rule) => {
     if (searchTerm) {
@@ -373,6 +403,53 @@ export default function CommissionsPage() {
     });
   };
 
+  // Export handlers
+  const handleExportRules = (format: 'csv' | 'excel') => {
+    const ruleCount = filteredRules.length;
+    
+    ExportService.confirmExport(ruleCount, format, () => {
+      exportRulesMutation.mutate({ format });
+    });
+  };
+
+  const handleClientSideExport = (format: 'csv' | 'excel') => {
+    if (!filteredRules || filteredRules.length === 0) {
+      toast({
+        title: 'No Data',
+        description: 'No commission rules to export',
+        type: 'error',
+      });
+      return;
+    }
+
+    try {
+      if (format === 'excel') {
+        ExportService.exportCommissionRulesToExcel(filteredRules, {
+          filename: 'commission-rules',
+          includeTimestamp: true,
+        });
+      } else {
+        ExportService.exportCommissionRulesToCSV(filteredRules, {
+          filename: 'commission-rules',
+          includeTimestamp: true,
+        });
+      }
+
+      toast({
+        title: 'Success',
+        description: `Commission rules exported successfully as ${format.toUpperCase()}`,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Client-side export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export commission rules',
+        type: 'error',
+      });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -425,9 +502,18 @@ export default function CommissionsPage() {
         icon={DollarSign}
         actions={[
           {
-            label: 'Export',
+            label: 'Export CSV',
             icon: Download,
             variant: 'secondary',
+            onClick: () => handleClientSideExport('csv'),
+            disabled: exportRulesMutation.isPending,
+          },
+          {
+            label: 'Export Excel',
+            icon: Download,
+            variant: 'secondary',
+            onClick: () => handleClientSideExport('excel'),
+            disabled: exportRulesMutation.isPending,
           },
           {
             label: 'Tiered Rule',

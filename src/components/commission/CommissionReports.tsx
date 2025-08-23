@@ -20,6 +20,8 @@ import { commissionService } from '@/services/commission.service';
 import { CommissionReportDto, CommissionReport } from '@/types/commission.types';
 import { useToast } from '@/hooks/use-toast';
 import { format, subDays } from 'date-fns';
+import { ExportService } from '@/services/export.service';
+import { saveAs } from 'file-saver';
 
 export function CommissionReports() {
   const [formData, setFormData] = useState<CommissionReportDto>({
@@ -48,6 +50,34 @@ export function CommissionReports() {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to generate commission report',
+        type: 'error',
+      });
+    },
+  });
+
+  // Export report mutation
+  const exportReportMutation = useMutation({
+    mutationFn: ({ format }: { format: 'csv' | 'excel' }) => {
+      return commissionService.exportCommissionReport(formData, format);
+    },
+    onSuccess: (blob: Blob, variables) => {
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+      const extension = variables.format === 'excel' ? 'xlsx' : 'csv';
+      const filename = `commission-report_${timestamp}.${extension}`;
+      
+      saveAs(blob, filename);
+      
+      toast({
+        title: 'Success',
+        description: `Commission report exported successfully as ${variables.format.toUpperCase()}`,
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: error?.message || 'Failed to export commission report',
         type: 'error',
       });
     },
@@ -83,68 +113,54 @@ export function CommissionReports() {
     generateReportMutation.mutate(reportData);
   };
 
-  const handleExportReport = () => {
-    if (!report) return;
-
-    // Create CSV content
-    const csvData = [];
-    csvData.push(['Commission Report']);
-    csvData.push(['Period', `${report.period.startDate} to ${report.period.endDate}`]);
-    csvData.push([]);
-    csvData.push(['Summary']);
-    csvData.push(['Total Commissions', report.summary.totalCommissions]);
-    csvData.push(['Total Order Value', report.summary.totalOrderValue]);
-    csvData.push(['Average Commission Rate', `${report.summary.averageCommissionRate.toFixed(2)}%`]);
-    csvData.push(['Order Count', report.summary.orderCount]);
-    csvData.push([]);
-
-    if (report.breakdown) {
-      // Vendor breakdown
-      if (report.breakdown.byVendor) {
-        csvData.push(['Vendor Breakdown']);
-        csvData.push(['Vendor', 'Total Commissions', 'Order Count', 'Total Order Value']);
-        Object.entries(report.breakdown.byVendor).forEach(([vendorId, data]: [string, any]) => {
-          csvData.push([
-            data.vendorName || vendorId,
-            data.totalCommissions,
-            data.orderCount,
-            data.totalOrderValue,
-          ]);
-        });
-        csvData.push([]);
-      }
-
-      // Rule breakdown
-      if (report.breakdown.byRule) {
-        csvData.push(['Rule Breakdown']);
-        csvData.push(['Rule', 'Type', 'Total Commissions', 'Order Count']);
-        Object.entries(report.breakdown.byRule).forEach(([ruleId, data]: [string, any]) => {
-          csvData.push([
-            data.ruleName || ruleId,
-            data.ruleType,
-            data.totalCommissions,
-            data.orderCount,
-          ]);
-        });
-      }
+  const handleExportReport = (format: 'csv' | 'excel' = 'csv') => {
+    if (!report) {
+      toast({
+        title: 'No Data',
+        description: 'Please generate a report first before exporting',
+        type: 'error',
+      });
+      return;
     }
 
-    const csvContent = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `commission-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    try {
+      if (format === 'excel') {
+        ExportService.exportCommissionReportToExcel(report, {
+          filename: 'commission-report',
+          includeTimestamp: true,
+        });
+      } else {
+        // Create simplified CSV data
+        const csvData = [
+          {
+            'Report Period': report.period ? 
+              `${format(new Date(report.period.startDate), 'yyyy-MM-dd')} to ${format(new Date(report.period.endDate), 'yyyy-MM-dd')}` : 
+              'N/A',
+            'Total Commissions': report.summary?.totalCommissions || 0,
+            'Total Order Value': report.summary?.totalOrderValue || 0,
+            'Average Commission Rate': `${report.summary?.averageCommissionRate || 0}%`,
+            'Order Count': report.summary?.orderCount || 0,
+          }
+        ];
+        
+        ExportService.exportData(csvData, 'csv', 'commission-report', {
+          includeTimestamp: true,
+        });
+      }
 
-    toast({
-      title: 'Success',
-      description: 'Report exported successfully',
-      type: 'success',
-    });
+      toast({
+        title: 'Success',
+        description: `Commission report exported successfully as ${format.toUpperCase()}`,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export commission report',
+        type: 'error',
+      });
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -245,13 +261,33 @@ export function CommissionReports() {
               </GlowingButton>
 
               {report && (
-                <GlowingButton
-                  variant="secondary"
-                  onClick={handleExportReport}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </GlowingButton>
+                <>
+                  <GlowingButton
+                    variant="secondary"
+                    onClick={() => handleExportReport('csv')}
+                    disabled={exportReportMutation.isPending}
+                  >
+                    {exportReportMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Export CSV
+                  </GlowingButton>
+                  
+                  <GlowingButton
+                    variant="secondary"
+                    onClick={() => handleExportReport('excel')}
+                    disabled={exportReportMutation.isPending}
+                  >
+                    {exportReportMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Export Excel
+                  </GlowingButton>
+                </>
               )}
             </div>
           </div>
