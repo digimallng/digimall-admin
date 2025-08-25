@@ -32,239 +32,191 @@ import {
   Download,
   Send,
   Paperclip,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
+import { 
+  useDisputes, 
+  useDisputeCounts, 
+  useUpdateDispute, 
+  useResolveDispute,
+  useExportDisputes
+} from '@/lib/hooks/use-disputes';
+import type { 
+  Dispute, 
+  DisputeFilter,
+  DisputeStatus,
+  DisputeType,
+  DisputePriority 
+} from '@/lib/api/types/dispute.types';
+import { toast } from 'sonner';
 
-interface Dispute {
-  id: string;
-  orderId: string;
-  customerId: string;
-  customerName: string;
-  vendorId: string;
-  vendorName: string;
-  productName: string;
-  amount: number;
-  type: 'refund' | 'quality' | 'delivery' | 'service' | 'fraud';
-  status: 'open' | 'investigating' | 'resolved' | 'escalated' | 'closed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  description: string;
-  customerEvidence: string[];
-  vendorResponse?: string;
-  adminNotes?: string;
-  resolution?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  resolvedAt?: Date;
-  assignedTo?: string;
-}
-
-interface DisputeMessage {
-  id: string;
-  disputeId: string;
-  senderId: string;
-  senderName: string;
-  senderType: 'customer' | 'vendor' | 'admin';
-  message: string;
-  attachments?: string[];
-  timestamp: Date;
-}
-
-const mockDisputes: Dispute[] = [
-  {
-    id: 'DSP-001',
-    orderId: 'ORD-12345',
-    customerId: 'CUST-001',
-    customerName: 'John Doe',
-    vendorId: 'VEND-001',
-    vendorName: 'TechHub Nigeria',
-    productName: 'iPhone 15 Pro Max',
-    amount: 850000,
-    type: 'quality',
-    status: 'investigating',
-    priority: 'high',
-    description: 'Received product with damaged screen and battery issues',
-    customerEvidence: ['damaged-screen.jpg', 'battery-report.pdf'],
-    vendorResponse: 'Product was inspected before shipping. Customer may have damaged it.',
-    adminNotes: 'Investigating with photos and vendor response',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    assignedTo: 'Admin User',
-  },
-  {
-    id: 'DSP-002',
-    orderId: 'ORD-12346',
-    customerId: 'CUST-002',
-    customerName: 'Jane Smith',
-    vendorId: 'VEND-002',
-    vendorName: 'Fashion Forward',
-    productName: 'Designer Handbag',
-    amount: 125000,
-    type: 'delivery',
-    status: 'open',
-    priority: 'medium',
-    description: 'Order not delivered after 2 weeks, no tracking updates',
-    customerEvidence: ['order-confirmation.pdf'],
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: 'DSP-003',
-    orderId: 'ORD-12347',
-    customerId: 'CUST-003',
-    customerName: 'Mike Johnson',
-    vendorId: 'VEND-003',
-    vendorName: 'Home Essentials',
-    productName: 'Smart TV 55"',
-    amount: 425000,
-    type: 'refund',
-    status: 'resolved',
-    priority: 'low',
-    description: 'Customer changed mind, requesting refund',
-    customerEvidence: [],
-    vendorResponse: 'Product is in original condition, can accept return',
-    adminNotes: 'Approved refund as per policy',
-    resolution: 'Refund approved - ₦425,000 refunded to customer',
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    resolvedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    assignedTo: 'Admin User',
-  },
-  {
-    id: 'DSP-004',
-    orderId: 'ORD-12348',
-    customerId: 'CUST-004',
-    customerName: 'Sarah Williams',
-    vendorId: 'VEND-004',
-    vendorName: 'QuickFix Electronics',
-    productName: 'Phone Screen Repair',
-    amount: 25000,
-    type: 'service',
-    status: 'escalated',
-    priority: 'urgent',
-    description: 'Phone damaged during repair, vendor refusing responsibility',
-    customerEvidence: ['before-repair.jpg', 'after-damage.jpg'],
-    vendorResponse: 'Customer phone was already damaged beyond repair',
-    adminNotes: 'Escalated to legal team due to conflicting evidence',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    assignedTo: 'Legal Team',
-  },
-];
+// Remove mock data interfaces and data since we're using real API types and data now
 
 export default function DisputesPage() {
-  const [disputes, setDisputes] = useState<Dispute[]>(mockDisputes);
+  // State for filters and UI
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const filteredDisputes = disputes.filter(dispute => {
-    const matchesSearch =
-      dispute.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dispute.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dispute.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dispute.productName.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || dispute.status === statusFilter;
-    const matchesType = typeFilter === 'all' || dispute.type === typeFilter;
-    const matchesPriority = priorityFilter === 'all' || dispute.priority === priorityFilter;
-
-    return matchesSearch && matchesStatus && matchesType && matchesPriority;
-  });
-
-  const stats = {
-    total: disputes.length,
-    open: disputes.filter(d => d.status === 'open').length,
-    investigating: disputes.filter(d => d.status === 'investigating').length,
-    resolved: disputes.filter(d => d.status === 'resolved').length,
-    escalated: disputes.filter(d => d.status === 'escalated').length,
-    avgResolutionTime: 3.2, // days
-    satisfactionRate: 87.5, // percentage
+  // Build filter object
+  const disputeFilter: DisputeFilter = {
+    page: currentPage,
+    limit: pageSize,
+    searchTerm: searchTerm || undefined,
+    status: statusFilter !== 'all' ? (statusFilter as DisputeStatus) : undefined,
+    type: typeFilter !== 'all' ? (typeFilter as DisputeType) : undefined,
+    priority: priorityFilter !== 'all' ? (priorityFilter as DisputePriority) : undefined,
+    sortBy: 'updatedAt',
+    sortOrder: 'desc',
   };
 
-  const getStatusColor = (status: string) => {
+  // API hooks
+  const { 
+    disputes: disputesResponse, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useDisputes(disputeFilter);
+  
+  const { 
+    data: disputeCounts, 
+    isLoading: countsLoading 
+  } = useDisputeCounts();
+  
+  const updateDisputeMutation = useUpdateDispute();
+  const resolveDisputeMutation = useResolveDispute();
+  const exportDisputesMutation = useExportDisputes();
+
+  // Get disputes from API response
+  const disputes = disputesResponse?.disputes || [];
+  
+  // Calculate stats from API counts
+  const stats = {
+    total: disputeCounts?.total || 0,
+    open: disputeCounts?.open || 0,
+    investigating: disputeCounts?.investigating || 0,
+    resolved: disputeCounts?.resolved || 0,
+    escalated: disputeCounts?.escalated || 0,
+    avgResolutionTime: 3.2, // This would come from analytics API
+    satisfactionRate: 87.5, // This would come from analytics API
+  };
+
+  const getStatusColor = (status: DisputeStatus) => {
     switch (status) {
-      case 'open':
+      case DisputeStatus.OPEN:
         return 'bg-blue-100 text-blue-800';
-      case 'investigating':
+      case DisputeStatus.UNDER_REVIEW:
+      case DisputeStatus.INVESTIGATING:
         return 'bg-yellow-100 text-yellow-800';
-      case 'resolved':
+      case DisputeStatus.RESOLVED:
         return 'bg-green-100 text-green-800';
-      case 'escalated':
+      case DisputeStatus.ESCALATED:
         return 'bg-red-100 text-red-800';
-      case 'closed':
+      case DisputeStatus.CLOSED:
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: DisputeStatus) => {
     switch (status) {
-      case 'open':
+      case DisputeStatus.OPEN:
         return AlertTriangle;
-      case 'investigating':
+      case DisputeStatus.UNDER_REVIEW:
+      case DisputeStatus.INVESTIGATING:
         return Eye;
-      case 'resolved':
+      case DisputeStatus.RESOLVED:
         return CheckCircle;
-      case 'escalated':
+      case DisputeStatus.ESCALATED:
         return Flag;
-      case 'closed':
+      case DisputeStatus.CLOSED:
         return XCircle;
       default:
         return Clock;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: DisputePriority) => {
     switch (priority) {
-      case 'urgent':
+      case DisputePriority.URGENT:
         return 'bg-red-100 text-red-800';
-      case 'high':
+      case DisputePriority.HIGH:
         return 'bg-orange-100 text-orange-800';
-      case 'medium':
+      case DisputePriority.MEDIUM:
         return 'bg-yellow-100 text-yellow-800';
-      case 'low':
+      case DisputePriority.LOW:
         return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: DisputeType) => {
     switch (type) {
-      case 'refund':
+      case DisputeType.REFUND_REQUEST:
         return DollarSign;
-      case 'quality':
+      case DisputeType.QUALITY_ISSUE:
+      case DisputeType.ITEM_NOT_AS_DESCRIBED:
+      case DisputeType.DAMAGED_ITEM:
         return Package;
-      case 'delivery':
+      case DisputeType.ORDER_NOT_RECEIVED:
+      case DisputeType.DELIVERY_ISSUE:
         return MapPin;
-      case 'service':
+      case DisputeType.SERVICE_ISSUE:
         return User;
-      case 'fraud':
+      case DisputeType.FRAUD_COMPLAINT:
         return Shield;
       default:
         return AlertTriangle;
     }
   };
 
-  const handleStatusChange = (disputeId: string, newStatus: string) => {
-    setDisputes(prev =>
-      prev.map(dispute =>
-        dispute.id === disputeId
-          ? {
-              ...dispute,
-              status: newStatus as any,
-              updatedAt: new Date(),
-              resolvedAt: newStatus === 'resolved' ? new Date() : undefined,
-            }
-          : dispute
-      )
-    );
+  const handleStatusChange = async (disputeId: string, newStatus: DisputeStatus) => {
+    try {
+      if (newStatus === 'resolved') {
+        // For resolved status, we need to use the resolve mutation
+        await resolveDisputeMutation.mutateAsync({
+          disputeId,
+          data: {
+            resolution: 'no_action', // Default resolution, would be customizable
+            resolutionNotes: 'Marked as resolved by admin',
+            notifyCustomer: true,
+            notifyVendor: true,
+          },
+        });
+      } else {
+        // For other status changes, use the update mutation
+        await updateDisputeMutation.mutateAsync({
+          disputeId,
+          data: { status: newStatus },
+        });
+      }
+      
+      // Refresh the list
+      refetch();
+    } catch (error) {
+      console.error('Failed to update dispute status:', error);
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'xlsx' | 'pdf' = 'csv') => {
+    try {
+      await exportDisputesMutation.mutateAsync({
+        filter: disputeFilter,
+        format,
+      });
+    } catch (error) {
+      console.error('Failed to export disputes:', error);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -293,8 +245,17 @@ export default function DisputesPage() {
               </p>
             </div>
             <div className='flex items-center gap-3'>
-              <GlowingButton size='sm' variant='secondary'>
-                <Download className='h-4 w-4 mr-2' />
+              <GlowingButton 
+                size='sm' 
+                variant='secondary'
+                onClick={() => handleExport('csv')}
+                disabled={exportDisputesMutation.isLoading}
+              >
+                {exportDisputesMutation.isLoading ? (
+                  <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+                ) : (
+                  <Download className='h-4 w-4 mr-2' />
+                )}
                 Export Report
               </GlowingButton>
               <GlowingButton size='sm' variant='primary'>
@@ -313,8 +274,17 @@ export default function DisputesPage() {
             <div className='rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
               <Gavel className='h-6 w-6 text-white' />
             </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.total}</p>
-            <p className='text-sm text-gray-600'>Total Disputes</p>
+            {countsLoading ? (
+              <div className='animate-pulse'>
+                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
+                <div className='h-4 bg-gray-200 rounded w-20 mx-auto'></div>
+              </div>
+            ) : (
+              <>
+                <p className='text-2xl font-bold text-gray-900'>{stats.total}</p>
+                <p className='text-sm text-gray-600'>Total Disputes</p>
+              </>
+            )}
           </div>
         </AnimatedCard>
 
@@ -323,8 +293,17 @@ export default function DisputesPage() {
             <div className='rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
               <AlertTriangle className='h-6 w-6 text-white' />
             </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.open}</p>
-            <p className='text-sm text-gray-600'>Open</p>
+            {countsLoading ? (
+              <div className='animate-pulse'>
+                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
+                <div className='h-4 bg-gray-200 rounded w-12 mx-auto'></div>
+              </div>
+            ) : (
+              <>
+                <p className='text-2xl font-bold text-gray-900'>{stats.open}</p>
+                <p className='text-sm text-gray-600'>Open</p>
+              </>
+            )}
           </div>
         </AnimatedCard>
 
@@ -333,8 +312,17 @@ export default function DisputesPage() {
             <div className='rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
               <Eye className='h-6 w-6 text-white' />
             </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.investigating}</p>
-            <p className='text-sm text-gray-600'>Investigating</p>
+            {countsLoading ? (
+              <div className='animate-pulse'>
+                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
+                <div className='h-4 bg-gray-200 rounded w-20 mx-auto'></div>
+              </div>
+            ) : (
+              <>
+                <p className='text-2xl font-bold text-gray-900'>{stats.investigating}</p>
+                <p className='text-sm text-gray-600'>Investigating</p>
+              </>
+            )}
           </div>
         </AnimatedCard>
 
@@ -343,8 +331,17 @@ export default function DisputesPage() {
             <div className='rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
               <CheckCircle className='h-6 w-6 text-white' />
             </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.resolved}</p>
-            <p className='text-sm text-gray-600'>Resolved</p>
+            {countsLoading ? (
+              <div className='animate-pulse'>
+                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
+                <div className='h-4 bg-gray-200 rounded w-16 mx-auto'></div>
+              </div>
+            ) : (
+              <>
+                <p className='text-2xl font-bold text-gray-900'>{stats.resolved}</p>
+                <p className='text-sm text-gray-600'>Resolved</p>
+              </>
+            )}
           </div>
         </AnimatedCard>
 
@@ -353,8 +350,17 @@ export default function DisputesPage() {
             <div className='rounded-lg bg-gradient-to-r from-red-500 to-pink-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
               <Flag className='h-6 w-6 text-white' />
             </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.escalated}</p>
-            <p className='text-sm text-gray-600'>Escalated</p>
+            {countsLoading ? (
+              <div className='animate-pulse'>
+                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
+                <div className='h-4 bg-gray-200 rounded w-16 mx-auto'></div>
+              </div>
+            ) : (
+              <>
+                <p className='text-2xl font-bold text-gray-900'>{stats.escalated}</p>
+                <p className='text-sm text-gray-600'>Escalated</p>
+              </>
+            )}
           </div>
         </AnimatedCard>
 
@@ -376,11 +382,15 @@ export default function DisputesPage() {
             <Filter className='h-4 w-4 text-gray-500' />
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1); // Reset to first page when filter changes
+              }}
               className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
             >
               <option value='all'>All Status</option>
               <option value='open'>Open</option>
+              <option value='under_review'>Under Review</option>
               <option value='investigating'>Investigating</option>
               <option value='resolved'>Resolved</option>
               <option value='escalated'>Escalated</option>
@@ -390,20 +400,30 @@ export default function DisputesPage() {
 
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
+            onChange={e => {
+              setTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
           >
             <option value='all'>All Types</option>
-            <option value='refund'>Refund</option>
-            <option value='quality'>Quality</option>
-            <option value='delivery'>Delivery</option>
-            <option value='service'>Service</option>
-            <option value='fraud'>Fraud</option>
+            <option value='order_not_received'>Order Not Received</option>
+            <option value='item_not_as_described'>Item Not As Described</option>
+            <option value='damaged_item'>Damaged Item</option>
+            <option value='quality_issue'>Quality Issue</option>
+            <option value='refund_request'>Refund Request</option>
+            <option value='delivery_issue'>Delivery Issue</option>
+            <option value='service_issue'>Service Issue</option>
+            <option value='fraud_complaint'>Fraud Complaint</option>
+            <option value='other'>Other</option>
           </select>
 
           <select
             value={priorityFilter}
-            onChange={e => setPriorityFilter(e.target.value)}
+            onChange={e => {
+              setPriorityFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
           >
             <option value='all'>All Priorities</option>
@@ -412,6 +432,15 @@ export default function DisputesPage() {
             <option value='medium'>Medium</option>
             <option value='low'>Low</option>
           </select>
+          
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className='inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50'
+          >
+            <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+            Refresh
+          </button>
         </div>
 
         <div className='relative'>
@@ -420,7 +449,10 @@ export default function DisputesPage() {
             type='search'
             placeholder='Search disputes...'
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={e => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className='w-64 rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
           />
         </div>
@@ -432,111 +464,174 @@ export default function DisputesPage() {
           <div className='flex items-center justify-between mb-6'>
             <div>
               <h3 className='text-lg font-semibold text-gray-900'>Active Disputes</h3>
-              <p className='text-sm text-gray-600'>Manage and resolve platform disputes</p>
+              <p className='text-sm text-gray-600'>
+                {isLoading ? (
+                  'Loading disputes...'
+                ) : (
+                  `${disputesResponse?.total || 0} total disputes found`
+                )}
+              </p>
             </div>
           </div>
 
-          <div className='overflow-x-auto'>
-            <table className='w-full text-sm'>
-              <thead>
-                <tr className='border-b'>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Dispute ID</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Customer</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Product</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Type</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Amount</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Priority</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Created</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
-                </tr>
-              </thead>
-              <tbody className='divide-y'>
-                {filteredDisputes.map(dispute => {
-                  const StatusIcon = getStatusIcon(dispute.status);
-                  const TypeIcon = getTypeIcon(dispute.type);
+          {isLoading ? (
+            <div className='space-y-4'>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className='animate-pulse'>
+                  <div className='h-16 bg-gray-200 rounded'></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className='text-center py-12 text-red-600'>
+              <AlertTriangle className='h-12 w-12 mx-auto mb-4' />
+              <h3 className='text-lg font-semibold mb-2'>Error Loading Disputes</h3>
+              <p className='text-sm text-gray-600 mb-4'>
+                {error?.message || 'Failed to load disputes'}
+              </p>
+              <button
+                onClick={() => refetch()}
+                className='inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700'
+              >
+                <RefreshCw className='h-4 w-4 mr-2' />
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm'>
+                <thead>
+                  <tr className='border-b'>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Dispute ID</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Customer</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Subject</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Type</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Amount</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Priority</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Created</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y'>
+                  {disputes.map(dispute => {
+                    const StatusIcon = getStatusIcon(dispute.status);
+                    const TypeIcon = getTypeIcon(dispute.type);
 
-                  return (
-                    <tr key={dispute.id} className='hover:bg-gray-50'>
-                      <td className='py-4 font-medium text-gray-900'>{dispute.id}</td>
-                      <td className='py-4 text-gray-600'>{dispute.customerName}</td>
-                      <td className='py-4 text-gray-600'>{dispute.vendorName}</td>
-                      <td className='py-4 text-gray-600'>{dispute.productName}</td>
-                      <td className='py-4'>
-                        <div className='flex items-center gap-2'>
-                          <TypeIcon className='h-4 w-4 text-gray-500' />
-                          <span className='capitalize'>{dispute.type}</span>
-                        </div>
-                      </td>
-                      <td className='py-4 font-medium text-gray-900'>
-                        {formatCurrency(dispute.amount)}
-                      </td>
-                      <td className='py-4'>
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
-                            getPriorityColor(dispute.priority)
-                          )}
-                        >
-                          {dispute.priority}
-                        </span>
-                      </td>
-                      <td className='py-4'>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold',
-                            getStatusColor(dispute.status)
-                          )}
-                        >
-                          <StatusIcon className='h-3 w-3' />
-                          {dispute.status}
-                        </span>
-                      </td>
-                      <td className='py-4 text-gray-600'>
-                        {format(dispute.createdAt, 'MMM dd, yyyy')}
-                      </td>
-                      <td className='py-4'>
-                        <div className='flex items-center gap-2'>
-                          <button
-                            onClick={() => {
-                              setSelectedDispute(dispute);
-                              setShowDetails(true);
-                            }}
-                            className='text-blue-600 hover:text-blue-800 font-medium'
+                    return (
+                      <tr key={dispute.id} className='hover:bg-gray-50'>
+                        <td className='py-4 font-medium text-gray-900'>{dispute.reference}</td>
+                        <td className='py-4 text-gray-600'>{dispute.customer.name}</td>
+                        <td className='py-4 text-gray-600'>{dispute.vendor.name}</td>
+                        <td className='py-4 text-gray-600 max-w-xs truncate'>{dispute.subject}</td>
+                        <td className='py-4'>
+                          <div className='flex items-center gap-2'>
+                            <TypeIcon className='h-4 w-4 text-gray-500' />
+                            <span className='capitalize'>{dispute.type.replace(/_/g, ' ')}</span>
+                          </div>
+                        </td>
+                        <td className='py-4 font-medium text-gray-900'>
+                          {formatCurrency(dispute.amount)}
+                        </td>
+                        <td className='py-4'>
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
+                              getPriorityColor(dispute.priority)
+                            )}
                           >
-                            View
-                          </button>
-                          {dispute.status === 'open' && (
+                            {dispute.priority}
+                          </span>
+                        </td>
+                        <td className='py-4'>
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold',
+                              getStatusColor(dispute.status)
+                            )}
+                          >
+                            <StatusIcon className='h-3 w-3' />
+                            {dispute.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className='py-4 text-gray-600'>
+                          {format(new Date(dispute.createdAt), 'MMM dd, yyyy')}
+                        </td>
+                        <td className='py-4'>
+                          <div className='flex items-center gap-2'>
                             <button
-                              onClick={() => handleStatusChange(dispute.id, 'investigating')}
-                              className='text-yellow-600 hover:text-yellow-800 font-medium'
+                              onClick={() => {
+                                setSelectedDispute(dispute);
+                                setShowDetails(true);
+                              }}
+                              className='text-blue-600 hover:text-blue-800 font-medium'
                             >
-                              Investigate
+                              View
                             </button>
-                          )}
-                          {dispute.status === 'investigating' && (
-                            <button
-                              onClick={() => handleStatusChange(dispute.id, 'resolved')}
-                              className='text-green-600 hover:text-green-800 font-medium'
-                            >
-                              Resolve
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            {dispute.status === DisputeStatus.OPEN && (
+                              <button
+                                onClick={() => handleStatusChange(dispute.id, DisputeStatus.INVESTIGATING)}
+                                className='text-yellow-600 hover:text-yellow-800 font-medium'
+                                disabled={updateDisputeMutation.isLoading}
+                              >
+                                {updateDisputeMutation.isLoading ? 'Loading...' : 'Investigate'}
+                              </button>
+                            )}
+                            {dispute.status === DisputeStatus.INVESTIGATING && (
+                              <button
+                                onClick={() => handleStatusChange(dispute.id, DisputeStatus.RESOLVED)}
+                                className='text-green-600 hover:text-green-800 font-medium'
+                                disabled={resolveDisputeMutation.isLoading}
+                              >
+                                {resolveDisputeMutation.isLoading ? 'Loading...' : 'Resolve'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          {filteredDisputes.length === 0 && (
+          {!isLoading && !error && disputes.length === 0 && (
             <div className='text-center py-12'>
               <Gavel className='h-12 w-12 text-gray-400 mx-auto mb-4' />
               <h3 className='text-lg font-semibold text-gray-900 mb-2'>No disputes found</h3>
               <p className='text-gray-600'>Try adjusting your search or filters</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {disputesResponse && disputesResponse.totalPages > 1 && (
+            <div className='flex items-center justify-between px-6 py-4 border-t'>
+              <div className='text-sm text-gray-700'>
+                Showing {((disputesResponse.page - 1) * disputesResponse.limit) + 1} to{' '}
+                {Math.min(disputesResponse.page * disputesResponse.limit, disputesResponse.total)} of{' '}
+                {disputesResponse.total} results
+              </div>
+              <div className='flex items-center space-x-2'>
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1 || isLoading}
+                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50'
+                >
+                  Previous
+                </button>
+                <span className='text-sm text-gray-700'>
+                  Page {currentPage} of {disputesResponse.totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(Math.min(disputesResponse.totalPages, currentPage + 1))}
+                  disabled={currentPage >= disputesResponse.totalPages || isLoading}
+                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50'
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -567,19 +662,19 @@ export default function DisputesPage() {
                       <strong>Order ID:</strong> {selectedDispute.orderId}
                     </p>
                     <p>
-                      <strong>Customer:</strong> {selectedDispute.customerName}
+                      <strong>Customer:</strong> {selectedDispute.customer.name}
                     </p>
                     <p>
-                      <strong>Vendor:</strong> {selectedDispute.vendorName}
+                      <strong>Vendor:</strong> {selectedDispute.vendor.name}
                     </p>
                     <p>
-                      <strong>Product:</strong> {selectedDispute.productName}
+                      <strong>Subject:</strong> {selectedDispute.subject}
                     </p>
                     <p>
                       <strong>Amount:</strong> {formatCurrency(selectedDispute.amount)}
                     </p>
                     <p>
-                      <strong>Type:</strong> {selectedDispute.type}
+                      <strong>Type:</strong> {selectedDispute.type.replace(/_/g, ' ')}
                     </p>
                     <p>
                       <strong>Priority:</strong> {selectedDispute.priority}
@@ -629,15 +724,6 @@ export default function DisputesPage() {
                 </p>
               </div>
 
-              {selectedDispute.vendorResponse && (
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Vendor Response</h3>
-                  <p className='text-gray-700 bg-blue-50 p-4 rounded-lg'>
-                    {selectedDispute.vendorResponse}
-                  </p>
-                </div>
-              )}
-
               {selectedDispute.adminNotes && (
                 <div>
                   <h3 className='font-semibold text-gray-900 mb-3'>Admin Notes</h3>
@@ -647,12 +733,61 @@ export default function DisputesPage() {
                 </div>
               )}
 
-              {selectedDispute.resolution && (
+              {selectedDispute.resolutionNotes && (
                 <div>
                   <h3 className='font-semibold text-gray-900 mb-3'>Resolution</h3>
                   <p className='text-gray-700 bg-green-50 p-4 rounded-lg'>
-                    {selectedDispute.resolution}
+                    {selectedDispute.resolutionNotes}
                   </p>
+                </div>
+              )}
+
+              {/* Evidence Section */}
+              {selectedDispute.evidence && selectedDispute.evidence.length > 0 && (
+                <div>
+                  <h3 className='font-semibold text-gray-900 mb-3'>Evidence</h3>
+                  <div className='grid gap-2'>
+                    {selectedDispute.evidence.map((evidence) => (
+                      <div key={evidence.id} className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'>
+                        <FileText className='h-5 w-5 text-gray-500' />
+                        <div className='flex-1'>
+                          <p className='text-sm font-medium text-gray-900'>{evidence.filename}</p>
+                          <p className='text-xs text-gray-500'>
+                            {(evidence.size / 1024).toFixed(1)} KB • Uploaded {format(new Date(evidence.uploadedAt), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => window.open(evidence.url, '_blank')}
+                          className='text-blue-600 hover:text-blue-800 text-sm font-medium'
+                        >
+                          View
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Section */}
+              {selectedDispute.timeline && selectedDispute.timeline.length > 0 && (
+                <div>
+                  <h3 className='font-semibold text-gray-900 mb-3'>Timeline</h3>
+                  <div className='space-y-3'>
+                    {selectedDispute.timeline.map((entry) => (
+                      <div key={entry.id} className='border-l-2 border-blue-200 pl-4'>
+                        <div className='flex items-center justify-between'>
+                          <span className='font-medium text-gray-900'>{entry.action}</span>
+                          <span className='text-sm text-gray-500'>
+                            {format(new Date(entry.createdAt), 'MMM dd, HH:mm')}
+                          </span>
+                        </div>
+                        <p className='text-sm text-gray-600'>{entry.description}</p>
+                        {entry.performedByName && (
+                          <p className='text-xs text-gray-500 mt-1'>by {entry.performedByName}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -660,26 +795,28 @@ export default function DisputesPage() {
                 <GlowingButton variant='secondary' onClick={() => setShowDetails(false)}>
                   Close
                 </GlowingButton>
-                {selectedDispute.status === 'open' && (
+                {selectedDispute.status === DisputeStatus.OPEN && (
                   <GlowingButton
                     variant='primary'
                     onClick={() => {
-                      handleStatusChange(selectedDispute.id, 'investigating');
+                      handleStatusChange(selectedDispute.id, DisputeStatus.INVESTIGATING);
                       setShowDetails(false);
                     }}
+                    disabled={updateDisputeMutation.isLoading}
                   >
-                    Start Investigation
+                    {updateDisputeMutation.isLoading ? 'Processing...' : 'Start Investigation'}
                   </GlowingButton>
                 )}
-                {selectedDispute.status === 'investigating' && (
+                {selectedDispute.status === DisputeStatus.INVESTIGATING && (
                   <GlowingButton
                     variant='success'
                     onClick={() => {
-                      handleStatusChange(selectedDispute.id, 'resolved');
+                      handleStatusChange(selectedDispute.id, DisputeStatus.RESOLVED);
                       setShowDetails(false);
                     }}
+                    disabled={resolveDisputeMutation.isLoading}
                   >
-                    Mark Resolved
+                    {resolveDisputeMutation.isLoading ? 'Resolving...' : 'Mark Resolved'}
                   </GlowingButton>
                 )}
               </div>
