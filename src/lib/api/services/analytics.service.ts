@@ -1,35 +1,54 @@
 import { apiClient } from '../client';
 import { DashboardAnalytics, RevenueData, CategoryStats } from '../types';
+import { getSession } from 'next-auth/react';
 
 export class AnalyticsService {
   // Dashboard analytics - using real admin service data
   async getDashboardAnalytics(): Promise<DashboardAnalytics> {
     try {
+      // Check authentication before making API calls
+      const session = await getSession();
+      if (!session?.accessToken) {
+        console.warn('No authentication token found, returning fallback data');
+        return this.getFallbackDashboardAnalytics();
+      }
+      
+      console.log('Fetching dashboard analytics from admin service...');
       // Get comprehensive statistics from admin service
       const dashboardStats = await apiClient.get('/api/proxy/admin/v1/analytics/dashboard');
+      console.log('Dashboard stats response:', dashboardStats);
       
       // Get additional analytics from different endpoints
       const userStats = await apiClient.get('/api/proxy/admin/v1/analytics/users');
+      console.log('User stats response:', userStats);
       const vendorStats = await apiClient.get('/api/proxy/admin/v1/analytics/vendors');
+      console.log('Vendor stats response:', vendorStats);
       
-      // Transform to DashboardAnalytics format
-      return {
-        totalUsers: dashboardStats.totalUsers || userStats.totalUsers || 0,
-        totalVendors: dashboardStats.totalVendors || vendorStats.totalActive || 0,
-        totalProducts: dashboardStats.totalProducts || 0,
-        totalOrders: dashboardStats.totalOrders || 0,
-        totalRevenue: dashboardStats.totalRevenue || 0,
-        activeUsers: dashboardStats.activeUsers || userStats.activeUsers || 0,
-        newUsersToday: dashboardStats.newUsersToday || userStats.newUsersToday || 0,
-        pendingVerifications: dashboardStats.pendingVerifications || vendorStats.pendingApproval || 0,
-        recentOrders: dashboardStats.recentOrders || [],
-        revenueGrowth: dashboardStats.revenueGrowth || 0,
-        orderGrowth: dashboardStats.orderGrowth || 0,
-        userGrowth: dashboardStats.userGrowth || userStats.growth?.monthly || 0,
-        vendorGrowth: dashboardStats.vendorGrowth || vendorStats.growthRate || 0,
+      // Transform to DashboardAnalytics format with improved data extraction
+      const transformedData = {
+        totalUsers: this.extractValue(dashboardStats, 'totalUsers') || this.extractValue(userStats, 'totalUsers') || 0,
+        totalVendors: this.extractValue(dashboardStats, 'totalVendors') || this.extractValue(vendorStats, 'totalActive') || 0,
+        totalProducts: this.extractValue(dashboardStats, 'totalProducts') || 0,
+        totalOrders: this.extractValue(dashboardStats, 'totalOrders') || 0,
+        totalRevenue: this.extractValue(dashboardStats, 'totalRevenue') || 0,
+        activeUsers: this.extractValue(dashboardStats, 'activeUsers') || this.extractValue(userStats, 'activeUsers') || 0,
+        newUsersToday: this.extractValue(dashboardStats, 'newUsersToday') || this.extractValue(userStats, 'newUsersToday') || 0,
+        pendingVerifications: this.extractValue(dashboardStats, 'pendingVerifications') || this.extractValue(vendorStats, 'pendingApproval') || 0,
+        recentOrders: this.extractValue(dashboardStats, 'recentOrders') || [],
+        revenueGrowth: this.extractValue(dashboardStats, 'revenueGrowth') || 0,
+        orderGrowth: this.extractValue(dashboardStats, 'orderGrowth') || 0,
+        userGrowth: this.extractValue(dashboardStats, 'userGrowth') || this.extractNestedValue(userStats, 'growth.monthly') || 0,
+        vendorGrowth: this.extractValue(dashboardStats, 'vendorGrowth') || this.extractValue(vendorStats, 'growthRate') || 0,
       };
+      
+      console.log('Transformed dashboard analytics:', transformedData);
+      return transformedData;
     } catch (error) {
       console.error('Failed to fetch dashboard analytics:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
       // Return fallback data structure
       return {
         totalUsers: 0,
@@ -108,6 +127,10 @@ export class AnalyticsService {
       return data;
     } catch (error) {
       console.error('Failed to fetch revenue data:', error);
+      if (error.response) {
+        console.error('Revenue API response status:', error.response.status);
+        console.error('Revenue API response data:', error.response.data);
+      }
       return [];
     }
   }
@@ -162,6 +185,10 @@ export class AnalyticsService {
       };
     } catch (error) {
       console.error('Failed to fetch user analytics:', error);
+      if (error.response) {
+        console.error('User analytics response status:', error.response.status);
+        console.error('User analytics response data:', error.response.data);
+      }
       return {
         totalUsers: 0,
         newUsers: 0,
@@ -363,6 +390,59 @@ export class AnalyticsService {
       console.error('Failed to export analytics:', error);
       throw new Error('Failed to export analytics data');
     }
+  }
+
+  // Helper method to extract values from API responses with validation
+  private extractValue(response: any, key: string): any {
+    if (!response) return null;
+    
+    // Handle different response formats
+    if (response.data && typeof response.data === 'object') {
+      return response.data[key];
+    }
+    
+    if (response[key] !== undefined) {
+      return response[key];
+    }
+    
+    return null;
+  }
+
+  // Helper method to extract nested values (e.g., "growth.monthly")
+  private extractNestedValue(response: any, path: string): any {
+    if (!response) return null;
+    
+    const keys = path.split('.');
+    let current = response.data || response;
+    
+    for (const key of keys) {
+      if (current && typeof current === 'object' && current[key] !== undefined) {
+        current = current[key];
+      } else {
+        return null;
+      }
+    }
+    
+    return current;
+  }
+
+  // Helper method to return fallback dashboard analytics
+  private getFallbackDashboardAnalytics(): DashboardAnalytics {
+    return {
+      totalUsers: 0,
+      totalVendors: 0,
+      totalProducts: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+      activeUsers: 0,
+      newUsersToday: 0,
+      pendingVerifications: 0,
+      recentOrders: [],
+      revenueGrowth: 0,
+      orderGrowth: 0,
+      userGrowth: 0,
+      vendorGrowth: 0,
+    };
   }
 }
 

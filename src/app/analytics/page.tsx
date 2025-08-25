@@ -399,21 +399,35 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <StatsCard
               title="Total Revenue"
-              value={analytics.totalRevenue || 15420000}
-              change={analytics.revenueGrowth || 12.5}
+              value={analytics?.totalRevenue || 0}
+              change={analytics?.revenueGrowth || 0}
               icon={DollarSign}
               prefix="₦"
             />
             <StatsCard
               title="Monthly Revenue"
-              value={revenueData?.monthlyRevenue || analytics?.totalRevenue / 12 || 0}
-              change={revenueData?.monthlyGrowth || 0}
+              value={
+                revenueData && Array.isArray(revenueData) 
+                  ? revenueData.reduce((sum, item) => sum + (item.revenue || 0), 0)
+                  : 0
+              }
+              change={
+                revenueData && Array.isArray(revenueData) && revenueData.length >= 2
+                  ? Math.round(((revenueData[revenueData.length - 1]?.revenue || 0) - (revenueData[revenueData.length - 2]?.revenue || 0)) / (revenueData[revenueData.length - 2]?.revenue || 1) * 100)
+                  : 0
+              }
               icon={TrendingUp}
               prefix="₦"
             />
             <StatsCard
               title="Avg Order Value"
-              value={orderAnalytics?.averageOrderValue || (analytics?.totalRevenue / (analytics?.totalOrders || 1)) || 0}
+              value={
+                orderAnalytics?.averageOrderValue || 
+                (analytics?.totalRevenue && analytics?.totalOrders 
+                  ? Math.round(analytics.totalRevenue / analytics.totalOrders)
+                  : 0
+                )
+              }
               change={orderAnalytics?.avgOrderValueGrowth || 0}
               icon={Award}
               prefix="₦"
@@ -461,7 +475,7 @@ export default function AnalyticsPage() {
             />
             <StatsCard 
               title="Retention Rate" 
-              value={userAnalytics?.retentionRate || 76} 
+              value={userAnalytics?.retentionRate || 0} 
               change={userAnalytics?.retentionGrowth || 0} 
               icon={Target} 
               suffix="%" 
