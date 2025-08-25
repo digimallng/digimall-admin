@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { reportsService } from '../api/services/reports.service';
 
 // Query keys
 export const reportKeys = {
@@ -26,27 +27,7 @@ export function usePlatformMetrics(
 ) {
   return useQuery({
     queryKey: [...reportKeys.platform(), params],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return {
-        totalRevenue: 45000000,
-        revenueGrowth: 23.5,
-        totalCommission: 2250000,
-        commissionGrowth: 18.2,
-        totalVendors: 247,
-        vendorGrowth: 12.8,
-        totalCustomers: 15647,
-        customerGrowth: 31.4,
-        totalOrders: 8934,
-        orderGrowth: 19.7,
-        avgOrderValue: 87500,
-        avgOrderGrowth: 8.3,
-        disputeRate: 2.3,
-        disputeChange: -15.2,
-        vendorSatisfaction: 4.2,
-        satisfactionChange: 5.1,
-      };
-    },
+    queryFn: () => reportsService.getPlatformMetrics(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -63,17 +44,7 @@ export function useVendorPerformanceData(
 ) {
   return useQuery({
     queryKey: [...reportKeys.performance(), params],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return [
-        { name: 'Jan', revenue: 3200000, commission: 160000, vendors: 198, orders: 1245 },
-        { name: 'Feb', revenue: 3800000, commission: 190000, vendors: 210, orders: 1456 },
-        { name: 'Mar', revenue: 4100000, commission: 205000, vendors: 225, orders: 1598 },
-        { name: 'Apr', revenue: 4600000, commission: 230000, vendors: 235, orders: 1789 },
-        { name: 'May', revenue: 5200000, commission: 260000, vendors: 242, orders: 1923 },
-        { name: 'Jun', revenue: 5800000, commission: 290000, vendors: 247, orders: 2134 },
-      ];
-    },
+    queryFn: () => reportsService.getVendorPerformanceData(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -90,16 +61,7 @@ export function useTopVendors(
 ) {
   return useQuery({
     queryKey: [...reportKeys.topVendors(), params],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return [
-        { name: 'TechHub Nigeria', revenue: 2100000, commission: 105000, orders: 567, growth: 34.2 },
-        { name: 'Fashion Forward', revenue: 1850000, commission: 92500, orders: 423, growth: 28.7 },
-        { name: 'Home Essentials', revenue: 1620000, commission: 81000, orders: 389, growth: 22.1 },
-        { name: 'Sports Arena', revenue: 1480000, commission: 74000, orders: 312, growth: 19.8 },
-        { name: 'Book Paradise', revenue: 1350000, commission: 67500, orders: 298, growth: 15.3 },
-      ];
-    },
+    queryFn: () => reportsService.getTopVendors(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -114,16 +76,7 @@ export function useCategoryDistribution(
 ) {
   return useQuery({
     queryKey: [...reportKeys.categories(), params],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return [
-        { category: 'Electronics', value: 35, revenue: 15750000 },
-        { category: 'Fashion', value: 25, revenue: 11250000 },
-        { category: 'Home & Garden', value: 18, revenue: 8100000 },
-        { category: 'Sports', value: 12, revenue: 5400000 },
-        { category: 'Books', value: 10, revenue: 4500000 },
-      ];
-    },
+    queryFn: () => reportsService.getCategoryDistribution(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -135,15 +88,7 @@ export function useVendorStatusDistribution(
 ) {
   return useQuery({
     queryKey: [...reportKeys.vendors(), 'status'],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return [
-        { status: 'Active', count: 198, percentage: 80.2 },
-        { status: 'Pending', count: 23, percentage: 9.3 },
-        { status: 'Suspended', count: 15, percentage: 6.1 },
-        { status: 'Under Review', count: 11, percentage: 4.5 },
-      ];
-    },
+    queryFn: () => reportsService.getVendorStatusDistribution(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -159,26 +104,7 @@ export function useCommissionAnalytics(
 ) {
   return useQuery({
     queryKey: [...reportKeys.commission(), params],
-    queryFn: async () => {
-      // Mock implementation - replace with actual API call
-      return {
-        totalCommission: 2250000,
-        avgCommissionRate: 5.0,
-        topCommissionVendors: [
-          { name: 'TechHub Nigeria', commission: 105000, rate: 5.0 },
-          { name: 'Fashion Forward', commission: 92500, rate: 5.0 },
-          { name: 'Home Essentials', commission: 81000, rate: 5.0 },
-        ],
-        monthlyTrend: [
-          { month: 'Jan', commission: 160000, rate: 5.0 },
-          { month: 'Feb', commission: 190000, rate: 5.0 },
-          { month: 'Mar', commission: 205000, rate: 5.0 },
-          { month: 'Apr', commission: 230000, rate: 5.0 },
-          { month: 'May', commission: 260000, rate: 5.0 },
-          { month: 'Jun', commission: 290000, rate: 5.0 },
-        ],
-      };
-    },
+    queryFn: () => reportsService.getCommissionAnalytics(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -246,20 +172,13 @@ export function usePlatformReport(
 // Export report data
 export function useExportReport() {
   return useMutation({
-    mutationFn: async (params: {
+    mutationFn: (params: {
       reportType: 'revenue' | 'vendors' | 'analytics' | 'issues' | 'commission';
       format: 'pdf' | 'excel' | 'csv';
       period?: 'day' | 'week' | 'month' | 'year';
       startDate?: string;
       endDate?: string;
-    }) => {
-      // Mock implementation - replace with actual API call
-      return {
-        downloadUrl: `https://api.digimall.ng/reports/export/${params.reportType}.${params.format}`,
-        filename: `${params.reportType}_report_${new Date().toISOString().split('T')[0]}.${params.format}`,
-        size: Math.floor(Math.random() * 5000000), // Random file size
-      };
-    },
+    }) => reportsService.exportReport(params),
   });
 }
 
