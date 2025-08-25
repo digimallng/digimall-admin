@@ -1,11 +1,22 @@
 import { apiClient } from '../client';
+import { getSession } from 'next-auth/react';
 
 // Create a specialized client for chat that always uses the proxy
 class ChatApiClient {
   private baseURL = '/api/proxy';
 
   async getAuthHeaders(): Promise<Record<string, string>> {
-    return apiClient.getAuthHeaders();
+    const session = await getSession();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    
+    if (session?.accessToken) {
+      headers['Authorization'] = `Bearer ${session.accessToken}`;
+    }
+    
+    return headers;
   }
 
   async get<T>(endpoint: string): Promise<T> {

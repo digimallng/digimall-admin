@@ -13,6 +13,7 @@ export { securityService, SecurityService } from './security.service';
 export { systemService, SystemService } from './system.service';
 export { supportService, SupportService } from './support.service';
 export { notificationsService, NotificationsService } from './notifications.service';
+export { settingsService, SettingsService } from './settings.service';
 
 // Export API client and types
 export { apiClient, api, ApiError } from '../client';

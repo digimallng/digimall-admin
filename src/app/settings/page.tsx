@@ -49,353 +49,6 @@ import { formatDistanceToNow } from 'date-fns';
 
 // Types are now imported from use-settings hook
 
-const mockPlatformConfig: PlatformConfig[] = [
-  // General Settings
-  {
-    id: '1',
-    key: 'platform_name',
-    label: 'Platform Name',
-    value: 'digiMall',
-    type: 'string',
-    category: 'general',
-    description: 'The name of your e-commerce platform',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '2',
-    key: 'platform_description',
-    label: 'Platform Description',
-    value: "Nigeria's leading multi-vendor e-commerce platform",
-    type: 'textarea',
-    category: 'general',
-    description: 'Brief description of your platform',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '3',
-    key: 'default_currency',
-    label: 'Default Currency',
-    value: 'NGN',
-    type: 'select',
-    category: 'general',
-    options: ['NGN', 'USD', 'EUR', 'GBP'],
-    description: 'Default currency for transactions',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '4',
-    key: 'platform_timezone',
-    label: 'Platform Timezone',
-    value: 'Africa/Lagos',
-    type: 'select',
-    category: 'general',
-    options: ['Africa/Lagos', 'UTC', 'America/New_York', 'Europe/London'],
-    description: 'Default timezone for the platform',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '5',
-    key: 'maintenance_mode',
-    label: 'Maintenance Mode',
-    value: false,
-    type: 'boolean',
-    category: 'general',
-    description: 'Enable maintenance mode to restrict access',
-    required: false,
-    editable: true,
-  },
-  // Commission Settings
-  {
-    id: '6',
-    key: 'default_commission_rate',
-    label: 'Default Commission Rate',
-    value: 5.0,
-    type: 'number',
-    category: 'commission',
-    description: 'Default commission rate percentage for new vendors',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '7',
-    key: 'minimum_payout_amount',
-    label: 'Minimum Payout Amount',
-    value: 10000,
-    type: 'number',
-    category: 'commission',
-    description: 'Minimum amount required for vendor payouts',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '8',
-    key: 'payout_schedule',
-    label: 'Payout Schedule',
-    value: 'weekly',
-    type: 'select',
-    category: 'commission',
-    options: ['daily', 'weekly', 'monthly'],
-    description: 'How often to process vendor payouts',
-    required: true,
-    editable: true,
-  },
-  // Security Settings
-  {
-    id: '9',
-    key: 'two_factor_required',
-    label: 'Require Two-Factor Authentication',
-    value: true,
-    type: 'boolean',
-    category: 'security',
-    description: 'Require 2FA for all admin accounts',
-    required: false,
-    editable: true,
-  },
-  {
-    id: '10',
-    key: 'session_timeout',
-    label: 'Session Timeout (minutes)',
-    value: 30,
-    type: 'number',
-    category: 'security',
-    description: 'Auto-logout users after inactivity',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '11',
-    key: 'max_login_attempts',
-    label: 'Max Login Attempts',
-    value: 3,
-    type: 'number',
-    category: 'security',
-    description: 'Maximum failed login attempts before account lock',
-    required: true,
-    editable: true,
-  },
-  // Vendor Settings
-  {
-    id: '12',
-    key: 'vendor_approval_required',
-    label: 'Vendor Approval Required',
-    value: true,
-    type: 'boolean',
-    category: 'vendor',
-    description: 'Require admin approval for new vendors',
-    required: false,
-    editable: true,
-  },
-  {
-    id: '13',
-    key: 'max_products_per_vendor',
-    label: 'Max Products per Vendor',
-    value: 1000,
-    type: 'number',
-    category: 'vendor',
-    description: 'Maximum number of products per vendor',
-    required: true,
-    editable: true,
-  },
-  // Notification Settings
-  {
-    id: '14',
-    key: 'email_notifications',
-    label: 'Email Notifications',
-    value: true,
-    type: 'boolean',
-    category: 'notifications',
-    description: 'Enable email notifications',
-    required: false,
-    editable: true,
-  },
-  {
-    id: '15',
-    key: 'sms_notifications',
-    label: 'SMS Notifications',
-    value: false,
-    type: 'boolean',
-    category: 'notifications',
-    description: 'Enable SMS notifications',
-    required: false,
-    editable: true,
-  },
-  // Payment Settings
-  {
-    id: '16',
-    key: 'payment_gateway',
-    label: 'Primary Payment Gateway',
-    value: 'paystack',
-    type: 'select',
-    category: 'payments',
-    options: ['paystack', 'flutterwave', 'interswitch'],
-    description: 'Primary payment gateway for transactions',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '17',
-    key: 'transaction_fee',
-    label: 'Transaction Fee (%)',
-    value: 2.5,
-    type: 'number',
-    category: 'payments',
-    description: 'Platform transaction fee percentage',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '18',
-    key: 'minimum_order_amount',
-    label: 'Minimum Order Amount',
-    value: 1000,
-    type: 'number',
-    category: 'payments',
-    description: 'Minimum order amount for transactions',
-    required: true,
-    editable: true,
-  },
-  // Shipping Settings
-  {
-    id: '19',
-    key: 'default_shipping_provider',
-    label: 'Default Shipping Provider',
-    value: 'gig_logistics',
-    type: 'select',
-    category: 'shipping',
-    options: ['fez'],
-    description: 'Default shipping provider for orders',
-    required: true,
-    editable: true,
-  },
-  {
-    id: '20',
-    key: 'free_shipping_threshold',
-    label: 'Free Shipping Threshold',
-    value: 50000,
-    type: 'number',
-    category: 'shipping',
-    description: 'Minimum order amount for free shipping',
-    required: true,
-    editable: true,
-  },
-];
-
-const mockSystemNotifications: SystemNotification[] = [
-  {
-    id: '1',
-    type: 'maintenance',
-    title: 'Scheduled Maintenance',
-    message: 'Platform will be under maintenance from 2:00 AM to 4:00 AM WAT',
-    active: true,
-    priority: 'high',
-    targetUsers: 'all',
-    startDate: new Date('2024-02-20T02:00:00'),
-    endDate: new Date('2024-02-20T04:00:00'),
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    type: 'feature',
-    title: 'New Feature: Advanced Analytics',
-    message: 'Check out our new advanced analytics dashboard for better insights',
-    active: true,
-    priority: 'medium',
-    targetUsers: 'vendors',
-    startDate: new Date(),
-    createdAt: new Date(),
-  },
-];
-
-const mockNotificationServices: NotificationService[] = [
-  {
-    id: 'email-service',
-    name: 'Email Service',
-    type: 'email',
-    status: 'healthy',
-    uptime: 99.8,
-    lastCheck: new Date(Date.now() - 30000), // 30 seconds ago
-    responseTime: 120,
-    version: '1.0.0',
-    queues: {
-      waiting: 0,
-      active: 4,
-      completed: 10,
-      failed: 10,
-      delayed: 0,
-      paused: 0,
-    },
-    stats: {
-      sent24h: 1245,
-      failed24h: 12,
-      successRate: 99.0,
-    },
-    config: {
-      provider: 'SendGrid',
-      endpoint: 'https://api.sendgrid.com',
-      rateLimit: 1000,
-    },
-  },
-  {
-    id: 'sms-service',
-    name: 'SMS Service',
-    type: 'sms',
-    status: 'degraded',
-    uptime: 97.2,
-    lastCheck: new Date(Date.now() - 45000), // 45 seconds ago
-    responseTime: 850,
-    version: '1.0.0',
-    queues: {
-      waiting: 3,
-      active: 1,
-      completed: 4,
-      failed: 2,
-      delayed: 1,
-      paused: 0,
-    },
-    stats: {
-      sent24h: 234,
-      failed24h: 8,
-      successRate: 96.6,
-    },
-    config: {
-      provider: 'Twilio',
-      endpoint: 'https://api.twilio.com',
-      rateLimit: 200,
-    },
-  },
-  {
-    id: 'push-service',
-    name: 'Push Notifications',
-    type: 'push',
-    status: 'healthy',
-    uptime: 99.9,
-    lastCheck: new Date(Date.now() - 15000), // 15 seconds ago
-    responseTime: 85,
-    version: '1.0.0',
-    queues: {
-      waiting: 0,
-      active: 2,
-      completed: 8,
-      failed: 0,
-      delayed: 0,
-      paused: 0,
-    },
-    stats: {
-      sent24h: 2847,
-      failed24h: 3,
-      successRate: 99.9,
-    },
-    config: {
-      provider: 'Firebase',
-      endpoint: 'https://fcm.googleapis.com',
-      rateLimit: 5000,
-    },
-  },
-];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -414,21 +67,34 @@ export default function SettingsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [refreshingServices, setRefreshingServices] = useState(false);
 
-  // Using mock data directly for now
-  const configs = mockPlatformConfig;
-  const notifications = mockSystemNotifications;
-  const notificationServices = mockNotificationServices;
-  const configsLoading = false;
-  const notificationsLoading = false;
-  const servicesLoading = false;
-  const configsError = null;
-  const notificationsError = null;
-  const servicesError = null;
-  const systemStatus = null;
-  const updateConfigMutation = { mutate: () => {} };
+  // Fetch real data from APIs
+  const {
+    data: configs,
+    isLoading: configsLoading,
+    error: configsError,
+  } = usePlatformConfig();
+
+  const {
+    data: notifications,
+    isLoading: notificationsLoading,
+    error: notificationsError,
+  } = useSystemNotifications();
+
+  const {
+    data: notificationServices,
+    isLoading: servicesLoading,
+    error: servicesError,
+  } = useNotificationServices();
+
+  const {
+    data: systemStatus,
+    isLoading: systemStatusLoading,
+  } = useSystemStatus();
+
+  const updateConfigMutation = useUpdatePlatformConfig();
 
   // Loading states
-  if (configsLoading || notificationsLoading || servicesLoading) {
+  if (configsLoading || notificationsLoading || servicesLoading || systemStatusLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner />
@@ -436,14 +102,15 @@ export default function SettingsPage() {
     );
   }
 
-  // Error states
-  if (configsError || notificationsError || servicesError) {
+  // Error states - show error but continue with available data
+  const hasErrors = configsError || notificationsError || servicesError;
+  if (hasErrors && !configs && !notifications && !notificationServices) {
     const error = configsError || notificationsError || servicesError;
     return (
       <div className="flex h-screen items-center justify-center">
         <ErrorMessage 
           title="Failed to load settings" 
-          message={error?.message || 'Unknown error occurred'} 
+          message={error?.message || 'Unable to connect to admin services'} 
         />
       </div>
     );
@@ -466,7 +133,7 @@ export default function SettingsPage() {
     { id: 'system', label: 'System', icon: Server },
   ];
 
-  const filteredConfigs = configs.filter(config => {
+  const filteredConfigs = (configs || []).filter(config => {
     const matchesCategory = activeTab === 'system' || config.category === activeTab;
     const matchesSearch =
       config.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -475,16 +142,19 @@ export default function SettingsPage() {
   });
 
   const handleConfigUpdate = (configId: string, newValue: any) => {
+    setHasUnsavedChanges(true);
     updateConfigMutation.mutate(
       { id: configId, value: newValue },
       {
         onSuccess: () => {
           setHasUnsavedChanges(false);
-          // Config will be updated via React Query cache
+          console.log('Configuration updated successfully');
         },
         onError: (error) => {
           console.error('Failed to update config:', error);
-          // TODO: Show error toast/notification
+          setHasUnsavedChanges(false);
+          // In a real app, show toast notification here
+          alert('Failed to update configuration: ' + (error.message || 'Unknown error'));
         },
       }
     );
@@ -680,6 +350,23 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Error Indicators for Partial Failures */}
+        {hasErrors && (
+          <div className='bg-yellow-50 border border-yellow-200 rounded-lg p-4'>
+            <div className='flex items-center gap-2 text-yellow-600'>
+              <AlertTriangle className='h-4 w-4' />
+              <span className='text-sm font-medium'>
+                Some settings data could not be loaded
+              </span>
+            </div>
+            <div className='text-sm text-yellow-600 mt-1'>
+              {configsError && <div>• Configuration settings: {configsError.message}</div>}
+              {notificationsError && <div>• System notifications: {notificationsError.message}</div>}
+              {servicesError && <div>• Notification services: {servicesError.message}</div>}
+            </div>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className='border-b border-gray-200'>
           <nav className='-mb-px flex space-x-8'>
@@ -744,7 +431,7 @@ export default function SettingsPage() {
 
               {/* Service Status Cards */}
               <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
-                {notificationServices.map((service, index) => {
+                {(notificationServices || []).map((service, index) => {
                   const StatusIcon = getStatusIcon(service.status);
                   const ServiceIcon =
                     service.type === 'email'
@@ -867,7 +554,15 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className='flex items-center justify-between'>
-                        <div className='flex-1 max-w-md'>{renderConfigInput(config)}</div>
+                        <div className='flex-1 max-w-md'>
+                          {renderConfigInput(config)}
+                          {updateConfigMutation.isPending && hasUnsavedChanges && (
+                            <div className='text-xs text-blue-600 mt-1 flex items-center gap-1'>
+                              <RefreshCw className='h-3 w-3 animate-spin' />
+                              Saving...
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -930,7 +625,7 @@ export default function SettingsPage() {
             </div>
 
             <div className='space-y-4'>
-              {notifications.map((notification, index) => (
+              {(notifications || []).map((notification, index) => (
                 <AnimatedCard key={notification.id} delay={index * 100}>
                   <div className='p-6'>
                     <div className='flex items-start justify-between'>

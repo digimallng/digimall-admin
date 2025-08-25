@@ -30,6 +30,7 @@ export default function AdminLogin() {
     setError('');
 
     try {
+      console.log('Attempting login...');
       const result = await signIn('admin-credentials', {
         email: formData.email,
         password: formData.password,
@@ -42,6 +43,7 @@ export default function AdminLogin() {
         // Verify the session was created successfully
         const session = await getSession();
         if (session) {
+          console.log('Login successful, user role:', session.user.role);
           router.push(callbackUrl);
           router.refresh();
         } else {

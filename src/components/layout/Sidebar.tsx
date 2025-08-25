@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react';
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   Store,
   Package,
   ShoppingCart,
@@ -45,6 +46,7 @@ const navigation = [
     gradient: 'from-green-500 to-teal-600',
   },
   { name: 'Users', href: '/users', icon: Users, gradient: 'from-green-500 to-emerald-600' },
+  { name: 'Staff', href: '/staff', icon: UserCog, gradient: 'from-amber-500 to-orange-600' },
   { name: 'Vendors', href: '/vendors', icon: Store, gradient: 'from-orange-500 to-red-600' },
   {
     name: 'Vendor Performance',
@@ -71,6 +73,7 @@ const navigation = [
   },
   { name: 'Reports', href: '/reports', icon: FileText, gradient: 'from-cyan-500 to-blue-600' },
   { name: 'Disputes', href: '/disputes', icon: Gavel, gradient: 'from-red-500 to-pink-600' },
+  { name: 'Audit Logs', href: '/audit', icon: Shield, gradient: 'from-blue-500 to-indigo-600' },
   { name: 'Security', href: '/security', icon: Shield, gradient: 'from-indigo-500 to-purple-600' },
   { name: 'System', href: '/system', icon: Monitor, gradient: 'from-teal-500 to-cyan-600' },
   {

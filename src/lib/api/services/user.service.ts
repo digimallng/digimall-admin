@@ -89,20 +89,25 @@ export class UserService {
 
   // Get single user by ID
   async getUser(id: string): Promise<User> {
-    const response = await apiClient.get<any>(`/admin/users/${id}`);
-    
-    console.log('Debug - Get user API response:', response);
-    
-    // Handle different response formats
-    if (response?.data?.user) return response.data.user;
-    if (response?.user) return response.user;
-    if (response?.data) return response.data;
-    return response;
+    // Since individual user endpoints are failing, get user from users list
+    // This is a workaround until the endpoints are fixed
+    try {
+      const usersResponse = await this.getUsers({ limit: 10000 });
+      const user = usersResponse.users.find((u: User) => u.id === id);
+      
+      if (user) {
+        return user;
+      } else {
+        throw new Error(`User with id ${id} not found`);
+      }
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Update user
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const response = await apiClient.put<any>(`/admin/users/${id}`, data);
+    const response = await apiClient.put<any>(`/users/${id}`, data);
     
     console.log('Debug - Update user API response:', response);
     
@@ -115,12 +120,12 @@ export class UserService {
 
   // Delete user
   async deleteUser(id: string): Promise<void> {
-    return apiClient.delete(`/admin/users/${id}`);
+    return apiClient.delete(`/users/${id}`);
   }
 
   // Activate user
   async activateUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'active', 
       reason: 'Activated by admin' 
     });
@@ -136,7 +141,7 @@ export class UserService {
 
   // Deactivate user
   async deactivateUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'inactive', 
       reason: reason || 'Deactivated by admin' 
     });
@@ -152,7 +157,7 @@ export class UserService {
 
   // Suspend user
   async suspendUser(id: string, reason: string, duration?: number): Promise<User> {
-    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'suspended', 
       reason,
       duration 
@@ -169,7 +174,7 @@ export class UserService {
 
   // Unsuspend user
   async unsuspendUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/admin/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'active', 
       reason: 'Unsuspended by admin' 
     });
@@ -185,7 +190,7 @@ export class UserService {
 
   // Verify email
   async verifyEmail(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/admin/users/${id}/verify-email`);
+    const response = await apiClient.post<any>(`/users/${id}/verify-email`);
     
     console.log('Debug - Verify email API response:', response);
     
@@ -198,7 +203,7 @@ export class UserService {
 
   // Verify phone
   async verifyPhone(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/admin/users/${id}/verify-phone`);
+    const response = await apiClient.post<any>(`/users/${id}/verify-phone`);
     
     console.log('Debug - Verify phone API response:', response);
     
@@ -211,7 +216,7 @@ export class UserService {
 
   // Reset password
   async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const response = await apiClient.post<any>(`/admin/users/${id}/reset-password`);
+    const response = await apiClient.post<any>(`/users/${id}/reset-password`);
     
     console.log('Debug - Reset password API response:', response);
     
@@ -227,7 +232,7 @@ export class UserService {
     reason?: string;
     duration?: number;
   }): Promise<{ success: number; failed: number; errors: any[] }> {
-    return apiClient.post('/admin/users/bulk-update', data);
+    return apiClient.post('/users/bulk-update', data);
   }
 
   // Export users
@@ -243,17 +248,17 @@ export class UserService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/admin/users/${id}/activity`, params);
+    return apiClient.get(`/users/${id}/activity`, params);
   }
 
   // Get user sessions
   async getUserSessions(id: string) {
-    return apiClient.get(`/admin/users/${id}/sessions`);
+    return apiClient.get(`/users/${id}/sessions`);
   }
 
   // Revoke user session
   async revokeUserSession(userId: string, sessionId: string): Promise<void> {
-    return apiClient.delete(`/admin/users/${userId}/sessions/${sessionId}`);
+    return apiClient.delete(`/users/${userId}/sessions/${sessionId}`);
   }
 
   // Get user statistics

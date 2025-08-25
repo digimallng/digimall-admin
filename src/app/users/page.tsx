@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -46,12 +46,11 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
-import { CreateStaffModal } from '@/components/modals/CreateStaffModal';
-import { EditStaffModal } from '@/components/modals/EditStaffModal';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useCreateConversation } from '@/hooks/use-chat';
+import { ExportService } from '@/services/export.service';
 
 export default function UsersPage() {
   const { data: session } = useSession();
@@ -62,11 +61,12 @@ export default function UsersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Build filters
   const filters: UserFilters = useMemo(
@@ -88,17 +88,46 @@ export default function UsersPage() {
     isLoading: usersLoading,
     error: usersError,
     refetch: refetchUsers,
-  } = useUsers(filters, {
-    enabled: !!session?.accessToken,
-  });
+  } = useUsers(filters);
+
+  // Extract users from response immediately to prevent undefined access
+  const usersList = usersResponse?.users || [];
+  const totalPages = usersResponse?.pages || 1;
+  const totalUsers = usersResponse?.total || 0;
+
+  // Debug logging (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Debug - Users page state:', {
+      usersLoading,
+      usersError,
+      usersResponse,
+      usersList,
+      usersListLength: usersList.length
+    });
+  }
+
+  // Show info toast when using fallback data (only once)
+  useEffect(() => {
+    if (usersResponse && usersList.length > 0 && !usersLoading) {
+      // Check if this looks like mock data based on specific users
+      const hasMockUser = usersList.some(user => 
+        user.email === 'john.doe@example.com' || 
+        user.email === 'jane.smith@vendor.com'
+      );
+      
+      if (hasMockUser) {
+        toast.info('Displaying sample data - API connection may be unavailable', {
+          duration: 5000,
+        });
+      }
+    }
+  }, [usersResponse, usersList, usersLoading]);
 
   const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-  } = useUserStats({
-    enabled: !!session?.accessToken,
-  });
+  } = useUserStats();
 
   // Mutations
   const activateUser = useActivateUser();
@@ -158,6 +187,23 @@ export default function UsersPage() {
     refetchUsers,
   ]);
 
+  // Handle click outside to close export dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    if (showExportDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportDropdown]);
+
   // Handle loading state
   if (usersLoading && !usersResponse) {
     return (
@@ -180,11 +226,10 @@ export default function UsersPage() {
     );
   }
 
-  const users = usersResponse?.users || [];
   const pagination = {
     page: usersResponse?.page || 1,
-    total: usersResponse?.total || 0,
-    totalPages: usersResponse?.pages || 1,
+    total: totalUsers,
+    totalPages: totalPages,
     limit: usersResponse?.limit || 20,
   };
 
@@ -238,8 +283,7 @@ export default function UsersPage() {
   };
 
   const handleEditUser = (user: User) => {
-    setEditingUser(user);
-    setShowEditModal(true);
+    router.push(`/users/${user.id}/edit`);
   };
 
   const handleDeleteUser = (userId: string, userName: string) => {
@@ -258,6 +302,46 @@ export default function UsersPage() {
     } catch (error: any) {
       console.error('Delete user failed:', error);
       toast.error(error.message || 'Failed to delete user');
+    }
+  };
+
+  // Export handlers
+  const handleExportCSV = () => {
+    if (!usersList || usersList.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+
+    try {
+      ExportService.exportUsersToCSV(usersList, {
+        filename: 'users',
+        includeTimestamp: true,
+      });
+      toast.success(`Exported ${usersList.length} users to CSV`);
+      setShowExportDropdown(false);
+    } catch (error) {
+      console.error('CSV export failed:', error);
+      toast.error('Failed to export users to CSV');
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!usersList || usersList.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+
+    try {
+      ExportService.exportUsersToExcel(usersList, {
+        filename: 'users',
+        sheetName: 'Users',
+        includeTimestamp: true,
+      });
+      toast.success(`Exported ${usersList.length} users to Excel`);
+      setShowExportDropdown(false);
+    } catch (error) {
+      console.error('Excel export failed:', error);
+      toast.error('Failed to export users to Excel');
     }
   };
 
@@ -313,18 +397,8 @@ export default function UsersPage() {
             label: 'Export Users',
             icon: Download,
             variant: 'secondary',
+            onClick: () => setShowExportDropdown(!showExportDropdown),
           },
-          // Only super admins can add staff members
-          ...(session?.user?.role === 'super_admin'
-            ? [
-                {
-                  label: 'Add Staff Member',
-                  icon: UserPlus,
-                  variant: 'primary',
-                  onClick: () => setShowCreateModal(true),
-                },
-              ]
-            : []),
           {
             label: 'Refresh',
             icon: RefreshCw,
@@ -333,6 +407,30 @@ export default function UsersPage() {
           },
         ]}
       />
+
+      {/* Export Dropdown */}
+      {showExportDropdown && (
+        <div className="relative" ref={exportDropdownRef}>
+          <div className="absolute right-0 top-2 z-50 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="p-2">
+              <button
+                onClick={handleExportCSV}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export as CSV
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-md flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export as Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4'>
@@ -437,12 +535,12 @@ export default function UsersPage() {
         </CardHeader>
 
         <CardContent className='p-0'>
-          {usersLoading && users.length === 0 ? (
+          {usersLoading ? (
             <div className='p-8 text-center'>
               <LoadingSpinner />
               <p className='mt-2 text-gray-600'>Loading users...</p>
             </div>
-          ) : users.length === 0 ? (
+          ) : usersList.length === 0 ? (
             <div className='p-8 text-center text-gray-500'>
               <Users className='w-12 h-12 mx-auto mb-4 opacity-50' />
               <p>No users found</p>
@@ -455,10 +553,10 @@ export default function UsersPage() {
                     <th className='px-6 py-3 text-left'>
                       <input
                         type='checkbox'
-                        checked={selectedUsers.length === users.length}
+                        checked={selectedUsers.length === usersList.length}
                         onChange={e => {
                           if (e.target.checked) {
-                            setSelectedUsers(users.map(u => u.id));
+                            setSelectedUsers(Array.isArray(usersList) ? usersList.map(u => u.id) : []);
                           } else {
                             setSelectedUsers([]);
                           }
@@ -487,7 +585,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-200 bg-white'>
-                  {users.map(user => (
+                  {Array.isArray(usersList) && usersList.map(user => (
                     <tr
                       key={user.id}
                       className={cn(
@@ -742,16 +840,6 @@ export default function UsersPage() {
       </Card>
 
       {/* Modals */}
-      <CreateStaffModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
-
-      <EditStaffModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingUser(null);
-        }}
-        user={editingUser}
-      />
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}

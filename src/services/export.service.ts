@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 import { CommissionRule, CommissionReport } from '@/types/commission.types';
+import { User } from '@/lib/api/types';
 
 export interface ExportOptions {
   filename?: string;
@@ -230,6 +231,103 @@ export class ExportService {
       'IP Address': log.ipAddress || '',
       'User Agent': log.userAgent ? log.userAgent.substring(0, 100) : '',
       'Created At': format(new Date(log.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+    }));
+
+    this.exportToCSV(exportData, filename, includeTimestamp);
+  }
+
+  /**
+   * Export users to Excel
+   */
+  static exportUsersToExcel(
+    users: User[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'users',
+      sheetName = 'Users',
+      includeTimestamp = true,
+    } = options;
+
+    // Prepare data for export
+    const exportData = users.map(user => ({
+      'User ID': user.id,
+      'First Name': user.firstName || '',
+      'Last Name': user.lastName || '',
+      'Full Name': `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      'Email': user.email,
+      'Phone': user.phone || user.phoneNumber || '',
+      'Role': user.role,
+      'Status': user.status,
+      'Email Verified': user.isEmailVerified ? 'Yes' : 'No',
+      'Phone Verified': user.isPhoneVerified ? 'Yes' : 'No',
+      'Date of Birth': user.dateOfBirth || user.profile?.dateOfBirth || '',
+      'Gender': user.gender || user.profile?.gender || '',
+      'Bio': user.profile?.bio || '',
+      'Website': user.profile?.website || '',
+      'Timezone': user.profile?.timezone || '',
+      'Language': user.profile?.language || '',
+      'Currency': user.profile?.currency || '',
+      'Street Address': user.profile?.address?.street || '',
+      'City': user.profile?.address?.city || '',
+      'State': user.profile?.address?.state || '',
+      'Postal Code': user.profile?.address?.postalCode || user.profile?.address?.zipCode || '',
+      'Country': user.profile?.address?.country || '',
+      'Last Login': user.lastLoginAt ? format(new Date(user.lastLoginAt), 'yyyy-MM-dd HH:mm:ss') : '',
+      'Login Count': user.loginCount || 0,
+      'Email Notifications': user.preferences?.emailNotifications || user.emailNotifications ? 'Yes' : 'No',
+      'SMS Notifications': user.preferences?.smsNotifications || user.smsNotifications ? 'Yes' : 'No',
+      'Push Notifications': user.preferences?.pushNotifications || user.pushNotifications ? 'Yes' : 'No',
+      'Created At': user.createdAt ? format(new Date(user.createdAt), 'yyyy-MM-dd HH:mm:ss') : '',
+      'Updated At': user.updatedAt ? format(new Date(user.updatedAt), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+
+    this.exportToExcel(exportData, filename, sheetName, includeTimestamp);
+  }
+
+  /**
+   * Export users to CSV
+   */
+  static exportUsersToCSV(
+    users: User[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'users',
+      includeTimestamp = true,
+    } = options;
+
+    // Prepare data for export
+    const exportData = users.map(user => ({
+      'User ID': user.id,
+      'First Name': user.firstName || '',
+      'Last Name': user.lastName || '',
+      'Full Name': `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      'Email': user.email,
+      'Phone': user.phone || user.phoneNumber || '',
+      'Role': user.role,
+      'Status': user.status,
+      'Email Verified': user.isEmailVerified ? 'Yes' : 'No',
+      'Phone Verified': user.isPhoneVerified ? 'Yes' : 'No',
+      'Date of Birth': user.dateOfBirth || user.profile?.dateOfBirth || '',
+      'Gender': user.gender || user.profile?.gender || '',
+      'Bio': user.profile?.bio || '',
+      'Website': user.profile?.website || '',
+      'Timezone': user.profile?.timezone || '',
+      'Language': user.profile?.language || '',
+      'Currency': user.profile?.currency || '',
+      'Street Address': user.profile?.address?.street || '',
+      'City': user.profile?.address?.city || '',
+      'State': user.profile?.address?.state || '',
+      'Postal Code': user.profile?.address?.postalCode || user.profile?.address?.zipCode || '',
+      'Country': user.profile?.address?.country || '',
+      'Last Login': user.lastLoginAt ? format(new Date(user.lastLoginAt), 'yyyy-MM-dd HH:mm:ss') : '',
+      'Login Count': user.loginCount || 0,
+      'Email Notifications': user.preferences?.emailNotifications || user.emailNotifications ? 'Yes' : 'No',
+      'SMS Notifications': user.preferences?.smsNotifications || user.smsNotifications ? 'Yes' : 'No',
+      'Push Notifications': user.preferences?.pushNotifications || user.pushNotifications ? 'Yes' : 'No',
+      'Created At': user.createdAt ? format(new Date(user.createdAt), 'yyyy-MM-dd HH:mm:ss') : '',
+      'Updated At': user.updatedAt ? format(new Date(user.updatedAt), 'yyyy-MM-dd HH:mm:ss') : '',
     }));
 
     this.exportToCSV(exportData, filename, includeTimestamp);

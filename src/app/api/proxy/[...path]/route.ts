@@ -21,6 +21,10 @@ const SPECIAL_ROUTES = {
   chat: process.env.NODE_ENV === 'production' 
     ? 'https://chat.digimall.ng/api/v1'
     : 'http://localhost:4700/api/v1',
+  // User service - direct connection for user management
+  'user-service': process.env.NODE_ENV === 'production'
+    ? 'https://user.digimall.ng/api/v1'
+    : 'http://localhost:4300/api/v1',
 };
 
 function getServiceUrl(path: string): { serviceUrl: string; servicePath: string } {
@@ -34,6 +38,14 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
     return {
       serviceUrl: SPECIAL_ROUTES.chat,
       servicePath: cleanPath,
+    };
+  }
+
+  // Handle user-service routes - direct to user service
+  if (firstSegment === 'user-service') {
+    return {
+      serviceUrl: SPECIAL_ROUTES['user-service'],
+      servicePath: cleanPath.replace('user-service/', ''),
     };
   }
 

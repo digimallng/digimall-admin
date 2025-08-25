@@ -113,6 +113,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
+        token.userType = user.userType || 'admin'; // Default to admin for backward compatibility
         token.expiresAt = Date.now() + (user.expiresIn * 1000);
       }
 
@@ -132,6 +133,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.firstName = token.firstName as string;
         session.user.lastName = token.lastName as string;
+        session.user.userType = token.userType as string;
         session.accessToken = token.accessToken as string;
         session.error = token.error as string;
       }
