@@ -74,24 +74,27 @@ export class SettingsService {
   // Platform Configuration Management
   async getPlatformConfig(category?: string): Promise<PlatformConfig[]> {
     try {
-      // Try to get real settings from admin service
-      const endpoint = category 
-        ? `/api/proxy/admin/v1/settings/platform?category=${category}`
-        : '/api/proxy/admin/v1/settings/platform';
+      // First try to get settings from admin service system config endpoint
+      const systemResponse = await apiClient.get('/api/proxy/system/config');
       
-      const response = await apiClient.get(endpoint);
-      
-      if (response && Array.isArray(response)) {
-        return response.map(this.transformPlatformConfig);
+      if (systemResponse && typeof systemResponse === 'object') {
+        const transformedConfigs = this.transformSystemConfigToSettings(systemResponse, category);
+        if (transformedConfigs.length > 0) {
+          return transformedConfigs;
+        }
       }
       
-      // If API doesn't exist yet, try system service
-      const systemSettings = await systemService.getSystemSettings(category);
-      if (systemSettings) {
-        return this.transformSystemSettingsToConfig(systemSettings, category);
+      // Fallback to system service getSystemSettings method
+      try {
+        const systemSettings = await systemService.getSystemSettings(category);
+        if (systemSettings) {
+          return this.transformSystemSettingsToConfig(systemSettings, category);
+        }
+      } catch (fallbackError) {
+        console.warn('System service fallback failed:', fallbackError);
       }
       
-      // Fallback to default configuration structure
+      // Final fallback to default configuration structure
       return this.getDefaultPlatformConfig(category);
     } catch (error) {
       console.error('Failed to fetch platform config:', error);
@@ -102,24 +105,17 @@ export class SettingsService {
 
   async updatePlatformConfig(id: string, value: string | number | boolean): Promise<PlatformConfig> {
     try {
-      // Try to update via admin service settings endpoint
-      const response = await apiClient.put(`/api/proxy/admin/v1/settings/platform/${id}`, {
-        value,
-        updatedAt: new Date().toISOString()
-      });
-      
-      if (response) {
-        return this.transformPlatformConfig(response);
-      }
-      
-      // Fallback to system service
+      // First try to update via system config endpoint
       const config = await this.getPlatformConfigById(id);
-      if (config) {
-        await systemService.updateSetting(config.key, value);
-        return { ...config, value };
+      if (!config) {
+        throw new Error('Configuration not found');
       }
+
+      // Try to update via system service updateSetting
+      await systemService.updateSetting(config.key, value);
       
-      throw new Error('Configuration not found');
+      // Return updated config
+      return { ...config, value };
     } catch (error) {
       console.error('Failed to update platform config:', error);
       throw error;
@@ -128,28 +124,28 @@ export class SettingsService {
 
   async bulkUpdatePlatformConfig(updates: Array<{ id: string; value: string | number | boolean }>): Promise<void> {
     try {
-      await apiClient.post('/api/proxy/admin/v1/settings/platform/bulk', { updates });
-    } catch (error) {
-      console.error('Failed to bulk update platform config:', error);
-      // Fallback to individual updates
+      // For now, use individual updates since bulk endpoint doesn't exist
       for (const update of updates) {
         await this.updatePlatformConfig(update.id, update.value);
       }
+    } catch (error) {
+      console.error('Failed to bulk update platform config:', error);
+      throw error;
     }
   }
 
   // System Notifications Management
   async getSystemNotifications(): Promise<SystemNotification[]> {
     try {
-      // Try admin service system notifications endpoint
-      const response = await apiClient.get('/api/proxy/admin/v1/settings/notifications/system');
+      // Try using notification management controller
+      const response = await apiClient.get('/api/proxy/notification-management/system-notifications');
       
       if (response && Array.isArray(response)) {
         return response.map(this.transformSystemNotification);
       }
       
       // Fallback to notification service
-      const notifications = await notificationService.getNotifications({
+      const notifications = await notificationsService.getNotifications({
         type: 'system',
         limit: 100
       });
@@ -167,7 +163,8 @@ export class SettingsService {
 
   async createSystemNotification(notification: Omit<SystemNotification, 'id' | 'createdAt'>): Promise<SystemNotification> {
     try {
-      const response = await apiClient.post('/api/proxy/admin/v1/settings/notifications/system', {
+      // Try using notification management controller
+      const response = await apiClient.post('/api/proxy/notification-management/system-notifications', {
         ...notification,
         createdAt: new Date().toISOString()
       });
@@ -176,7 +173,7 @@ export class SettingsService {
     } catch (error) {
       console.error('Failed to create system notification:', error);
       // Fallback to notification service
-      const created = await notificationService.createNotification({
+      const created = await notificationsService.createNotification({
         title: notification.title,
         message: notification.message,
         type: 'system',
@@ -184,18 +181,22 @@ export class SettingsService {
         actionUrl: notification.startDate ? `/maintenance?start=${notification.startDate.toISOString()}` : undefined
       });
       
-      return {
-        id: created.id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        active: notification.active,
-        priority: notification.priority,
-        targetUsers: notification.targetUsers,
-        startDate: notification.startDate,
-        endDate: notification.endDate,
-        createdAt: new Date()
-      };
+      if (created) {
+        return {
+          id: created.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          active: notification.active,
+          priority: notification.priority,
+          targetUsers: notification.targetUsers,
+          startDate: notification.startDate,
+          endDate: notification.endDate,
+          createdAt: new Date()
+        };
+      }
+      
+      throw new Error('Failed to create system notification');
     }
   }
 
@@ -221,20 +222,19 @@ export class SettingsService {
   // Notification Services Monitoring
   async getNotificationServices(): Promise<NotificationService[]> {
     try {
-      // Try admin service notification services endpoint
-      const response = await apiClient.get('/api/proxy/admin/v1/notification/services/status');
-      
-      if (response && Array.isArray(response)) {
-        return response.map(this.transformNotificationService);
-      }
-      
-      // Try system service queue status
+      // Try system service queue status first
       const queueStatus = await systemService.getQueueStatus();
       if (queueStatus?.queues) {
         return this.transformQueueStatusToServices(queueStatus);
       }
       
-      // Fallback to mock-like structure with real health checks
+      // Try system status for services health
+      const systemStatus = await systemService.getSystemStatus();
+      if (systemStatus?.services) {
+        return this.transformSystemServicesToNotificationServices(systemStatus.services);
+      }
+      
+      // Fallback to default services status
       return await this.generateNotificationServicesStatus();
     } catch (error) {
       console.error('Failed to fetch notification services:', error);
@@ -487,6 +487,94 @@ export class SettingsService {
     }));
   }
 
+  private transformSystemConfigToSettings(systemConfig: any, category?: string): PlatformConfig[] {
+    const configs: PlatformConfig[] = [];
+    
+    if (systemConfig && typeof systemConfig === 'object') {
+      Object.entries(systemConfig).forEach(([key, value]: [string, any]) => {
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Handle nested settings objects
+          Object.entries(value).forEach(([nestedKey, nestedValue]: [string, any]) => {
+            const configCategory = this.getCategoryFromKey(key);
+            if (!category || configCategory === category) {
+              configs.push({
+                id: `${key}_${nestedKey}`,
+                key: `${key}.${nestedKey}`,
+                label: this.formatLabel(nestedKey),
+                value: nestedValue,
+                type: this.inferConfigType(nestedValue),
+                category: configCategory,
+                description: `Configure ${this.formatLabel(nestedKey)}`,
+                required: false,
+                editable: true
+              });
+            }
+          });
+        } else {
+          const configCategory = this.getCategoryFromKey(key);
+          if (!category || configCategory === category) {
+            configs.push({
+              id: key,
+              key,
+              label: this.formatLabel(key),
+              value,
+              type: this.inferConfigType(value),
+              category: configCategory,
+              description: `Configure ${this.formatLabel(key)}`,
+              required: false,
+              editable: true
+            });
+          }
+        }
+      });
+    }
+    
+    return configs;
+  }
+
+  private transformSystemServicesToNotificationServices(services: any): NotificationService[] {
+    if (!services || typeof services !== 'object') return [];
+    
+    const notificationServices: NotificationService[] = [];
+    const serviceTypes: Array<'email' | 'sms' | 'push' | 'webhook'> = ['email', 'sms', 'push', 'webhook'];
+    
+    serviceTypes.forEach(serviceType => {
+      const service = services[serviceType] || services[`${serviceType}Service`];
+      
+      notificationServices.push({
+        id: `${serviceType}-service`,
+        name: `${this.formatLabel(serviceType)} Service`,
+        type: serviceType,
+        status: service?.status === 'healthy' ? 'healthy' : 
+                service?.status === 'warning' ? 'degraded' : 'down',
+        uptime: service?.uptime || 99.0,
+        lastCheck: service?.lastCheck ? new Date(service.lastCheck) : new Date(),
+        responseTime: service?.responseTime || 100,
+        version: service?.version || '1.0.0',
+        queues: {
+          waiting: service?.pendingJobs || 0,
+          active: service?.processingJobs || 0,
+          completed: service?.connections || 0,
+          failed: service?.failedJobs || 0,
+          delayed: 0,
+          paused: 0
+        },
+        stats: {
+          sent24h: service?.dailyUsage || 0,
+          failed24h: service?.failedJobs || 0,
+          successRate: service?.successRate || 99.0
+        },
+        config: {
+          provider: service?.provider || this.getProviderName(serviceType),
+          endpoint: service?.endpoint || `https://api.digimall.ng/${serviceType}`,
+          rateLimit: service?.rateLimit || (serviceType === 'email' ? 1000 : 500)
+        }
+      });
+    });
+    
+    return notificationServices;
+  }
+
   private async generateNotificationServicesStatus(): Promise<NotificationService[]> {
     // Generate realistic service status based on system health
     const services = ['email', 'sms', 'push', 'webhook'];
@@ -692,6 +780,52 @@ export class SettingsService {
       case 'webhook': return 'Internal';
       default: return 'Internal';
     }
+  }
+
+  private getCategoryFromKey(key: string): string {
+    // Map configuration keys to categories
+    const categoryMappings: { [key: string]: string } = {
+      platform: 'general',
+      currency: 'general',
+      timezone: 'general',
+      maintenance: 'general',
+      commission: 'commission',
+      payout: 'commission',
+      fee: 'commission',
+      twoFactor: 'security',
+      security: 'security',
+      auth: 'security',
+      encryption: 'security',
+      vendor: 'vendor',
+      seller: 'vendor',
+      notification: 'notifications',
+      email: 'notifications',
+      sms: 'notifications',
+      push: 'notifications',
+      payment: 'payments',
+      gateway: 'payments',
+      paypal: 'payments',
+      stripe: 'payments',
+      shipping: 'shipping',
+      delivery: 'shipping',
+      logistics: 'shipping'
+    };
+
+    // Check exact key match first
+    if (categoryMappings[key]) {
+      return categoryMappings[key];
+    }
+
+    // Check if key contains any category keywords
+    const lowerKey = key.toLowerCase();
+    for (const [keyword, category] of Object.entries(categoryMappings)) {
+      if (lowerKey.includes(keyword)) {
+        return category;
+      }
+    }
+
+    // Default to general category
+    return 'general';
   }
 }
 
