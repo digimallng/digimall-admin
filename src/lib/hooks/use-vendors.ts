@@ -18,6 +18,8 @@ export const vendorKeys = {
   search: (query: string, filters?: any) => [...vendorKeys.all, 'search', query, filters] as const,
   pendingApprovals: (params?: any) => [...vendorKeys.all, 'pending-approvals', params] as const,
   verificationHistory: (id: string) => [...vendorKeys.all, 'verification-history', id] as const,
+  allPerformance: (params?: any) => [...vendorKeys.all, 'all-performance', params] as const,
+  platformMetrics: () => [...vendorKeys.all, 'platform-metrics'] as const,
 };
 
 // Get vendors list with filters
@@ -441,5 +443,37 @@ export function useExportVendors() {
   return useMutation({
     mutationFn: (filters?: VendorFilters & { format: 'csv' | 'excel' }) =>
       vendorService.exportVendors(filters),
+  });
+}
+
+// Get all vendors performance data for performance dashboard
+export function useVendorsPerformance(
+  params?: {
+    status?: string;
+    category?: string;
+    sortBy?: 'sales' | 'orders' | 'rating' | 'growth';
+    sortOrder?: 'asc' | 'desc';
+    limit?: number;
+    page?: number;
+  },
+  options?: UseQueryOptions<any, Error>
+) {
+  return useQuery({
+    queryKey: vendorKeys.allPerformance(params),
+    queryFn: () => vendorService.getAllVendorsPerformance(params),
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    ...options,
+  });
+}
+
+// Get platform-wide vendor metrics for dashboard
+export function usePlatformVendorMetrics(
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: vendorKeys.platformMetrics(),
+    queryFn: () => vendorService.getPlatformVendorMetrics(),
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    ...options,
   });
 }
