@@ -153,6 +153,8 @@ async function handler(request: NextRequest) {
       method: request.method,
       headers,
       body: fetchBody,
+      // @ts-ignore - duplex option is required for streaming bodies in Node.js 18+
+      duplex: 'half',
     });
 
     // Get response data
