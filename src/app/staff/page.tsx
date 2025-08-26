@@ -41,7 +41,7 @@ export default function StaffPage() {
     limit: 20,
   };
 
-  const { data: staffData, isLoading, refetch: refetchStaff } = useStaff(filters);
+  const { data: staffData, isLoading, refetch: refetchStaff } = useStaff(filters as any);
   const { data: limitInfo, refetch: refetchLimitInfo } = useStaffLimitInfo();
   const { data: staffStats, refetch: refetchStats } = useStaffStats({
     includeActivityStats: true,

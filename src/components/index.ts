@@ -86,7 +86,7 @@ export { VendorApprovalModal } from './modals/VendorApprovalModal';
 export { VendorDetailModal } from './modals/VendorDetailModal';
 
 // Provider Components
-export { ClientProviders } from './providers/ClientProviders';
+export { default as ClientProviders } from './providers/ClientProviders';
 
 // Notification Components
 export { NotificationCenter } from './notifications/notification-center';
