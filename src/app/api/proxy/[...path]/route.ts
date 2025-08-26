@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// Admin service base URL - environment aware
+// Admin service base URL - use internal Docker service for reliability
 const getAdminServiceUrl = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://admin.digimall.ng/api/v1';
+  // Use environment variable if explicitly set
+  if (process.env.ADMIN_SERVICE_URL) {
+    return `${process.env.ADMIN_SERVICE_URL}/api/v1`;
   }
-  return process.env.ADMIN_SERVICE_URL 
-    ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
-    : 'http://localhost:4800/api/v1';
+  
+  // In production, use internal Docker service name
+  if (process.env.NODE_ENV === 'production') {
+    return 'http://digimall_admin_service:4800/api/v1';
+  }
+  
+  return 'http://localhost:4800/api/v1';
 };
 
 // All routes go to admin service now - admin service handles all admin operations
@@ -19,11 +24,11 @@ const ADMIN_SERVICE_URL = getAdminServiceUrl();
 const SPECIAL_ROUTES = {
   // Chat service - direct connection for WebSocket compatibility
   chat: process.env.NODE_ENV === 'production' 
-    ? 'https://chat.digimall.ng/api/v1'
+    ? 'http://digimall_chat_service:4700/api/v1'
     : 'http://localhost:4700/api/v1',
   // User service - direct connection for user management
   'user-service': process.env.NODE_ENV === 'production'
-    ? 'https://user.digimall.ng/api/v1'
+    ? 'http://digimall_user_service:4300/api/v1'
     : 'http://localhost:4300/api/v1',
 };
 
@@ -111,10 +116,11 @@ async function handler(request: NextRequest) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       const contentType = headers.get('content-type');
 
-      if (contentType?.includes('application/json')) {
+      if (contentType?.includes('multipart/form-data')) {
+        // For multipart data, stream the original body directly to avoid corruption
+        body = request.body;
+      } else if (contentType?.includes('application/json')) {
         body = await request.json();
-      } else if (contentType?.includes('multipart/form-data')) {
-        body = await request.formData();
       } else {
         body = await request.text();
       }
@@ -129,10 +135,24 @@ async function handler(request: NextRequest) {
     });
 
     // Make the request to the target service
+    let fetchBody: any = undefined;
+    if (body) {
+      if (headers.get('content-type')?.includes('multipart/form-data')) {
+        // Stream multipart data directly
+        fetchBody = body;
+      } else if (body instanceof FormData) {
+        fetchBody = body;
+      } else if (typeof body === 'string') {
+        fetchBody = body;
+      } else {
+        fetchBody = JSON.stringify(body);
+      }
+    }
+
     const response = await fetch(targetUrl.toString(), {
       method: request.method,
       headers,
-      body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,
+      body: fetchBody,
     });
 
     // Get response data
