@@ -35,10 +35,9 @@ import {
   useExportCategories,
   useUploadImage,
   useUploadCategoryImage,
-  useCategoryBulkAction,
-  useCategoryTree,
+
 } from '@/lib/hooks/use-categories';
-import { Category, CategoryFilters, PaginatedResponse, CategoryStatistics } from '@/lib/api/types';
+import { Category, CategoryFilters} from '@/lib/api/types';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 
