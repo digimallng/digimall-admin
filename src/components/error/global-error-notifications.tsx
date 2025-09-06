@@ -5,19 +5,19 @@ import { useErrorContext } from '@/providers/error-provider';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  AlertTriangle, 
-  X, 
-  Shield, 
-  Wifi, 
-  Server, 
+import {
+  AlertTriangle,
+  X,
+  Shield,
+  Wifi,
+  Server,
   Clock,
   Ban,
   FileX,
   Bug,
   AlertCircle,
   CheckCircle,
-  Info
+  Info,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils/formatters';
 
@@ -57,59 +57,55 @@ export function GlobalErrorNotifications() {
       {/* Clear All Button */}
       {errors.length > 1 && (
         <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearAllErrors}
-            className="text-xs"
-          >
+          <Button variant="outline" size="sm" onClick={clearAllErrors} className="text-xs">
             Clear All ({errors.length})
           </Button>
         </div>
       )}
 
       {/* Error Notifications */}
-      {errors.map((error) => {
+      {errors.map(error => {
         const Icon = errorIcons[error.type];
         const colorClass = errorColors[error.type];
 
         return (
-          <Card key={error.id} className={`p-4 border-l-4 ${colorClass} shadow-lg animate-slide-in-right`}>
+          <Card
+            key={error.id}
+            className={`border-l-4 p-4 ${colorClass} animate-slide-in-right shadow-lg`}
+          >
             <div className="flex items-start gap-3">
-              <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-medium text-sm truncate">{error.title}</h4>
+              <Icon className="mt-0.5 h-5 w-5 flex-shrink-0" />
+
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <h4 className="truncate text-sm font-medium">{error.title}</h4>
                   <Badge variant="outline" className="text-xs">
                     {error.type}
                   </Badge>
                 </div>
-                
-                <p className="text-sm opacity-90 mb-2">{error.message}</p>
-                
+
+                <p className="mb-2 text-sm opacity-90">{error.message}</p>
+
                 <div className="flex items-center justify-between">
-                  <span className="text-xs opacity-75">
-                    {formatRelativeTime(error.timestamp)}
-                  </span>
-                  
+                  <span className="text-xs opacity-75">{formatRelativeTime(error.timestamp)}</span>
+
                   <div className="flex items-center gap-2">
                     {error.action && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={error.action.onClick}
-                        className="text-xs h-6 px-2"
+                        className="h-6 px-2 text-xs"
                       >
                         {error.action.label}
                       </Button>
                     )}
-                    
+
                     <button
                       onClick={() => dismissError(error.id)}
-                      className="text-current opacity-50 hover:opacity-100 transition-opacity"
+                      className="text-current opacity-50 transition-opacity hover:opacity-100"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -131,7 +127,7 @@ export function ErrorSummary() {
   if (totalErrors === 0) {
     return (
       <div className="flex items-center gap-2 text-green-600">
-        <CheckCircle className="w-4 h-4" />
+        <CheckCircle className="h-4 w-4" />
         <span className="text-sm">No active errors</span>
       </div>
     );
@@ -141,21 +137,21 @@ export function ErrorSummary() {
     <div className="flex items-center gap-4">
       {criticalErrors.length > 0 && (
         <div className="flex items-center gap-2 text-red-600">
-          <AlertTriangle className="w-4 h-4" />
+          <AlertTriangle className="h-4 w-4" />
           <span className="text-sm font-medium">{criticalErrors.length} Critical</span>
         </div>
       )}
-      
+
       {warningErrors.length > 0 && (
         <div className="flex items-center gap-2 text-orange-600">
-          <AlertCircle className="w-4 h-4" />
+          <AlertCircle className="h-4 w-4" />
           <span className="text-sm">{warningErrors.length} Warnings</span>
         </div>
       )}
-      
+
       {infoErrors.length > 0 && (
         <div className="flex items-center gap-2 text-blue-600">
-          <Info className="w-4 h-4" />
+          <Info className="h-4 w-4" />
           <span className="text-sm">{infoErrors.length} Info</span>
         </div>
       )}
@@ -172,33 +168,33 @@ export function CriticalErrorBanner() {
   if (!activeCriticalError) return null;
 
   return (
-    <div className="bg-red-600 text-white p-4 shadow-lg">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <div className="bg-red-600 p-4 text-white shadow-lg">
+      <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <AlertTriangle className="h-5 w-5 flex-shrink-0" />
           <div>
             <div className="font-medium">{activeCriticalError.title}</div>
             <div className="text-sm opacity-90">{activeCriticalError.message}</div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {activeCriticalError.action && (
             <Button
               variant="outline"
               size="sm"
               onClick={activeCriticalError.action.onClick}
-              className="text-red-600 border-white bg-white hover:bg-red-50"
+              className="border-white bg-white text-red-600 hover:bg-red-50"
             >
               {activeCriticalError.action.label}
             </Button>
           )}
-          
+
           <button
             onClick={() => dismissError(activeCriticalError.id)}
-            className="text-white hover:text-red-200 transition-colors"
+            className="text-white transition-colors hover:text-red-200"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -213,39 +209,41 @@ export function ErrorLogView() {
   if (errors.length === 0) {
     return (
       <Card className="p-6 text-center">
-        <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-        <h3 className="font-medium text-gray-900 mb-1">No Errors</h3>
-        <p className="text-gray-600 text-sm">System is running normally</p>
+        <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
+        <h3 className="mb-1 font-medium text-gray-900">No Errors</h3>
+        <p className="text-sm text-gray-600">System is running normally</p>
       </Card>
     );
   }
 
   return (
     <Card className="p-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h3 className="font-medium text-gray-900">Error Log ({errors.length})</h3>
         <Button variant="outline" size="sm" onClick={clearAllErrors}>
           Clear All
         </Button>
       </div>
-      
-      <div className="space-y-3 max-h-96 overflow-y-auto">
-        {errors.map((error) => {
+
+      <div className="max-h-96 space-y-3 overflow-y-auto">
+        {errors.map(error => {
           const Icon = errorIcons[error.type];
-          
+
           return (
-            <div key={error.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-              <Icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
-                ['authentication', 'authorization', 'server', 'unknown'].includes(error.type) 
-                  ? 'text-red-600' 
-                  : ['network', 'timeout', 'rate-limit'].includes(error.type)
-                  ? 'text-orange-600'
-                  : 'text-yellow-600'
-              }`} />
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-sm">{error.title}</span>
+            <div key={error.id} className="flex items-start gap-3 rounded-lg bg-gray-50 p-3">
+              <Icon
+                className={`mt-0.5 h-4 w-4 flex-shrink-0 ${
+                  ['authentication', 'authorization', 'server', 'unknown'].includes(error.type)
+                    ? 'text-red-600'
+                    : ['network', 'timeout', 'rate-limit'].includes(error.type)
+                      ? 'text-orange-600'
+                      : 'text-yellow-600'
+                }`}
+              />
+
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-sm font-medium">{error.title}</span>
                   <Badge variant="outline" className="text-xs">
                     {error.type}
                   </Badge>
@@ -253,30 +251,26 @@ export function ErrorLogView() {
                     {formatRelativeTime(error.timestamp)}
                   </span>
                 </div>
-                
-                <p className="text-sm text-gray-700 mb-1">{error.message}</p>
-                
-                {error.source && (
-                  <p className="text-xs text-gray-500">Source: {error.source}</p>
-                )}
-                
+
+                <p className="mb-1 text-sm text-gray-700">{error.message}</p>
+
+                {error.source && <p className="text-xs text-gray-500">Source: {error.source}</p>}
+
                 {error.details && (
                   <details className="mt-2">
-                    <summary className="text-xs text-blue-600 cursor-pointer">
-                      View Details
-                    </summary>
-                    <pre className="mt-1 text-xs bg-white p-2 border rounded overflow-x-auto">
+                    <summary className="cursor-pointer text-xs text-blue-600">View Details</summary>
+                    <pre className="mt-1 overflow-x-auto rounded border bg-white p-2 text-xs">
                       {error.details}
                     </pre>
                   </details>
                 )}
               </div>
-              
+
               <button
                 onClick={() => dismissError(error.id)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 transition-colors hover:text-gray-600"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           );

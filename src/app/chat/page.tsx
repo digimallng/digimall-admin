@@ -101,7 +101,7 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    // Auto-select first conversation if none is selected
+    // Auto-select the first conversation if none is selected
     if (conversations.length > 0 && !activeConversation) {
       setActiveConversation(conversations[0]);
     }

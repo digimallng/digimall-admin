@@ -57,8 +57,6 @@ export default function MessagesPage() {
   const conversations = conversationsData?.conversations || [];
   const filteredConversations = conversations.filter(conversation => {
     if (filterStatus === 'unread') return conversation.unreadCount > 0;
-    if (filterStatus === 'archived') return conversation.metadata?.archived;
-    return !conversation.metadata?.archived;
   });
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);

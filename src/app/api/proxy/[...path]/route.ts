@@ -2,34 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// Admin service base URL - use internal Docker service for reliability
-const getAdminServiceUrl = () => {
-  // Use environment variable if explicitly set
-  if (process.env.ADMIN_SERVICE_URL) {
-    return `${process.env.ADMIN_SERVICE_URL}/api/v1`;
-  }
-  
-  // In production, use internal Docker service name
-  if (process.env.NODE_ENV === 'production') {
-    return 'http://digimall_admin_service:4800/api/v1';
-  }
-  
-  return 'http://localhost:4800/api/v1';
-};
+// Service URLs - use environment variables or fallback to localhost
+const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL 
+  ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
+  : 'http://localhost:4800/api/v1';
 
-// All routes go to admin service now - admin service handles all admin operations
-const ADMIN_SERVICE_URL = getAdminServiceUrl();
+const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL
+  ? `${process.env.CHAT_SERVICE_URL}/api/v1`
+  : 'http://localhost:4700/api/v1';
+
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL
+  ? `${process.env.USER_SERVICE_URL}/api/v1`
+  : 'http://localhost:4300/api/v1';
 
 // Special routes that need different handling
 const SPECIAL_ROUTES = {
   // Chat service - direct connection for WebSocket compatibility
-  chat: process.env.NODE_ENV === 'production' 
-    ? 'http://digimall_chat_service:4700/api/v1'
-    : 'http://localhost:4700/api/v1',
+  chat: CHAT_SERVICE_URL,
   // User service - direct connection for user management
-  'user-service': process.env.NODE_ENV === 'production'
-    ? 'http://digimall_user_service:4300/api/v1'
-    : 'http://localhost:4300/api/v1',
+  'user-service': USER_SERVICE_URL,
 };
 
 function getServiceUrl(path: string): { serviceUrl: string; servicePath: string } {

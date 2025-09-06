@@ -153,24 +153,24 @@ export default function VendorDetailPage() {
 
   if (isLoading) {
     return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <LoadingSpinner size='lg' />
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className='p-6'>
-        <ErrorMessage message='Failed to load vendor details' onRetry={() => refetch()} />
+      <div className="p-6">
+        <ErrorMessage message="Failed to load vendor details" onRetry={() => refetch()} />
       </div>
     );
   }
 
   if (!vendor) {
     return (
-      <div className='p-6'>
-        <ErrorMessage message='Vendor not found' />
+      <div className="p-6">
+        <ErrorMessage message="Vendor not found" />
       </div>
     );
   }
@@ -178,16 +178,16 @@ export default function VendorDetailPage() {
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case 'verified':
-        return <CheckCircle className='h-5 w-5 text-green-500' />;
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'under_review':
       case 'pending':
-        return <Clock className='h-5 w-5 text-yellow-500' />;
+        return <Clock className="h-5 w-5 text-yellow-500" />;
       case 'rejected':
-        return <XCircle className='h-5 w-5 text-red-500' />;
+        return <XCircle className="h-5 w-5 text-red-500" />;
       case 'suspended':
-        return <Ban className='h-5 w-5 text-red-500' />;
+        return <Ban className="h-5 w-5 text-red-500" />;
       default:
-        return <AlertTriangle className='h-5 w-5 text-gray-500' />;
+        return <AlertTriangle className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -222,81 +222,81 @@ export default function VendorDetailPage() {
   const canReactivate = vendor.status === 'suspended' || vendor.verificationStatus === 'suspended';
 
   return (
-    <div className='p-6 max-w-7xl mx-auto'>
-      <div className='flex items-center gap-4 mb-6'>
-        <Button variant='outline' onClick={() => router.back()} className='flex items-center gap-2'>
-          <ArrowLeft className='h-4 w-4' />
+    <div className="container mx-auto p-6">
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
+          <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
 
         <PageHeader title={vendor.businessName} subtitle={`Vendor ID: ${vendor.id}`} />
       </div>
 
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main Info */}
-        <div className='lg:col-span-2 space-y-6'>
+        <div className="space-y-6 lg:col-span-2">
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Building className='h-5 w-5' />
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
                 Business Information
               </CardTitle>
             </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Business Name</label>
-                  <p className='text-gray-900 font-medium'>{vendor.businessName}</p>
+                  <label className="text-sm font-medium text-gray-500">Business Name</label>
+                  <p className="font-medium text-gray-900">{vendor.businessName}</p>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Business Type</label>
-                  <p className='text-gray-900'>{vendor.businessType}</p>
+                  <label className="text-sm font-medium text-gray-500">Business Type</label>
+                  <p className="text-gray-900">{vendor.businessType}</p>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Email</label>
-                  <div className='flex items-center gap-2'>
-                    <Mail className='h-4 w-4 text-gray-400' />
-                    <p className='text-gray-900'>{vendor.email}</p>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    <p className="text-gray-900">{vendor.email}</p>
                   </div>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Phone</label>
-                  <div className='flex items-center gap-2'>
-                    <Phone className='h-4 w-4 text-gray-400' />
-                    <p className='text-gray-900'>{vendor.businessPhone || 'Not provided'}</p>
+                  <label className="text-sm font-medium text-gray-500">Phone</label>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <p className="text-gray-900">{vendor.businessPhone || 'Not provided'}</p>
                   </div>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Website</label>
-                  <div className='flex items-center gap-2'>
-                    <Globe className='h-4 w-4 text-gray-400' />
-                    <p className='text-gray-900'>{vendor.businessWebsite || 'Not provided'}</p>
+                  <label className="text-sm font-medium text-gray-500">Website</label>
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-gray-400" />
+                    <p className="text-gray-900">{vendor.businessWebsite || 'Not provided'}</p>
                   </div>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Registration Number</label>
-                  <div className='flex items-center gap-2'>
-                    <FileText className='h-4 w-4 text-gray-400' />
-                    <p className='text-gray-900'>{vendor.registrationNumber || 'Not provided'}</p>
+                  <label className="text-sm font-medium text-gray-500">Registration Number</label>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-400" />
+                    <p className="text-gray-900">{vendor.registrationNumber || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
 
               {vendor.businessDescription && (
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Description</label>
-                  <p className='text-gray-900 mt-1'>{vendor.businessDescription}</p>
+                  <label className="text-sm font-medium text-gray-500">Description</label>
+                  <p className="mt-1 text-gray-900">{vendor.businessDescription}</p>
                 </div>
               )}
 
               <div>
-                <label className='text-sm font-medium text-gray-500'>Address</label>
-                <div className='flex items-start gap-2 mt-1'>
-                  <MapPin className='h-4 w-4 text-gray-400 mt-0.5' />
+                <label className="text-sm font-medium text-gray-500">Address</label>
+                <div className="mt-1 flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 text-gray-400" />
                   <div>
-                    <p className='text-gray-900'>{vendor.businessAddress}</p>
-                    <p className='text-gray-600 text-sm'>
+                    <p className="text-gray-900">{vendor.businessAddress}</p>
+                    <p className="text-sm text-gray-600">
                       {vendor.businessCity}, {vendor.businessState}
                     </p>
                   </div>
@@ -308,40 +308,40 @@ export default function VendorDetailPage() {
           {/* Performance Metrics */}
           <Card>
             <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Star className='h-5 w-5' />
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5" />
                 Performance Metrics
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-                <div className='text-center'>
-                  <div className='flex items-center justify-center gap-1 text-2xl font-bold text-gray-900'>
-                    <DollarSign className='h-5 w-5' />
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-900">
+                    <DollarSign className="h-5 w-5" />
                     {vendor.totalSales ? `${vendor.totalSales}` : '0'}
                   </div>
-                  <p className='text-sm text-gray-500'>Total Sales</p>
+                  <p className="text-sm text-gray-500">Total Sales</p>
                 </div>
-                <div className='text-center'>
-                  <div className='flex items-center justify-center gap-1 text-2xl font-bold text-gray-900'>
-                    <Package className='h-5 w-5' />
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-900">
+                    <Package className="h-5 w-5" />
                     {vendor.totalOrders || 0}
                   </div>
-                  <p className='text-sm text-gray-500'>Total Orders</p>
+                  <p className="text-sm text-gray-500">Total Orders</p>
                 </div>
-                <div className='text-center'>
-                  <div className='flex items-center justify-center gap-1 text-2xl font-bold text-gray-900'>
-                    <Star className='h-5 w-5 text-yellow-500' />
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-900">
+                    <Star className="h-5 w-5 text-yellow-500" />
                     {vendor.averageRating || '0.0'}
                   </div>
-                  <p className='text-sm text-gray-500'>Rating</p>
+                  <p className="text-sm text-gray-500">Rating</p>
                 </div>
-                <div className='text-center'>
-                  <div className='flex items-center justify-center gap-1 text-2xl font-bold text-gray-900'>
-                    <Users className='h-5 w-5' />
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-2xl font-bold text-gray-900">
+                    <Users className="h-5 w-5" />
                     {vendor.totalReviews || 0}
                   </div>
-                  <p className='text-sm text-gray-500'>Reviews</p>
+                  <p className="text-sm text-gray-500">Reviews</p>
                 </div>
               </div>
             </CardContent>
@@ -349,23 +349,23 @@ export default function VendorDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className='space-y-6'>
+        <div className="space-y-6">
           {/* Status & Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Shield className='h-5 w-5' />
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
                 Status & Actions
               </CardTitle>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className="space-y-4">
               <div>
-                <label className='text-sm font-medium text-gray-500'>Current Status</label>
-                <div className='flex items-center gap-2 mt-1'>
+                <label className="text-sm font-medium text-gray-500">Current Status</label>
+                <div className="mt-1 flex items-center gap-2">
                   {getStatusIcon(vendor.status)}
                   <span
                     className={cn(
-                      'px-2 py-1 rounded-full text-xs font-medium',
+                      'rounded-full px-2 py-1 text-xs font-medium',
                       getStatusColor(vendor.status)
                     )}
                   >
@@ -375,12 +375,12 @@ export default function VendorDetailPage() {
               </div>
 
               <div>
-                <label className='text-sm font-medium text-gray-500'>Verification Status</label>
-                <div className='flex items-center gap-2 mt-1'>
+                <label className="text-sm font-medium text-gray-500">Verification Status</label>
+                <div className="mt-1 flex items-center gap-2">
                   {getStatusIcon(vendor.verificationStatus)}
                   <span
                     className={cn(
-                      'px-2 py-1 rounded-full text-xs font-medium',
+                      'rounded-full px-2 py-1 text-xs font-medium',
                       getStatusColor(vendor.verificationStatus)
                     )}
                   >
@@ -390,11 +390,11 @@ export default function VendorDetailPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className='pt-4 space-y-2'>
+              <div className="space-y-2 pt-4">
                 {/* Chat Button */}
                 <Button
-                  variant='outline'
-                  className='w-full flex items-center justify-center gap-2'
+                  variant="outline"
+                  className="flex w-full items-center justify-center gap-2"
                   onClick={async () => {
                     try {
                       // Create a new conversation with this vendor
@@ -414,26 +414,26 @@ export default function VendorDetailPage() {
                   }}
                   disabled={createConversationMutation.isPending}
                 >
-                  <MessageCircle className='h-4 w-4' />
+                  <MessageCircle className="h-4 w-4" />
                   {createConversationMutation.isPending ? 'Creating...' : 'Start Chat with Vendor'}
                 </Button>
 
                 {canApprove && (
-                  <div className='flex gap-2'>
+                  <div className="flex gap-2">
                     <Button
-                      className='flex-1 bg-green-600 hover:bg-green-700 text-white'
+                      className="flex-1 bg-green-600 text-white hover:bg-green-700"
                       onClick={() => handleApprovalAction('approve')}
                       disabled={approveVendor.isPending}
                     >
-                      <CheckCircle className='h-4 w-4 mr-2' />
+                      <CheckCircle className="mr-2 h-4 w-4" />
                       Approve
                     </Button>
                     <Button
-                      className='flex-1 bg-red-600 hover:bg-red-700 text-white'
+                      className="flex-1 bg-red-600 text-white hover:bg-red-700"
                       onClick={() => handleApprovalAction('reject')}
                       disabled={rejectVendor.isPending}
                     >
-                      <XCircle className='h-4 w-4 mr-2' />
+                      <XCircle className="mr-2 h-4 w-4" />
                       Reject
                     </Button>
                   </div>
@@ -441,22 +441,22 @@ export default function VendorDetailPage() {
 
                 {canSuspend && (
                   <Button
-                    className='w-full bg-orange-600 hover:bg-orange-700 text-white'
+                    className="w-full bg-orange-600 text-white hover:bg-orange-700"
                     onClick={handleSuspend}
                     disabled={suspendVendor.isPending}
                   >
-                    <Ban className='h-4 w-4 mr-2' />
+                    <Ban className="mr-2 h-4 w-4" />
                     Suspend
                   </Button>
                 )}
 
                 {canReactivate && (
                   <Button
-                    className='w-full bg-primary hover:bg-primary/90 text-white'
+                    className="bg-primary hover:bg-primary/90 w-full text-white"
                     onClick={handleReactivate}
                     disabled={reactivateVendor.isPending}
                   >
-                    <Play className='h-4 w-4 mr-2' />
+                    <Play className="mr-2 h-4 w-4" />
                     Reactivate
                   </Button>
                 )}
@@ -467,33 +467,33 @@ export default function VendorDetailPage() {
           {/* Timeline */}
           <Card>
             <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Calendar className='h-5 w-5' />
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
                 Timeline
               </CardTitle>
             </CardHeader>
-            <CardContent className='space-y-3'>
-              <div className='flex items-center gap-2 text-sm'>
-                <Calendar className='h-4 w-4 text-gray-400' />
-                <span className='text-gray-500'>Created:</span>
-                <span className='text-gray-900'>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-500">Created:</span>
+                <span className="text-gray-900">
                   {format(new Date(vendor.createdAt), 'MMM dd, yyyy')}
                 </span>
               </div>
               {vendor.submissionDate && (
-                <div className='flex items-center gap-2 text-sm'>
-                  <FileText className='h-4 w-4 text-gray-400' />
-                  <span className='text-gray-500'>Submitted:</span>
-                  <span className='text-gray-900'>
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-500">Submitted:</span>
+                  <span className="text-gray-900">
                     {format(new Date(vendor.submissionDate), 'MMM dd, yyyy')}
                   </span>
                 </div>
               )}
               {vendor.verifiedAt && (
-                <div className='flex items-center gap-2 text-sm'>
-                  <CheckCircle className='h-4 w-4 text-green-400' />
-                  <span className='text-gray-500'>Verified:</span>
-                  <span className='text-gray-900'>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <span className="text-gray-500">Verified:</span>
+                  <span className="text-gray-900">
                     {format(new Date(vendor.verifiedAt), 'MMM dd, yyyy')}
                   </span>
                 </div>

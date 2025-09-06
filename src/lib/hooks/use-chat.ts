@@ -45,7 +45,17 @@ interface CreateConversationData {
 /**
  * Hook to fetch all conversations with filters
  */
-export function useConversations(filters?: ChatFilters) {
+export function useConversations(filters?: {
+  type?: 'all' | 'direct' | 'group' | 'support';
+  status?: 'all' | 'active' | 'closed' | 'archived';
+  priority?: 'all' | 'low' | 'medium' | 'high' | 'urgent';
+  participantType?: 'all' | 'customer' | 'vendor' | 'staff';
+  unreadOnly?: boolean;
+  assignedToMe?: boolean;
+  tags?: string[];
+  dateRange?: { start: Date; end: Date };
+  search: string;
+}) {
   return useQuery({
     queryKey: [...chatKeys.conversations(), filters],
     queryFn: async () => {
