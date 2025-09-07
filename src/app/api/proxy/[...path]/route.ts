@@ -15,6 +15,10 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL
   ? `${process.env.USER_SERVICE_URL}/api/v1`
   : 'http://localhost:4300/api/v1';
 
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL
+  ? `${process.env.NOTIFICATION_SERVICE_URL}/api/v1`
+  : 'http://localhost:5100/api/v1';
+
 // Special routes that need different handling
 const SPECIAL_ROUTES = {
   // Chat service - direct connection for WebSocket compatibility
@@ -45,6 +49,22 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
     };
   }
 
+  // Handle notification-management routes - direct to notification service
+  if (firstSegment === 'notification-management') {
+    return {
+      serviceUrl: NOTIFICATION_SERVICE_URL,
+      servicePath: cleanPath,
+    };
+  }
+
+  // Handle system routes - these might go to a different service
+  if (firstSegment === 'system') {
+    return {
+      serviceUrl: ADMIN_SERVICE_URL,
+      servicePath: cleanPath,
+    };
+  }
+
   // All other routes go to admin service
   // The admin service handles all admin operations including:
   // vendors, users, orders, products, categories, analytics, audit, etc.
@@ -52,6 +72,7 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
   // Remove 'admin/' prefix if present since the admin service expects direct endpoint paths
   // Examples: 
   // - admin/analytics/dashboard -> analytics/dashboard
+  // - admin/vendors -> vendors
   // - admin/users -> users
   let adminPath = cleanPath;
   if (adminPath.startsWith('admin/')) {
