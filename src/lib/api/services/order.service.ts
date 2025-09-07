@@ -41,12 +41,12 @@ export const orderService = {
       });
     }
     
-    return apiClient.get(`/orders?${params.toString()}`);
+    return apiClient.get(`/api/proxy/admin/orders?${params.toString()}`);
   },
 
   // Get order by ID
   async getOrderById(id: string): Promise<OrderDetail> {
-    return apiClient.get(`/orders/${id}`);
+    return apiClient.get(`/api/proxy/admin/orders/${id}`);
   },
 
   // Update order status
@@ -56,7 +56,7 @@ export const orderService = {
     trackingNumber?: string;
     note?: string;
   }): Promise<Order> {
-    return apiClient.put(`/orders/${id}/status`, data);
+    return apiClient.put(`/api/proxy/admin/orders/${id}/status`, data);
   },
 
   // Process refund
@@ -65,7 +65,7 @@ export const orderService = {
     refundId: string;
     amount: number;
   }> {
-    return apiClient.post(`/orders/${id}/refund`, data);
+    return apiClient.post(`/api/proxy/admin/orders/${id}/refund`, data);
   },
 
   // Bulk actions
@@ -76,7 +76,7 @@ export const orderService = {
     failed: number;
     results: Array<{ id: string; success: boolean; error?: string }>;
   }> {
-    return apiClient.post('/orders/bulk-action', data);
+    return apiClient.post('/api/proxy/admin/orders/bulk-action', data);
   },
 
   // Export orders
@@ -159,6 +159,59 @@ export const orderService = {
     });
     
     return stats;
+  },
+
+  // Order analytics from backend service
+  async getOrderStatistics() {
+    try {
+      const response = await apiClient.get('/api/proxy/admin/analytics/statistics');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch order statistics:', error);
+      return {
+        totalOrders: 0,
+        ordersByStatus: {},
+        totalRevenue: 0,
+        revenueByPeriod: {
+          daily: 0,
+          weekly: 0,
+          monthly: 0,
+          yearly: 0,
+        },
+        recentOrders: [],
+        orderMetrics: {
+          averageOrderValue: 0,
+          conversionRate: 0,
+          completionRate: 0,
+          cancellationRate: 0,
+        },
+      };
+    }
+  },
+
+  async getOrderCount(filters?: {
+    status?: string;
+    paymentStatus?: string;
+    userId?: string;
+    vendorId?: string;
+    createdAfter?: Date;
+    createdBefore?: Date;
+  }) {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
+      if (filters?.userId) params.append('userId', filters.userId);
+      if (filters?.vendorId) params.append('vendorId', filters.vendorId);
+      if (filters?.createdAfter) params.append('createdAfter', filters.createdAfter.toISOString());
+      if (filters?.createdBefore) params.append('createdBefore', filters.createdBefore.toISOString());
+
+      const response = await apiClient.get(`/api/proxy/admin/analytics/count?${params.toString()}`);
+      return response.count || 0;
+    } catch (error) {
+      console.error('Failed to get order count:', error);
+      return 0;
+    }
   },
 };
 

@@ -53,7 +53,7 @@ export interface AdminProductActions {
 }
 
 export class ProductService {
-  private readonly baseUrl = '/products';
+  private readonly baseUrl = '/api/proxy/admin/products';
 
   async findAll(query: ProductQuery = {}): Promise<ProductsPaginatedResponse> {
     const params = new URLSearchParams();
@@ -200,6 +200,73 @@ export class ProductService {
       productIds: ids,
       action: 'delete'
     });
+  }
+
+  // Product analytics endpoints from backend
+  async getProductStatistics() {
+    try {
+      const response = await apiClient.get('/api/proxy/admin/analytics/statistics');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch product statistics:', error);
+      return {
+        totalProducts: 0,
+        activeProducts: 0,
+        productsByStatus: {},
+        productsByCategory: {},
+        totalRevenue: 0,
+        topProducts: [],
+        recentProducts: [],
+        inventoryStats: {
+          lowStock: 0,
+          outOfStock: 0,
+          averagePrice: 0,
+        },
+      };
+    }
+  }
+
+  async getProductCount(filters?: {
+    status?: string;
+    categoryId?: string;
+    vendorId?: string;
+    createdAfter?: Date;
+    createdBefore?: Date;
+  }) {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.categoryId) params.append('categoryId', filters.categoryId);
+      if (filters?.vendorId) params.append('vendorId', filters.vendorId);
+      if (filters?.createdAfter) params.append('createdAfter', filters.createdAfter.toISOString());
+      if (filters?.createdBefore) params.append('createdBefore', filters.createdBefore.toISOString());
+
+      const response = await apiClient.get(`/api/proxy/admin/analytics/count?${params.toString()}`);
+      return response.count || 0;
+    } catch (error) {
+      console.error('Failed to get product count:', error);
+      return 0;
+    }
+  }
+
+  async getTopProducts(limit: number = 10) {
+    try {
+      const response = await apiClient.get(`/api/proxy/admin/analytics/top?limit=${limit}`);
+      return response.products || [];
+    } catch (error) {
+      console.error('Failed to get top products:', error);
+      return [];
+    }
+  }
+
+  async getCategoryAnalytics(limit: number = 10) {
+    try {
+      const response = await apiClient.get(`/api/proxy/admin/categories/analytics?limit=${limit}`);
+      return response.categories || [];
+    } catch (error) {
+      console.error('Failed to get category analytics:', error);
+      return [];
+    }
   }
 }
 

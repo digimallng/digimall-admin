@@ -488,76 +488,66 @@ export const api = {
 
   // Admin analytics
   analytics: {
-    overview: () => apiClient.get('/analytics/overview'),
-    users: (params?: QueryParams) => apiClient.get('/analytics/users', params),
-    vendors: (params?: QueryParams) => apiClient.get('/analytics/vendors', params),
-    orders: (params?: QueryParams) => apiClient.get('/analytics/orders', params),
-    revenue: (params?: QueryParams) => apiClient.get('/analytics/revenue', params),
+    overview: () => apiClient.get('/api/proxy/admin/analytics/dashboard'),
+    users: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/users', params),
+    vendors: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/vendors', params),
+    orders: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/orders', params),
+    revenue: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/revenue', params),
+    system: () => apiClient.get('/api/proxy/admin/analytics/system'),
+    performance: () => apiClient.get('/api/proxy/admin/analytics/performance'),
+    categories: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/categories', params),
+    products: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/products', params),
     export: (type: string, params?: QueryParams) => 
-      apiClient.downloadFile(`/analytics/export/${type}`, `analytics-${type}-${Date.now()}.csv`, params),
+      apiClient.downloadFile(`/api/proxy/admin/analytics/export/${type}`, `analytics-${type}-${Date.now()}.csv`, params),
   },
 
   // User management
   users: {
-    list: (params?: QueryParams) => apiClient.get('/user-management', params),
-    get: (id: string) => apiClient.get(`/user-management/${id}`),
-    create: (data: any) => apiClient.post('/user-management', data),
-    update: (id: string, data: any) => apiClient.put(`/user-management/${id}`, data),
-    delete: (id: string) => apiClient.delete(`/user-management/${id}`),
-    bulkUpdate: (operations: any[]) => apiClient.bulkOperation('/user-management', operations),
-    export: (params?: QueryParams) => 
-      apiClient.downloadFile('/user-management/export', `users-${Date.now()}.csv`, params),
-    statistics: () => apiClient.get('/user-management/statistics'),
-    suspend: (id: string, data: any) => apiClient.post(`/user-management/${id}/suspend`, data),
-    reactivate: (id: string) => apiClient.post(`/user-management/${id}/reactivate`),
+    list: (params?: QueryParams) => apiClient.get('/api/proxy/user-service/users', params),
+    get: (id: string) => apiClient.get(`/api/proxy/user-service/users/${id}`),
+    create: (data: any) => apiClient.post('/api/proxy/user-service/users', data),
+    update: (id: string, data: any) => apiClient.put(`/api/proxy/user-service/users/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/proxy/user-service/users/${id}`),
+    statistics: () => apiClient.get('/api/proxy/user-service/internal/analytics/statistics'),
+    count: (params?: QueryParams) => apiClient.get('/api/proxy/user-service/analytics/count', params),
+    activity: (id: string) => apiClient.get(`/api/proxy/user-service/users/${id}/activity`),
+    sessions: (id: string) => apiClient.get(`/api/proxy/user-service/users/${id}/sessions`),
   },
 
   // Vendor management
   vendors: {
-    list: (params?: QueryParams) => apiClient.get('/vendor-management', params),
-    get: (id: string) => apiClient.get(`/vendor-management/${id}`),
-    update: (id: string, data: any) => apiClient.put(`/vendor-management/${id}`, data),
-    delete: (id: string) => apiClient.delete(`/vendor-management/${id}`),
-    approve: (id: string, data: any) => apiClient.post(`/vendor-management/${id}/approve`, data),
-    reject: (id: string, data: any) => apiClient.post(`/vendor-management/${id}/reject`, data),
-    suspend: (id: string, data: any) => apiClient.post(`/vendor-management/${id}/suspend`, data),
-    reactivate: (id: string) => apiClient.post(`/vendor-management/${id}/reactivate`),
-    documents: (id: string) => apiClient.get(`/vendor-management/${id}/documents`),
-    verifyDocument: (vendorId: string, documentId: string, data: any) => 
-      apiClient.post(`/vendor-management/${vendorId}/documents/${documentId}/verify`, data),
-    statistics: () => apiClient.get('/vendor-management/statistics'),
-    export: (params?: QueryParams) => 
-      apiClient.downloadFile('/vendor-management/export', `vendors-${Date.now()}.csv`, params),
+    list: (params?: QueryParams) => apiClient.get('/api/proxy/admin/vendors', params),
+    get: (id: string) => apiClient.get(`/api/proxy/admin/vendors/${id}`),
+    pending: () => apiClient.get('/api/proxy/admin/vendors/pending'),
+    statistics: () => apiClient.get('/api/proxy/admin/vendors/statistics'),
+    approve: (id: string, data: any) => apiClient.post(`/api/proxy/admin/vendors/${id}/approve`, data),
+    suspend: (id: string, data: any) => apiClient.post(`/api/proxy/admin/vendors/${id}/suspend`, data),
+    reactivate: (id: string) => apiClient.post(`/api/proxy/admin/vendors/${id}/reactivate`),
+    documents: (id: string) => apiClient.get(`/api/proxy/admin/vendors/${id}/documents`),
+    updateTier: (id: string, data: any) => apiClient.patch(`/api/proxy/admin/vendors/${id}/tier`, data),
   },
 
   // Product management
   products: {
-    list: (params?: QueryParams) => apiClient.get('/product-management', params),
-    get: (id: string) => apiClient.get(`/product-management/${id}`),
-    update: (id: string, data: any) => apiClient.put(`/product-management/${id}`, data),
-    delete: (id: string) => apiClient.delete(`/product-management/${id}`),
-    approve: (id: string, data: any) => apiClient.post(`/product-management/${id}/approve`, data),
-    reject: (id: string, data: any) => apiClient.post(`/product-management/${id}/reject`, data),
-    feature: (id: string) => apiClient.post(`/product-management/${id}/feature`),
-    unfeature: (id: string) => apiClient.post(`/product-management/${id}/unfeature`),
-    bulkUpdate: (operations: any[]) => apiClient.bulkOperation('/product-management', operations),
-    statistics: () => apiClient.get('/product-management/statistics'),
-    export: (params?: QueryParams) => 
-      apiClient.downloadFile('/product-management/export', `products-${Date.now()}.csv`, params),
+    list: (params?: QueryParams) => apiClient.get('/api/proxy/admin/products', params),
+    get: (id: string) => apiClient.get(`/api/proxy/admin/products/${id}`),
+    statistics: () => apiClient.get('/api/proxy/admin/analytics/statistics'),
+    count: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/count', params),
+    top: (limit?: number) => apiClient.get(`/api/proxy/admin/analytics/top?limit=${limit || 10}`),
+    categoryAnalytics: (limit?: number) => apiClient.get(`/api/proxy/admin/categories/analytics?limit=${limit || 10}`),
   },
 
   // Order management
   orders: {
-    list: (params?: QueryParams) => apiClient.get('/order-management', params),
-    get: (id: string) => apiClient.get(`/order-management/${id}`),
-    update: (id: string, data: any) => apiClient.put(`/order-management/${id}`, data),
+    list: (params?: QueryParams) => apiClient.get('/api/proxy/admin/orders', params),
+    get: (id: string) => apiClient.get(`/api/proxy/admin/orders/${id}`),
+    statistics: () => apiClient.get('/api/proxy/admin/analytics/statistics'),
+    count: (params?: QueryParams) => apiClient.get('/api/proxy/admin/analytics/count', params),
+    update: (id: string, data: any) => apiClient.put(`/api/proxy/admin/orders/${id}`, data),
     updateStatus: (id: string, status: string, data?: any) => 
-      apiClient.post(`/order-management/${id}/status`, { status, ...data }),
-    refund: (id: string, data: any) => apiClient.post(`/order-management/${id}/refund`, data),
-    timeline: (id: string) => apiClient.get(`/order-management/${id}/timeline`),
-    statistics: () => apiClient.get('/order-management/statistics'),
-    export: (params?: QueryParams) => 
-      apiClient.downloadFile('/order-management/export', `orders-${Date.now()}.csv`, params),
+      apiClient.post(`/api/proxy/admin/orders/${id}/status`, { status, ...data }),
+    refund: (id: string, data: any) => apiClient.post(`/api/proxy/admin/orders/${id}/refund`, data),
+    timeline: (id: string) => apiClient.get(`/api/proxy/admin/orders/${id}/timeline`),
   },
 
   // Category management

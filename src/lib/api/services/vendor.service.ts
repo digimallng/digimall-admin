@@ -16,7 +16,7 @@ export class VendorService {
     if (filters?.sortBy) params.append('sortBy', filters.sortBy);
     if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
 
-    const response = await apiClient.get<any>(`/vendors?${params.toString()}`);
+    const response = await apiClient.get<any>(`/api/proxy/admin/vendors?${params.toString()}`);
     return {
       vendors: response.data || response.vendors || [],
       total: response.total || 0,
@@ -27,12 +27,12 @@ export class VendorService {
 
   // Get single vendor by ID
   async getVendor(id: string): Promise<Vendor> {
-    return apiClient.get<Vendor>(`/vendors/${id}`);
+    return apiClient.get<Vendor>(`/api/proxy/admin/vendors/${id}`);
   }
 
   // Update vendor
   async updateVendor(id: string, data: Partial<Vendor>): Promise<Vendor> {
-    return apiClient.put<Vendor>(`/vendors/${id}`, data);
+    return apiClient.put<Vendor>(`/api/proxy/admin/vendors/${id}`, data);
   }
 
   // Approve vendor
@@ -40,7 +40,7 @@ export class VendorService {
     notes?: string;
     conditions?: string[];
   }): Promise<Vendor> {
-    return apiClient.post<Vendor>(`/vendors/${id}/approve`, {
+    return apiClient.post<Vendor>(`/api/proxy/admin/vendors/${id}/approve`, {
       decision: 'approve',
       ...data
     });
@@ -52,7 +52,7 @@ export class VendorService {
     feedback?: string;
     blockedFields?: string[];
   }): Promise<Vendor> {
-    return apiClient.post<Vendor>(`/vendors/${id}/approve`, {
+    return apiClient.post<Vendor>(`/api/proxy/admin/vendors/${id}/approve`, {
       decision: 'reject',
       ...data
     });
@@ -64,23 +64,23 @@ export class VendorService {
     duration?: number; // in days
     notifyCustomers?: boolean;
   }): Promise<Vendor> {
-    return apiClient.post<Vendor>(`/vendors/${id}/suspend`, data);
+    return apiClient.post<Vendor>(`/api/proxy/admin/vendors/${id}/suspend`, data);
   }
 
   // Reactivate vendor
   async reactivateVendor(id: string, notes?: string): Promise<Vendor> {
-    return apiClient.post<Vendor>(`/vendors/${id}/reactivate`, { notes });
+    return apiClient.post<Vendor>(`/api/proxy/admin/vendors/${id}/reactivate`, { notes });
   }
 
   // Get vendor documents
   async getVendorDocuments(vendorId: string): Promise<VendorDocument[]> {
-    return apiClient.get<VendorDocument[]>(`/vendors/${vendorId}/documents`);
+    return apiClient.get<VendorDocument[]>(`/api/proxy/admin/vendors/${vendorId}/documents`);
   }
 
   // Approve document
   async approveDocument(vendorId: string, documentId: string, notes?: string): Promise<VendorDocument> {
     return apiClient.post<VendorDocument>(
-      `/vendors/${vendorId}/documents/${documentId}/approve`,
+      `/api/proxy/admin/vendors/${vendorId}/documents/${documentId}/approve`,
       { notes }
     );
   }
@@ -88,7 +88,7 @@ export class VendorService {
   // Reject document
   async rejectDocument(vendorId: string, documentId: string, reason: string): Promise<VendorDocument> {
     return apiClient.post<VendorDocument>(
-      `/vendors/${vendorId}/documents/${documentId}/reject`,
+      `/api/proxy/admin/vendors/${vendorId}/documents/${documentId}/reject`,
       { reason }
     );
   }
@@ -99,7 +99,7 @@ export class VendorService {
     message: string;
     deadline?: string;
   }): Promise<void> {
-    return apiClient.post(`/vendors/${vendorId}/request-documents`, data);
+    return apiClient.post(`/api/proxy/admin/vendors/${vendorId}/request-documents`, data);
   }
 
   // Get vendor performance
@@ -108,7 +108,7 @@ export class VendorService {
     endDate?: string;
     metrics?: string[];
   }) {
-    return apiClient.get(`/vendors/${vendorId}/performance`, params);
+    return apiClient.get(`/api/proxy/admin/vendors/${vendorId}/performance`, params);
   }
 
   // Get vendor orders
@@ -119,7 +119,7 @@ export class VendorService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/vendors/${vendorId}/orders`, params);
+    return apiClient.get(`/api/proxy/admin/vendors/${vendorId}/orders`, params);
   }
 
   // Get vendor products
@@ -129,7 +129,7 @@ export class VendorService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/vendors/${vendorId}/products`, params);
+    return apiClient.get(`/api/proxy/admin/vendors/${vendorId}/products`, params);
   }
 
   // Get vendor reviews
@@ -140,7 +140,7 @@ export class VendorService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/vendors/${vendorId}/reviews`, params);
+    return apiClient.get(`/api/proxy/admin/vendors/${vendorId}/reviews`, params);
   }
 
   // Bulk operations
@@ -150,12 +150,12 @@ export class VendorService {
     reason?: string;
     notes?: string;
   }): Promise<{ success: number; failed: number; errors: any[] }> {
-    return apiClient.post('/vendors/bulk-update', data);
+    return apiClient.post('/api/proxy/admin/vendors/bulk-update', data);
   }
 
   // Export vendors
   async exportVendors(filters?: VendorFilters & { format: 'csv' | 'excel' }): Promise<Blob> {
-    return apiClient.get('/vendors/export', filters);
+    return apiClient.get('/api/proxy/admin/vendors/export', filters);
   }
 
   // Get vendor statistics
@@ -163,8 +163,8 @@ export class VendorService {
     try {
       // Get stats from admin service
       const [stats, vendorCount] = await Promise.all([
-        apiClient.get('/vendors/analytics/statistics'),
-        apiClient.get('/vendors/analytics/count')
+        apiClient.get('/api/proxy/admin/vendors/statistics'),
+        apiClient.get('/api/proxy/admin/vendors/analytics/count')
       ]);
 
       return {
@@ -215,7 +215,7 @@ export class VendorService {
     businessType?: string;
     limit?: number;
   }): Promise<Vendor[]> {
-    return apiClient.get<Vendor[]>('/vendors/search', {
+    return apiClient.get<Vendor[]>('/api/proxy/admin/vendors/search', {
       q: query,
       ...filters
     });
@@ -228,12 +228,12 @@ export class VendorService {
     type: 'INFO' | 'WARNING' | 'URGENT';
     channels: ('EMAIL' | 'SMS' | 'IN_APP')[];
   }): Promise<void> {
-    return apiClient.post(`/vendors/${vendorId}/message`, data);
+    return apiClient.post(`/api/proxy/admin/vendors/${vendorId}/message`, data);
   }
 
   // Get vendor verification history
   async getVerificationHistory(vendorId: string) {
-    return apiClient.get(`/vendors/${vendorId}/verification-history`);
+    return apiClient.get(`/api/proxy/admin/vendors/${vendorId}/verification-history`);
   }
 
   // Update vendor commission
@@ -242,7 +242,12 @@ export class VendorService {
     effectiveDate?: string;
     reason?: string;
   }): Promise<void> {
-    return apiClient.post(`/vendors/${vendorId}/commission`, data);
+    return apiClient.post(`/api/proxy/admin/vendors/${vendorId}/commission`, data);
+  }
+
+  // Get pending vendors (specific endpoint from backend)
+  async getPendingVendors() {
+    return apiClient.get('/api/proxy/admin/vendors/pending');
   }
 
   // Get pending approvals
@@ -252,7 +257,7 @@ export class VendorService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get('/vendors/pending-approvals', params);
+    return apiClient.get('/api/proxy/admin/vendors/pending-approvals', params);
   }
 
   // Get all vendors performance data for performance dashboard
