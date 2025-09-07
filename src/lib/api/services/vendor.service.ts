@@ -273,7 +273,7 @@ export class VendorService {
           sortBy: params?.sortBy,
           sortOrder: params?.sortOrder
         }),
-        apiClient.get('/api/proxy/admin/v1/analytics/vendors')
+        apiClient.get('/api/proxy/admin/analytics/vendors')
       ]);
 
       // Get individual performance data for each vendor
@@ -311,7 +311,7 @@ export class VendorService {
     try {
       const [statsResponse, analyticsResponse] = await Promise.all([
         this.getVendorStats(),
-        apiClient.get('/api/proxy/admin/v1/analytics/vendors')
+        apiClient.get('/api/proxy/admin/analytics/vendors')
       ]);
 
       return {

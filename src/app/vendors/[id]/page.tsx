@@ -43,13 +43,15 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
 import { toast } from 'sonner';
-import { useCreateConversation } from '@/hooks/use-chat';
+// COMMENTED OUT: Live chat hook temporarily disabled
+// import { useCreateConversation } from '@/hooks/use-chat';
 
 export default function VendorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
-  const createConversationMutation = useCreateConversation();
+  // COMMENTED OUT: Live chat hook temporarily disabled
+  // const createConversationMutation = useCreateConversation();
   const vendorId = params.id as string;
 
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
@@ -391,8 +393,8 @@ export default function VendorDetailPage() {
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-4">
-                {/* Chat Button */}
-                <Button
+                {/* COMMENTED OUT: Live chat button temporarily disabled */}
+                {/* <Button
                   variant="outline"
                   className="flex w-full items-center justify-center gap-2"
                   onClick={async () => {
@@ -416,7 +418,7 @@ export default function VendorDetailPage() {
                 >
                   <MessageCircle className="h-4 w-4" />
                   {createConversationMutation.isPending ? 'Creating...' : 'Start Chat with Vendor'}
-                </Button>
+                </Button> */}
 
                 {canApprove && (
                   <div className="flex gap-2">

@@ -1,3 +1,5 @@
+// COMMENTED OUT: Live chat page temporarily disabled for support tickets only functionality
+/*
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -204,9 +206,9 @@ export default function ChatPage() {
 
   return (
     <div className='h-screen flex bg-gray-50'>
-      {/* Sidebar - Conversation List */}
+      // Sidebar - Conversation List
       <div className='w-80 bg-white border-r border-gray-200 flex flex-col'>
-        {/* Sidebar Header */}
+        // Sidebar Header
         <div className='p-4 border-b border-gray-200'>
           <div className='flex items-center justify-between mb-4'>
             <h1 className='text-lg font-semibold text-gray-900'>Messages</h1>
@@ -221,7 +223,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Search */}
+          // Search
           <div className='relative'>
             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
             <input
@@ -234,7 +236,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Filters */}
+        // Filters
         <div className='px-4 py-3 border-b border-gray-200'>
           <div className='flex items-center gap-2'>
             <button className='px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg flex items-center gap-2'>
@@ -254,7 +256,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Conversations List */}
+        // Conversations List
         <div className='flex-1 overflow-y-auto'>
           {filteredConversations.map(conversation => (
             <div
@@ -356,11 +358,11 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
+      // Main Chat Area
       <div className='flex-1 flex flex-col bg-white'>
         {activeConversation ? (
           <>
-            {/* Chat Header */}
+            // Chat Header
             <div className='px-6 py-4 border-b border-gray-200 bg-white'>
               <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
@@ -399,7 +401,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Messages Area */}
+            // Messages Area
             <div className='flex-1 overflow-y-auto p-6 space-y-4'>
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
@@ -459,7 +461,7 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
+            // Message Input
             <div className='px-6 py-4 border-t border-gray-200 bg-white'>
               <div className='flex items-end gap-3'>
                 <div className='flex-1'>
@@ -513,6 +515,32 @@ export default function ChatPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+*/
+
+// TEMPORARY: Redirect to support tickets while chat is disabled
+export default function ChatPage() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px] bg-gray-50 rounded-lg">
+      <div className="text-center p-8">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Live Chat Temporarily Disabled</h3>
+        <p className="text-gray-600 mb-4">
+          Live chat functionality is currently disabled. Please use support tickets for customer assistance.
+        </p>
+        <a
+          href="/support"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          View Support Tickets
+        </a>
       </div>
     </div>
   );

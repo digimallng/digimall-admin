@@ -30,7 +30,8 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useUnreadMessages } from '@/hooks/use-unread-messages';
+// COMMENTED OUT: Live chat hook temporarily disabled
+// import { useUnreadMessages } from '@/hooks/use-unread-messages';
 
 const navigation = [
   {
@@ -39,12 +40,13 @@ const navigation = [
     icon: LayoutDashboard,
     gradient: 'from-blue-500 to-purple-600',
   },
-  {
-    name: 'Messages',
-    href: '/messages',
-    icon: MessageCircle,
-    gradient: 'from-green-500 to-teal-600',
-  },
+  // COMMENTED OUT: Live chat functionality temporarily disabled
+  // {
+  //   name: 'Messages',
+  //   href: '/messages',
+  //   icon: MessageCircle,
+  //   gradient: 'from-green-500 to-teal-600',
+  // },
   { name: 'Users', href: '/users', icon: Users, gradient: 'from-green-500 to-emerald-600' },
   { name: 'Staff', href: '/staff', icon: UserCog, gradient: 'from-amber-500 to-orange-600' },
   { name: 'Vendors', href: '/vendors', icon: Store, gradient: 'from-orange-500 to-red-600' },
@@ -131,7 +133,8 @@ function LogoutButton() {
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { totalUnreadCount, getFormattedCount } = useUnreadMessages();
+  // COMMENTED OUT: Live chat hook temporarily disabled
+  // const { totalUnreadCount, getFormattedCount } = useUnreadMessages();
 
   return (
     <>
@@ -208,12 +211,12 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
                 <span className='truncate flex-1'>{item.name}</span>
 
-                {/* Unread badge for Messages */}
-                {item.name === 'Messages' && totalUnreadCount > 0 && (
+                {/* COMMENTED OUT: Unread badge for Messages temporarily disabled */}
+                {/* {item.name === 'Messages' && totalUnreadCount > 0 && (
                   <span className='ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full min-w-[20px]'>
                     {getFormattedCount(totalUnreadCount)}
                   </span>
-                )}
+                )} */}
 
                 {/* Hover effect */}
                 <div

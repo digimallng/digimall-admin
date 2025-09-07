@@ -78,7 +78,7 @@ export class ReportsService {
   }): Promise<PlatformMetrics> {
     try {
       // Get dashboard metrics from analytics with correct versioned path
-      const response = await api.get('/api/proxy/admin/v1/analytics/dashboard', {
+      const response = await api.get('/api/proxy/admin/analytics/dashboard', {
         params,
       });
 
@@ -133,7 +133,7 @@ export class ReportsService {
     endDate?: string;
   }): Promise<VendorPerformanceData[]> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/revenue', {
+      const response = await api.get('/api/proxy/admin/analytics/revenue', {
         params,
       });
 
@@ -164,7 +164,7 @@ export class ReportsService {
     sortBy?: 'revenue' | 'orders' | 'growth';
   }): Promise<TopVendor[]> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/vendors', {
+      const response = await api.get('/api/proxy/admin/analytics/vendors', {
         params: {
           limit: params?.limit || 5,
           period: params?.period || 'month',
@@ -195,7 +195,7 @@ export class ReportsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }): Promise<CategoryDistribution[]> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/categories', {
+      const response = await api.get('/api/proxy/admin/analytics/categories', {
         params: {
           period: params?.period || 'month',
           limit: 10,
@@ -221,7 +221,7 @@ export class ReportsService {
   // Get vendor status distribution
   async getVendorStatusDistribution(): Promise<VendorStatusDistribution[]> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/vendors');
+      const response = await api.get('/api/proxy/admin/analytics/vendors');
       
       const data = response.data;
       if (data.vendorsByStatus) {
@@ -248,7 +248,7 @@ export class ReportsService {
     vendorId?: string;
   }): Promise<CommissionAnalytics> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/financial/overview', {
+      const response = await api.get('/api/proxy/admin/financial/overview', {
         params,
       });
 
@@ -279,7 +279,7 @@ export class ReportsService {
     endDate?: string;
   }): Promise<ExportResponse> {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/export', {
+      const response = await api.get('/api/proxy/admin/analytics/export', {
         params: {
           type: params.reportType,
           format: params.format,
@@ -313,7 +313,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/api/proxy/admin/v1/financial/overview', {
+      const response = await api.get('/api/proxy/admin/financial/overview', {
         params,
       });
       return response.data;
@@ -330,7 +330,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/users', {
+      const response = await api.get('/api/proxy/admin/analytics/users', {
         params,
       });
       return response.data;
@@ -347,7 +347,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/api/proxy/admin/v1/analytics/products', {
+      const response = await api.get('/api/proxy/admin/analytics/products', {
         params,
       });
       return response.data;

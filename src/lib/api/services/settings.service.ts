@@ -202,7 +202,7 @@ export class SettingsService {
 
   async updateSystemNotification(id: string, updates: Partial<Omit<SystemNotification, 'id' | 'createdAt'>>): Promise<SystemNotification> {
     try {
-      const response = await apiClient.put(`/api/proxy/admin/v1/settings/notifications/system/${id}`, updates);
+      const response = await apiClient.put(`/api/proxy/admin/settings/notifications/api/proxy/system/${id}`, updates);
       return this.transformSystemNotification(response);
     } catch (error) {
       console.error('Failed to update system notification:', error);
@@ -212,7 +212,7 @@ export class SettingsService {
 
   async deleteSystemNotification(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/proxy/admin/v1/settings/notifications/system/${id}`);
+      await apiClient.delete(`/api/proxy/admin/settings/notifications/api/proxy/system/${id}`);
     } catch (error) {
       console.error('Failed to delete system notification:', error);
       throw error;
@@ -249,7 +249,7 @@ export class SettingsService {
     timestamp: string;
   }> {
     try {
-      const response = await apiClient.post(`/api/proxy/admin/v1/notification/services/${serviceId}/test`);
+      const response = await apiClient.post(`/api/proxy/admin/notification/services/${serviceId}/test`);
       return {
         success: response.success || false,
         responseTime: response.responseTime || 0,
@@ -269,7 +269,7 @@ export class SettingsService {
 
   async restartNotificationService(serviceId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await apiClient.post(`/api/proxy/admin/v1/notification/services/${serviceId}/restart`);
+      const response = await apiClient.post(`/api/proxy/admin/notification/services/${serviceId}/restart`);
       return {
         success: response.success || true,
         message: response.message || 'Service restart initiated'

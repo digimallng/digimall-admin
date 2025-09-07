@@ -48,9 +48,19 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
   // All other routes go to admin service
   // The admin service handles all admin operations including:
   // vendors, users, orders, products, categories, analytics, audit, etc.
+  
+  // Remove 'admin/' prefix if present since the admin service expects direct endpoint paths
+  // Examples: 
+  // - admin/analytics/dashboard -> analytics/dashboard
+  // - admin/users -> users
+  let adminPath = cleanPath;
+  if (adminPath.startsWith('admin/')) {
+    adminPath = adminPath.replace('admin/', '');
+  }
+  
   return {
     serviceUrl: ADMIN_SERVICE_URL,
-    servicePath: cleanPath,
+    servicePath: adminPath,
   };
 }
 

@@ -49,13 +49,15 @@ import { cn } from '@/lib/utils/cn';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { useCreateConversation } from '@/hooks/use-chat';
+// COMMENTED OUT: Live chat hook temporarily disabled
+// import { useCreateConversation } from '@/hooks/use-chat';
 import { ExportService } from '@/services/export.service';
 
 export default function UsersPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const createConversationMutation = useCreateConversation();
+  // COMMENTED OUT: Live chat hook temporarily disabled
+  // const createConversationMutation = useCreateConversation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -690,7 +692,8 @@ export default function UsersPage() {
                           >
                             <Edit className='w-4 h-4' />
                           </Button>
-                          <Button
+                          {/* COMMENTED OUT: Live chat button temporarily disabled */}
+                          {/* <Button
                             size='sm'
                             variant='outline'
                             onClick={async () => {
@@ -735,7 +738,7 @@ export default function UsersPage() {
                             title='Start chat'
                           >
                             <MessageCircle className='w-4 h-4' />
-                          </Button>
+                          </Button> */}
 
                           {user.status === 'active' ? (
                             <Button

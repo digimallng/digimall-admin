@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
-import { ChatWebSocketProvider } from '@/providers/chat-websocket-provider';
+// COMMENTED OUT: Live chat websocket provider temporarily disabled
+// import { ChatWebSocketProvider } from '@/providers/chat-websocket-provider';
 import { AdminWebSocketProvider } from '@/providers/admin-websocket-provider';
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -49,7 +50,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminWebSocketProvider>
-      <ChatWebSocketProvider>
+      {/* COMMENTED OUT: Live chat websocket provider temporarily disabled */}
+      {/* <ChatWebSocketProvider> */}
         <div className="flex h-screen overflow-hidden bg-gray-50">
           <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
           <div className="flex flex-1 flex-col overflow-hidden">
@@ -59,7 +61,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </div>
-      </ChatWebSocketProvider>
+      {/* </ChatWebSocketProvider> */}
     </AdminWebSocketProvider>
   );
 }
