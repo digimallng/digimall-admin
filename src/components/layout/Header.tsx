@@ -56,10 +56,21 @@ export function Header({ onMenuToggle }: HeaderProps) {
   };
 
   const formatTimeAgo = (timestamp: string) => {
+    if (!timestamp) return 'Unknown time';
+    
     const date = new Date(timestamp);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid timestamp:', timestamp);
+      return 'Unknown time';
+    }
+    
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
+    // Handle negative differences (future dates)
+    if (diffInMinutes < 0) return 'Just now';
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
@@ -73,6 +84,41 @@ export function Header({ onMenuToggle }: HeaderProps) {
       case 'success': return '🟢';
       default: return '🔵';
     }
+  };
+
+  const stripHtmlTags = (html: string) => {
+    if (!html) return '';
+    // Remove HTML tags and decode HTML entities
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  };
+
+  const formatNotificationMessage = (message: string) => {
+    if (!message) return 'No content';
+    
+    // If message looks like HTML content (contains HTML tags)
+    if (message.includes('<') && message.includes('>')) {
+      const stripped = stripHtmlTags(message);
+      // If stripped content is still very long, truncate it
+      return stripped.length > 120 ? stripped.substring(0, 120) + '...' : stripped;
+    }
+    
+    // Regular message, just truncate if needed
+    return message.length > 120 ? message.substring(0, 120) + '...' : message;
+  };
+
+  const formatNotificationTitle = (title: string) => {
+    if (!title) return 'Notification';
+    
+    // If title looks like HTML content (contains HTML tags)
+    if (title.includes('<') && title.includes('>')) {
+      const stripped = stripHtmlTags(title);
+      return stripped.length > 60 ? stripped.substring(0, 60) + '...' : stripped;
+    }
+    
+    // Regular title, just truncate if needed
+    return title.length > 60 ? title.substring(0, 60) + '...' : title;
   };
 
   const handleNotificationClick = async (notification: NotificationItem) => {
@@ -182,14 +228,14 @@ export function Header({ onMenuToggle }: HeaderProps) {
                                 <p className={`text-sm truncate ${
                                   notification.read ? 'font-normal text-gray-700' : 'font-medium text-gray-900'
                                 }`}>
-                                  {notification.title}
+                                  {formatNotificationTitle(notification.title)}
                                 </p>
                                 {!notification.read && (
                                   <div className='w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 ml-2'></div>
                                 )}
                               </div>
                               <p className='text-xs text-gray-600 mt-1'>
-                                {notification.message}
+                                {formatNotificationMessage(notification.message)}
                               </p>
                               <div className='flex items-center justify-between mt-1'>
                                 <p className='text-xs text-gray-400'>
