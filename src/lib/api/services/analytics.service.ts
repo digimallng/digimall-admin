@@ -24,21 +24,21 @@ export class AnalyticsService {
       const vendorStats = await apiClient.get('/analytics/vendors');
       console.log('Vendor stats response:', vendorStats);
       
-      // Transform to DashboardAnalytics format with improved data extraction
+      // Transform to DashboardAnalytics format - the backend should now return all required fields
       const transformedData = {
-        totalUsers: this.extractValue(dashboardStats, 'totalUsers') || this.extractValue(userStats, 'totalUsers') || 0,
-        totalVendors: this.extractValue(dashboardStats, 'totalVendors') || this.extractValue(vendorStats, 'totalActive') || 0,
-        totalProducts: this.extractValue(dashboardStats, 'totalProducts') || 0,
-        totalOrders: this.extractValue(dashboardStats, 'totalOrders') || 0,
-        totalRevenue: this.extractValue(dashboardStats, 'totalRevenue') || 0,
-        activeUsers: this.extractValue(dashboardStats, 'activeUsers') || this.extractValue(userStats, 'activeUsers') || 0,
-        newUsersToday: this.extractValue(dashboardStats, 'newUsersToday') || this.extractValue(userStats, 'newUsersToday') || 0,
-        pendingVerifications: this.extractValue(dashboardStats, 'pendingVerifications') || this.extractValue(vendorStats, 'pendingApproval') || 0,
-        recentOrders: this.extractValue(dashboardStats, 'recentOrders') || [],
-        revenueGrowth: this.extractValue(dashboardStats, 'revenueGrowth') || 0,
-        orderGrowth: this.extractValue(dashboardStats, 'orderGrowth') || 0,
-        userGrowth: this.extractValue(dashboardStats, 'userGrowth') || this.extractNestedValue(userStats, 'growth.monthly') || 0,
-        vendorGrowth: this.extractValue(dashboardStats, 'vendorGrowth') || this.extractValue(vendorStats, 'growthRate') || 0,
+        totalUsers: dashboardStats?.totalUsers || 0,
+        totalVendors: dashboardStats?.totalVendors || 0,
+        totalProducts: dashboardStats?.totalProducts || 0,
+        totalOrders: dashboardStats?.totalOrders || 0,
+        totalRevenue: dashboardStats?.totalRevenue || 0,
+        activeUsers: dashboardStats?.activeUsers || 0,
+        newUsersToday: dashboardStats?.newUsersToday || 0,
+        pendingVerifications: dashboardStats?.pendingVerifications || 0,
+        recentOrders: dashboardStats?.recentOrders || [],
+        revenueGrowth: dashboardStats?.revenueGrowth || 0,
+        orderGrowth: dashboardStats?.orderGrowth || 0,
+        userGrowth: dashboardStats?.userGrowth || 0,
+        vendorGrowth: dashboardStats?.vendorGrowth || 0,
       };
       
       console.log('Transformed dashboard analytics:', transformedData);
@@ -294,7 +294,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }) {
     try {
-      const response = await apiClient.get('/admin/analytics/orders', params);
+      const response = await apiClient.get('/analytics/orders', params);
       
       return {
         totalOrders: response?.totalOrders || 0,
@@ -338,7 +338,7 @@ export class AnalyticsService {
   // System metrics
   async getSystemMetrics() {
     try {
-      const response = await apiClient.get('/admin/analytics/system');
+      const response = await apiClient.get('/analytics/system');
       
       return {
         cpuUsage: response?.performance?.apiResponseTime || 75,
@@ -371,7 +371,7 @@ export class AnalyticsService {
     endDate?: string;
   }) {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/export', params);
+      const response = await apiClient.get('/analytics/export', params);
       
       // Handle file download response
       if (response instanceof Blob) {
@@ -429,7 +429,7 @@ export class AnalyticsService {
   // Performance metrics - system health and performance
   async getPerformanceMetrics() {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/performance');
+      const response = await apiClient.get('/analytics/performance');
       
       return {
         apiResponseTime: response?.apiResponseTime || 85,

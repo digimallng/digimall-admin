@@ -214,7 +214,7 @@ export default function DashboardPage() {
     {
       title: 'Total Users',
       value: analytics?.totalUsers || 0,
-      change: analytics?.userGrowth || Math.floor(Math.random() * 20), // Simulate growth
+      change: analytics?.userGrowth || 0,
       icon: Users,
       gradient: 'from-purple-500 to-pink-600',
       bgGradient: 'from-purple-500/10 to-pink-600/10',
@@ -275,7 +275,7 @@ export default function DashboardPage() {
                       metric.change > 0 ? 'text-green-500' : 'text-red-500'
                     )}
                   >
-                    {Math.abs(metric.change)}%
+                    {isNaN(metric.change) ? 0 : Math.abs(metric.change)}%
                   </span>
                 </div>
               </div>
@@ -385,7 +385,7 @@ export default function DashboardPage() {
             </div>
             <div className='flex justify-center mb-6'>
               <ProgressRing 
-                progress={performanceData?.performance?.uptime || 85} 
+                progress={performanceData?.performance?.uptime || performanceData?.uptime || 85} 
                 size={140} 
                 strokeWidth={8} 
                 color='#3B82F6' 
@@ -399,12 +399,16 @@ export default function DashboardPage() {
                     <div 
                       className='bg-green-500 h-2 rounded-full' 
                       style={{ 
-                        width: `${orderData ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) : 78}%` 
+                        width: `${orderData && orderData.totalOrders > 0 
+                          ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) 
+                          : 0}%` 
                       }}
                     ></div>
                   </div>
                   <span className='text-sm font-medium'>
-                    {orderData ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) : 78}%
+                    {orderData && orderData.totalOrders > 0 
+                      ? Math.round((orderData.completedOrders / orderData.totalOrders) * 100) 
+                      : 0}%
                   </span>
                 </div>
               </div>
@@ -415,12 +419,16 @@ export default function DashboardPage() {
                     <div 
                       className='bg-primary h-2 rounded-full' 
                       style={{ 
-                        width: `${analytics ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) : 92}%` 
+                        width: `${analytics && analytics.totalUsers > 0 
+                          ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) 
+                          : 0}%` 
                       }}
                     ></div>
                   </div>
                   <span className='text-sm font-medium'>
-                    {analytics ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) : 92}%
+                    {analytics && analytics.totalUsers > 0 
+                      ? Math.round((analytics.activeUsers / analytics.totalUsers) * 100) 
+                      : 0}%
                   </span>
                 </div>
               </div>
@@ -436,7 +444,7 @@ export default function DashboardPage() {
                     ></div>
                   </div>
                   <span className='text-sm font-medium'>
-                    {Math.round(performanceData?.performance?.uptime || 85)}%
+                    {Math.round(performanceData?.performance?.uptime || performanceData?.uptime || 85)}%
                   </span>
                 </div>
               </div>
@@ -459,10 +467,10 @@ export default function DashboardPage() {
             {orderData ? (
               <div className='space-y-4'>
                 {(() => {
-                  const total = orderData.totalOrders || 1;
-                  const completedPercent = Math.round((orderData.completedOrders / total) * 100);
-                  const processingPercent = Math.round((orderData.pendingOrders / total) * 100);
-                  const cancelledPercent = Math.round((orderData.cancelledOrders / total) * 100);
+                  const total = orderData?.totalOrders || 0;
+                  const completedPercent = total > 0 ? Math.round(((orderData.completedOrders || 0) / total) * 100) : 0;
+                  const processingPercent = total > 0 ? Math.round(((orderData.pendingOrders || 0) / total) * 100) : 0;
+                  const cancelledPercent = total > 0 ? Math.round(((orderData.cancelledOrders || 0) / total) * 100) : 0;
                   
                   return (
                     <>
@@ -478,7 +486,7 @@ export default function DashboardPage() {
                               style={{ width: `${completedPercent}%` }}
                             />
                           </div>
-                          <span className='text-sm text-gray-600 w-12 text-right'>{completedPercent}%</span>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{isNaN(completedPercent) ? 0 : completedPercent}%</span>
                         </div>
                       </div>
                       <div className='flex items-center justify-between'>
@@ -493,7 +501,7 @@ export default function DashboardPage() {
                               style={{ width: `${processingPercent}%` }}
                             />
                           </div>
-                          <span className='text-sm text-gray-600 w-12 text-right'>{processingPercent}%</span>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{isNaN(processingPercent) ? 0 : processingPercent}%</span>
                         </div>
                       </div>
                       <div className='flex items-center justify-between'>
@@ -508,7 +516,7 @@ export default function DashboardPage() {
                               style={{ width: `${cancelledPercent}%` }}
                             />
                           </div>
-                          <span className='text-sm text-gray-600 w-12 text-right'>{cancelledPercent}%</span>
+                          <span className='text-sm text-gray-600 w-12 text-right'>{isNaN(cancelledPercent) ? 0 : cancelledPercent}%</span>
                         </div>
                       </div>
                     </>
