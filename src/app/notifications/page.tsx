@@ -83,12 +83,11 @@ export default function NotificationsPage() {
     // If message looks like HTML content (contains HTML tags)
     if (message.includes('<') && message.includes('>')) {
       const stripped = stripHtmlTags(message);
-      // If stripped content is still very long, truncate it
-      return stripped.length > 200 ? stripped.substring(0, 200) + '...' : stripped;
+      return stripped; // Show full content without truncation
     }
     
-    // Regular message, just truncate if needed
-    return message.length > 200 ? message.substring(0, 200) + '...' : message;
+    // Regular message, show full content
+    return message;
   };
 
   const formatNotificationTitle = (title: string) => {
@@ -97,11 +96,11 @@ export default function NotificationsPage() {
     // If title looks like HTML content (contains HTML tags)
     if (title.includes('<') && title.includes('>')) {
       const stripped = stripHtmlTags(title);
-      return stripped.length > 80 ? stripped.substring(0, 80) + '...' : stripped;
+      return stripped; // Show full title without truncation
     }
     
-    // Regular title, just truncate if needed
-    return title.length > 80 ? title.substring(0, 80) + '...' : title;
+    // Regular title, show full content
+    return title;
   };
 
   // Fetch notifications with real data
@@ -512,11 +511,10 @@ export default function NotificationsPage() {
             const isSelected = selectedNotifications.includes(notification.id);
 
             return (
-              <AnimatedCard
+              <div
                 key={notification.id}
-                delay={index * 50}
                 className={cn(
-                  'group cursor-pointer transition-all duration-200 hover:shadow-md',
+                  'group cursor-pointer transition-all duration-200 border border-gray-200 rounded-lg bg-white',
                   !isRead && 'border-l-4 border-blue-500 bg-blue-50/20',
                   isSelected && 'ring-2 ring-blue-500 bg-blue-50/30'
                 )}
@@ -542,9 +540,8 @@ export default function NotificationsPage() {
                     {/* Icon */}
                     <div
                       className={cn(
-                        'rounded-xl p-3 bg-gradient-to-r transition-all duration-300',
-                        getNotificationColor(notification.type),
-                        'group-hover:scale-110'
+                        'rounded-xl p-3 bg-gradient-to-r',
+                        getNotificationColor(notification.type)
                       )}
                     >
                       <Icon className='h-5 w-5 text-white' />
@@ -637,7 +634,7 @@ export default function NotificationsPage() {
                     </div>
                   </div>
                 </div>
-              </AnimatedCard>
+              </div>
             );
           })
         )}
