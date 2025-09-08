@@ -75,7 +75,7 @@ export class SettingsService {
   async getPlatformConfig(category?: string): Promise<PlatformConfig[]> {
     try {
       // First try to get settings from admin service system config endpoint
-      const systemResponse = await apiClient.get('/api/proxy/system/config');
+      const systemResponse = await apiClient.get('/system/config');
       
       if (systemResponse && typeof systemResponse === 'object') {
         const transformedConfigs = this.transformSystemConfigToSettings(systemResponse, category);
@@ -138,7 +138,7 @@ export class SettingsService {
   async getSystemNotifications(): Promise<SystemNotification[]> {
     try {
       // Try using notification management controller
-      const response = await apiClient.get('/api/proxy/notification-management/system-notifications');
+      const response = await apiClient.get('/notification-management/system-notifications');
       
       if (response && Array.isArray(response)) {
         return response.map(this.transformSystemNotification);
@@ -164,7 +164,7 @@ export class SettingsService {
   async createSystemNotification(notification: Omit<SystemNotification, 'id' | 'createdAt'>): Promise<SystemNotification> {
     try {
       // Try using notification management controller
-      const response = await apiClient.post('/api/proxy/notification-management/system-notifications', {
+      const response = await apiClient.post('/notification-management/system-notifications', {
         ...notification,
         createdAt: new Date().toISOString()
       });
@@ -202,7 +202,7 @@ export class SettingsService {
 
   async updateSystemNotification(id: string, updates: Partial<Omit<SystemNotification, 'id' | 'createdAt'>>): Promise<SystemNotification> {
     try {
-      const response = await apiClient.put(`/api/proxy/admin/settings/notifications/api/proxy/system/${id}`, updates);
+      const response = await apiClient.put(`/admin/settings/notifications/system/${id}`, updates);
       return this.transformSystemNotification(response);
     } catch (error) {
       console.error('Failed to update system notification:', error);
@@ -212,7 +212,7 @@ export class SettingsService {
 
   async deleteSystemNotification(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/proxy/admin/settings/notifications/api/proxy/system/${id}`);
+      await apiClient.delete(`/admin/settings/notifications/system/${id}`);
     } catch (error) {
       console.error('Failed to delete system notification:', error);
       throw error;
@@ -249,7 +249,7 @@ export class SettingsService {
     timestamp: string;
   }> {
     try {
-      const response = await apiClient.post(`/api/proxy/admin/notification/services/${serviceId}/test`);
+      const response = await apiClient.post(`/admin/notification/services/${serviceId}/test`);
       return {
         success: response.success || false,
         responseTime: response.responseTime || 0,
@@ -269,7 +269,7 @@ export class SettingsService {
 
   async restartNotificationService(serviceId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await apiClient.post(`/api/proxy/admin/notification/services/${serviceId}/restart`);
+      const response = await apiClient.post(`/admin/notification/services/${serviceId}/restart`);
       return {
         success: response.success || true,
         message: response.message || 'Service restart initiated'

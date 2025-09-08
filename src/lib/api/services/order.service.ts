@@ -41,12 +41,12 @@ export const orderService = {
       });
     }
     
-    return apiClient.get(`/api/proxy/admin/orders?${params.toString()}`);
+    return apiClient.get(`/admin/orders?${params.toString()}`);
   },
 
   // Get order by ID
   async getOrderById(id: string): Promise<OrderDetail> {
-    return apiClient.get(`/api/proxy/admin/orders/${id}`);
+    return apiClient.get(`/admin/orders/${id}`);
   },
 
   // Update order status
@@ -56,7 +56,7 @@ export const orderService = {
     trackingNumber?: string;
     note?: string;
   }): Promise<Order> {
-    return apiClient.put(`/api/proxy/admin/orders/${id}/status`, data);
+    return apiClient.put(`/admin/orders/${id}/status`, data);
   },
 
   // Process refund
@@ -65,7 +65,7 @@ export const orderService = {
     refundId: string;
     amount: number;
   }> {
-    return apiClient.post(`/api/proxy/admin/orders/${id}/refund`, data);
+    return apiClient.post(`/admin/orders/${id}/refund`, data);
   },
 
   // Bulk actions
@@ -76,7 +76,7 @@ export const orderService = {
     failed: number;
     results: Array<{ id: string; success: boolean; error?: string }>;
   }> {
-    return apiClient.post('/api/proxy/admin/orders/bulk-action', data);
+    return apiClient.post('/admin/orders/bulk-action', data);
   },
 
   // Export orders
@@ -164,7 +164,7 @@ export const orderService = {
   // Order analytics from backend service
   async getOrderStatistics() {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/statistics');
+      const response = await apiClient.get('/admin/analytics/statistics');
       return response;
     } catch (error) {
       console.error('Failed to fetch order statistics:', error);
@@ -206,7 +206,7 @@ export const orderService = {
       if (filters?.createdAfter) params.append('createdAfter', filters.createdAfter.toISOString());
       if (filters?.createdBefore) params.append('createdBefore', filters.createdBefore.toISOString());
 
-      const response = await apiClient.get(`/api/proxy/admin/analytics/count?${params.toString()}`);
+      const response = await apiClient.get(`/admin/analytics/count?${params.toString()}`);
       return response.count || 0;
     } catch (error) {
       console.error('Failed to get order count:', error);

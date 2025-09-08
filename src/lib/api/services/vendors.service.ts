@@ -132,21 +132,18 @@ export class VendorsService {
   async getVendorStatistics(): Promise<VendorStatistics> {
     try {
       // Get stats from admin service
-      const [stats, vendorCount] = await Promise.all([
-        apiClient.get('/vendors/analytics/statistics'),
-        apiClient.get('/vendors/analytics/count')
-      ]);
+      const stats = await apiClient.get('/admin/vendors/statistics');
 
       return {
-        total: vendorCount.count || 0,
-        pending: stats.pendingVendors || 0,
-        approved: stats.approvedVendors || 0,
-        rejected: stats.rejectedVendors || 0,
-        suspended: stats.suspendedVendors || 0,
-        basic: stats.basicTierVendors || 0,
-        premium: stats.premiumTierVendors || 0,
-        enterprise: stats.enterpriseTierVendors || 0,
-        totalRevenue: stats.totalVendorRevenue || 0,
+        total: stats.totalVendors || stats.total || 0,
+        pending: stats.pendingVendors || stats.pending || 0,
+        approved: stats.approvedVendors || stats.approved || 0,
+        rejected: stats.rejectedVendors || stats.rejected || 0,
+        suspended: stats.suspendedVendors || stats.suspended || 0,
+        basic: stats.basicTierVendors || stats.basic || 0,
+        premium: stats.premiumTierVendors || stats.premium || 0,
+        enterprise: stats.enterpriseTierVendors || stats.enterprise || 0,
+        totalRevenue: stats.totalVendorRevenue || stats.totalRevenue || 0,
         averageCommissionRate: stats.averageCommissionRate || 0,
         topVendors: stats.topVendors || [],
         recentVendors: stats.recentVendors || [],
@@ -193,11 +190,11 @@ export class VendorsService {
 
   // Bulk operations
   async bulkUpdateVendorStatus(vendorIds: string[], status: Vendor['status'], notes?: string): Promise<{ updated: number }> {
-    return apiClient.patch('/vendors/bulk/status', { vendorIds, status, notes });
+    return apiClient.patch('/admin/vendors/bulk/status', { vendorIds, status, notes });
   }
 
   async bulkUpdateVendorTier(vendorIds: string[], tier: Vendor['tier']): Promise<{ updated: number }> {
-    return apiClient.patch('/vendors/bulk/tier', { vendorIds, tier });
+    return apiClient.patch('/admin/vendors/bulk/tier', { vendorIds, tier });
   }
 
   // Approve vendor

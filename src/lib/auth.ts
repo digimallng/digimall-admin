@@ -67,8 +67,19 @@ export const authOptions: NextAuthOptions = {
             throw new Error(error || 'Authentication failed');
           }
 
-          const result = await response.json();
-          console.log('Full login result:', JSON.stringify(result, null, 2));
+          // Check response content type
+          const contentType = response.headers.get('content-type');
+          console.log('Response content type:', contentType);
+          
+          let result;
+          if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+            console.log('Full login result:', JSON.stringify(result, null, 2));
+          } else {
+            const text = await response.text();
+            console.log('Non-JSON response:', text.substring(0, 200) + '...');
+            throw new Error('Server returned non-JSON response');
+          }
           
           // Handle the response from admin service
           // Admin service returns: { message, user, tokens: { accessToken, refreshToken, expiresIn } }

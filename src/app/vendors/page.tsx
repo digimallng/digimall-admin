@@ -61,7 +61,9 @@ export default function VendorsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterVerificationStatus, setFilterVerificationStatus] = useState<string>('all');
   const [filterBusinessType, setFilterBusinessType] = useState<string>('all');
+  const [filterTier, setFilterTier] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | null>(null);
@@ -85,12 +87,13 @@ export default function VendorsPage() {
           ? (filterVerificationStatus as VendorFilters['verificationStatus'])
           : undefined,
       businessType: filterBusinessType !== 'all' ? filterBusinessType : undefined,
+      tier: filterTier !== 'all' ? (filterTier as VendorFilters['tier']) : undefined,
       page: currentPage,
-      limit: 20,
+      limit: pageSize,
       sortBy: 'createdAt',
       sortOrder: 'DESC',
     }),
-    [debouncedSearchTerm, filterStatus, filterVerificationStatus, filterBusinessType, currentPage]
+    [debouncedSearchTerm, filterStatus, filterVerificationStatus, filterBusinessType, filterTier, currentPage, pageSize]
   );
 
   // Fetch data
@@ -146,7 +149,14 @@ export default function VendorsPage() {
     page: vendorsResponse?.page || 1,
     totalPages: vendorsResponse?.pages || 1,
     total: vendorsResponse?.total || 0,
-    limit: 10,
+    limit: pageSize,
+  };
+
+  // Reset to page 1 when page size changes
+  const handlePageSizeChange = (newSize: string) => {
+    const newPageSize = parseInt(newSize);
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   // Vendor action handlers
@@ -250,6 +260,7 @@ export default function VendorsPage() {
     switch (status.toLowerCase()) {
       case 'verified':
       case 'approved':
+      case 'active':
         return <CheckCircle className='w-4 h-4 text-green-500' />;
       case 'pending':
       case 'under_review':
@@ -257,9 +268,11 @@ export default function VendorsPage() {
       case 'rejected':
         return <XCircle className='w-4 h-4 text-red-500' />;
       case 'suspended':
-        return <XCircle className='w-4 h-4 text-red-500' />;
+        return <XCircle className='w-4 h-4 text-orange-500' />;
+      case 'inactive':
+        return <XCircle className='w-4 h-4 text-gray-500' />;
       default:
-        return <XCircle className='w-4 h-4 text-gray-400' />;
+        return <AlertTriangle className='w-4 h-4 text-gray-400' />;
     }
   };
 
@@ -267,33 +280,36 @@ export default function VendorsPage() {
     switch (status.toLowerCase()) {
       case 'verified':
       case 'approved':
-        return 'bg-green-100 text-green-800';
+      case 'active':
+        return 'bg-green-50 text-green-800 ring-green-600/20';
       case 'pending':
       case 'under_review':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-50 text-yellow-800 ring-yellow-600/20';
       case 'rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-50 text-red-800 ring-red-600/20';
       case 'suspended':
-        return 'bg-red-100 text-red-800';
+        return 'bg-orange-50 text-orange-800 ring-orange-600/20';
+      case 'inactive':
+        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
     }
   };
 
   const getVerificationStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'verified':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-50 text-green-800 ring-green-600/20';
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-50 text-yellow-800 ring-yellow-600/20';
       case 'rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-50 text-red-800 ring-red-600/20';
       case 'suspended':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-50 text-orange-800 ring-orange-600/20';
       case 'unverified':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
     }
   };
 
@@ -410,11 +426,14 @@ export default function VendorsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value='all'>All Status</SelectItem>
-                  <SelectItem value='verified'>Verified</SelectItem>
                   <SelectItem value='pending'>Pending</SelectItem>
+                  <SelectItem value='verified'>Verified</SelectItem>
                   <SelectItem value='under_review'>Under Review</SelectItem>
+                  <SelectItem value='approved'>Approved</SelectItem>
                   <SelectItem value='rejected'>Rejected</SelectItem>
                   <SelectItem value='suspended'>Suspended</SelectItem>
+                  <SelectItem value='active'>Active</SelectItem>
+                  <SelectItem value='inactive'>Inactive</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -444,9 +463,37 @@ export default function VendorsPage() {
                   <SelectItem value='corporation'>Corporation</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={filterTier} onValueChange={setFilterTier}>
+                <SelectTrigger className='w-[140px]'>
+                  <SelectValue placeholder='All Tiers' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>All Tiers</SelectItem>
+                  <SelectItem value='basic'>Basic</SelectItem>
+                  <SelectItem value='premium'>Premium</SelectItem>
+                  <SelectItem value='enterprise'>Enterprise</SelectItem>
+                  <SelectItem value='vip'>VIP</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-2 mr-4'>
+                <span className='text-sm text-gray-600'>Show:</span>
+                <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className='w-[80px]'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='10'>10</SelectItem>
+                    <SelectItem value='20'>20</SelectItem>
+                    <SelectItem value='50'>50</SelectItem>
+                    <SelectItem value='100'>100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {selectedVendors.length > 0 && (
                 <div className='flex items-center gap-2 mr-4'>
                   <span className='text-sm text-gray-600'>{selectedVendors.length} selected</span>
@@ -540,6 +587,18 @@ export default function VendorsPage() {
                       Type
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
+                      Commission
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
+                      Total Sales
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
+                      Rating
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
+                      Products
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
                       Joined
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500'>
@@ -578,18 +637,26 @@ export default function VendorsPage() {
                           <div className='h-10 w-10 flex-shrink-0'>
                             <div className='h-10 w-10 rounded-full bg-gradient-to-r from-green-500 to-blue-600 flex items-center justify-center'>
                               <span className='text-white text-sm font-medium'>
-                                {vendor.businessName?.charAt(0) || 'V'}
+                                {vendor.businessName?.charAt(0) || vendor.name?.charAt(0) || 'V'}
                               </span>
                             </div>
                           </div>
                           <div className='ml-4'>
                             <div className='text-sm font-medium text-gray-900'>
-                              {vendor.businessName}
+                              {vendor.businessName || vendor.name || 'No business name'}
                             </div>
-                            <div className='text-sm text-gray-500'>{vendor.businessType}</div>
+                            <div className='text-sm text-gray-500'>
+                              {vendor.businessType || vendor.category || 'General'}
+                            </div>
                             {vendor.website && (
-                              <div className='text-xs text-blue-600 hover:underline'>
+                              <div className='text-xs text-blue-600 hover:underline truncate max-w-[200px]'>
                                 {vendor.website}
+                              </div>
+                            )}
+                            {vendor.address?.city && (
+                              <div className='text-xs text-gray-400 flex items-center mt-1'>
+                                <MapPin className='w-3 h-3 mr-1' />
+                                {vendor.address.city}, {vendor.address.state || vendor.address.country}
                               </div>
                             )}
                           </div>
@@ -599,11 +666,23 @@ export default function VendorsPage() {
                         <div className='text-sm font-medium text-gray-900'>
                           {vendor.user?.firstName && vendor.user?.lastName
                             ? `${vendor.user.firstName} ${vendor.user.lastName}`
-                            : 'No name provided'}
+                            : vendor.ownerName || vendor.contactPerson || 'No name provided'}
                         </div>
-                        <div className='text-sm text-gray-500'>{vendor.user?.email}</div>
-                        {vendor.user?.phone && (
-                          <div className='text-xs text-gray-400'>{vendor.user.phone}</div>
+                        <div className='text-sm text-gray-500 flex items-center'>
+                          <Mail className='w-3 h-3 mr-1' />
+                          {vendor.user?.email || vendor.email || 'No email'}
+                        </div>
+                        {(vendor.user?.phone || vendor.phone) && (
+                          <div className='text-xs text-gray-400 flex items-center mt-1'>
+                            <Phone className='w-3 h-3 mr-1' />
+                            {vendor.user?.phone || vendor.phone}
+                          </div>
+                        )}
+                        {vendor.tier && (
+                          <div className='text-xs text-primary font-medium mt-1 inline-flex items-center'>
+                            <Star className='w-3 h-3 mr-1' />
+                            {vendor.tier.charAt(0).toUpperCase() + vendor.tier.slice(1)} Tier
+                          </div>
                         )}
                       </td>
                       <td className='px-6 py-4'>
@@ -611,30 +690,52 @@ export default function VendorsPage() {
                           {getStatusIcon(vendor.status)}
                           <span
                             className={cn(
-                              'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                              'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset',
                               getStatusColor(vendor.status)
                             )}
                           >
                             {vendor.status === 'under_review'
-                              ? 'under review'
-                              : vendor.status.toLowerCase()}
+                              ? 'Under Review'
+                              : vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1)}
                           </span>
                         </div>
                       </td>
                       <td className='px-6 py-4'>
                         <span
                           className={cn(
-                            'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                            'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset',
                             getVerificationStatusColor(vendor.verificationStatus)
                           )}
                         >
                           {vendor.verificationStatus === 'suspended'
-                            ? 'suspended (KYC)'
-                            : vendor.verificationStatus.toLowerCase()}
+                            ? 'Suspended (KYC)'
+                            : vendor.verificationStatus.charAt(0).toUpperCase() + vendor.verificationStatus.slice(1)}
                         </span>
                       </td>
                       <td className='px-6 py-4 text-sm text-gray-500'>{vendor.businessType}</td>
-
+                      <td className='px-6 py-4 text-sm text-gray-900'>
+                        {vendor.commissionRate ? `${vendor.commissionRate}%` : 'N/A'}
+                      </td>
+                      <td className='px-6 py-4 text-sm text-gray-900'>
+                        {vendor.totalRevenue || vendor.totalSales ? 
+                          `₦${(vendor.totalRevenue || vendor.totalSales || 0).toLocaleString()}` : 
+                          '₦0'}
+                      </td>
+                      <td className='px-6 py-4 text-sm text-gray-900'>
+                        <div className='flex items-center'>
+                          {vendor.rating || vendor.averageRating ? (
+                            <>
+                              <span className='text-yellow-400 mr-1'>★</span>
+                              {(vendor.rating || vendor.averageRating || 0).toFixed(1)}
+                            </>
+                          ) : (
+                            'No ratings'
+                          )}
+                        </div>
+                      </td>
+                      <td className='px-6 py-4 text-sm text-gray-900'>
+                        {vendor.totalProducts || vendor.productCount || 0}
+                      </td>
                       <td className='px-6 py-4 text-sm text-gray-500'>
                         {format(new Date(vendor.createdAt), 'MMM dd, yyyy')}
                       </td>
@@ -724,14 +825,24 @@ export default function VendorsPage() {
           )}
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
+          {pagination && pagination.total > 0 && (
             <div className='flex items-center justify-between px-6 py-4 border-t border-gray-200'>
-              <div className='text-sm text-gray-700'>
-                Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} results
+              <div className='flex items-center gap-4 text-sm text-gray-700'>
+                <span>
+                  Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                  {pagination.total} vendors
+                </span>
               </div>
               <div className='flex items-center gap-2'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setCurrentPage(1)}
+                  disabled={pagination.page <= 1}
+                >
+                  First
+                </Button>
                 <Button
                   variant='outline'
                   size='sm'
@@ -740,9 +851,36 @@ export default function VendorsPage() {
                 >
                   Previous
                 </Button>
-                <span className='text-sm text-gray-700'>
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
+                <div className='flex items-center gap-1'>
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pagination.page === pageNum ? 'default' : 'outline'}
+                        size='sm'
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={cn(
+                          'w-8 h-8 p-0',
+                          pagination.page === pageNum && 'bg-primary text-white'
+                        )}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
                 <Button
                   variant='outline'
                   size='sm'
@@ -750,6 +888,14 @@ export default function VendorsPage() {
                   disabled={pagination.page >= pagination.totalPages}
                 >
                   Next
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setCurrentPage(pagination.totalPages)}
+                  disabled={pagination.page >= pagination.totalPages}
+                >
+                  Last
                 </Button>
               </div>
             </div>

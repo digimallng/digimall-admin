@@ -53,7 +53,7 @@ export interface AdminProductActions {
 }
 
 export class ProductService {
-  private readonly baseUrl = '/api/proxy/admin/products';
+  private readonly baseUrl = '/admin/products';
 
   async findAll(query: ProductQuery = {}): Promise<ProductsPaginatedResponse> {
     const params = new URLSearchParams();
@@ -205,7 +205,7 @@ export class ProductService {
   // Product analytics endpoints from backend
   async getProductStatistics() {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/statistics');
+      const response = await apiClient.get('/admin/analytics/statistics');
       return response;
     } catch (error) {
       console.error('Failed to fetch product statistics:', error);
@@ -241,7 +241,7 @@ export class ProductService {
       if (filters?.createdAfter) params.append('createdAfter', filters.createdAfter.toISOString());
       if (filters?.createdBefore) params.append('createdBefore', filters.createdBefore.toISOString());
 
-      const response = await apiClient.get(`/api/proxy/admin/analytics/count?${params.toString()}`);
+      const response = await apiClient.get(`/admin/analytics/count?${params.toString()}`);
       return response.count || 0;
     } catch (error) {
       console.error('Failed to get product count:', error);
@@ -251,7 +251,7 @@ export class ProductService {
 
   async getTopProducts(limit: number = 10) {
     try {
-      const response = await apiClient.get(`/api/proxy/admin/analytics/top?limit=${limit}`);
+      const response = await apiClient.get(`/admin/analytics/top?limit=${limit}`);
       return response.products || [];
     } catch (error) {
       console.error('Failed to get top products:', error);
@@ -261,7 +261,7 @@ export class ProductService {
 
   async getCategoryAnalytics(limit: number = 10) {
     try {
-      const response = await apiClient.get(`/api/proxy/admin/categories/analytics?limit=${limit}`);
+      const response = await apiClient.get(`/admin/categories/analytics?limit=${limit}`);
       return response.categories || [];
     } catch (error) {
       console.error('Failed to get category analytics:', error);

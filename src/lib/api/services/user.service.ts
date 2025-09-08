@@ -20,7 +20,7 @@ export class UserService {
 
     console.log('🔥 UserService making API call to /users with params:', params.toString());
     
-    const response = await apiClient.get<any>(`/api/proxy/user-service/users?${params.toString()}`);
+    const response = await apiClient.get<any>(`/users?${params.toString()}`);
     
     console.log('🔥 UserService received API response:', response);
     
@@ -107,7 +107,7 @@ export class UserService {
 
   // Update user
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const response = await apiClient.put<any>(`/api/proxy/user-service/users/${id}`, data);
+    const response = await apiClient.put<any>(`/users/${id}`, data);
     
     console.log('Debug - Update user API response:', response);
     
@@ -120,12 +120,12 @@ export class UserService {
 
   // Delete user
   async deleteUser(id: string): Promise<void> {
-    return apiClient.delete(`/api/proxy/user-service/users/${id}`);
+    return apiClient.delete(`/users/${id}`);
   }
 
   // Activate user
   async activateUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/api/proxy/user-service/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'active', 
       reason: 'Activated by admin' 
     });
@@ -141,7 +141,7 @@ export class UserService {
 
   // Deactivate user
   async deactivateUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/api/proxy/user-service/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'inactive', 
       reason: reason || 'Deactivated by admin' 
     });
@@ -157,7 +157,7 @@ export class UserService {
 
   // Suspend user
   async suspendUser(id: string, reason: string, duration?: number): Promise<User> {
-    const response = await apiClient.patch<any>(`/api/proxy/user-service/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'suspended', 
       reason,
       duration 
@@ -174,7 +174,7 @@ export class UserService {
 
   // Unsuspend user
   async unsuspendUser(id: string): Promise<User> {
-    const response = await apiClient.patch<any>(`/api/proxy/user-service/users/${id}/status`, { 
+    const response = await apiClient.patch<any>(`/users/${id}/status`, { 
       status: 'active', 
       reason: 'Unsuspended by admin' 
     });
@@ -190,7 +190,7 @@ export class UserService {
 
   // Verify email
   async verifyEmail(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/api/proxy/user-service/users/${id}/verify-email`);
+    const response = await apiClient.post<any>(`/users/${id}/verify-email`);
     
     console.log('Debug - Verify email API response:', response);
     
@@ -203,7 +203,7 @@ export class UserService {
 
   // Verify phone
   async verifyPhone(id: string): Promise<User> {
-    const response = await apiClient.post<any>(`/api/proxy/user-service/users/${id}/verify-phone`);
+    const response = await apiClient.post<any>(`/users/${id}/verify-phone`);
     
     console.log('Debug - Verify phone API response:', response);
     
@@ -216,7 +216,7 @@ export class UserService {
 
   // Reset password
   async resetPassword(id: string): Promise<{ temporaryPassword: string }> {
-    const response = await apiClient.post<any>(`/api/proxy/user-service/users/${id}/reset-password`);
+    const response = await apiClient.post<any>(`/users/${id}/reset-password`);
     
     console.log('Debug - Reset password API response:', response);
     
@@ -248,23 +248,23 @@ export class UserService {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get(`/api/proxy/user-service/users/${id}/activity`, params);
+    return apiClient.get(`/users/${id}/activity`, params);
   }
 
   // Get user sessions
   async getUserSessions(id: string) {
-    return apiClient.get(`/api/proxy/user-service/users/${id}/sessions`);
+    return apiClient.get(`/users/${id}/sessions`);
   }
 
   // Revoke user session
   async revokeUserSession(userId: string, sessionId: string): Promise<void> {
-    return apiClient.delete(`/api/proxy/user-service/users/${userId}/sessions/${sessionId}`);
+    return apiClient.delete(`/users/${userId}/sessions/${sessionId}`);
   }
 
   // Get comprehensive user statistics from user service
   async getUserStatistics() {
     try {
-      const response = await apiClient.get('/api/proxy/user-service/internal/analytics/statistics');
+      const response = await apiClient.get('/user-service/internal/analytics/statistics');
       return response;
     } catch (error) {
       console.error('Failed to fetch user statistics from service:', error);
@@ -287,7 +287,7 @@ export class UserService {
       if (filters?.createdAfter) params.append('createdAfter', filters.createdAfter.toISOString());
       if (filters?.createdBefore) params.append('createdBefore', filters.createdBefore.toISOString());
 
-      const response = await apiClient.get(`/api/proxy/user-service/analytics/count?${params.toString()}`);
+      const response = await apiClient.get(`/analytics/count?${params.toString()}`);
       return response.count || 0;
     } catch (error) {
       console.error('Failed to get user count:', error);

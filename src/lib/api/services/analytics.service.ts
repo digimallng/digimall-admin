@@ -15,13 +15,13 @@ export class AnalyticsService {
       
       console.log('Fetching dashboard analytics from admin service...');
       // Get comprehensive statistics from admin service
-      const dashboardStats = await apiClient.get('/api/proxy/admin/analytics/dashboard');
+      const dashboardStats = await apiClient.get('/analytics/dashboard');
       console.log('Dashboard stats response:', dashboardStats);
       
       // Get additional analytics from different endpoints
-      const userStats = await apiClient.get('/api/proxy/admin/analytics/users');
+      const userStats = await apiClient.get('/analytics/users');
       console.log('User stats response:', userStats);
-      const vendorStats = await apiClient.get('/api/proxy/admin/analytics/vendors');
+      const vendorStats = await apiClient.get('/analytics/vendors');
       console.log('Vendor stats response:', vendorStats);
       
       // Transform to DashboardAnalytics format with improved data extraction
@@ -75,7 +75,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }): Promise<RevenueData[]> {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/revenue', params);
+      const response = await apiClient.get('/analytics/revenue', params);
       
       // If response has monthlyData array, use it
       if (response?.monthlyData && Array.isArray(response.monthlyData)) {
@@ -141,7 +141,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }): Promise<CategoryStats[]> {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/categories', params);
+      const response = await apiClient.get('/analytics/categories', params);
       
       // Transform category metrics to match expected format
       if (response?.categoryMetrics && Array.isArray(response.categoryMetrics)) {
@@ -167,7 +167,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }) {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/users', params);
+      const response = await apiClient.get('/analytics/users', params);
       
       // Return structured user analytics with fallbacks
       return {
@@ -212,7 +212,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }) {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/vendors', params);
+      const response = await apiClient.get('/analytics/vendors', params);
       
       return {
         totalVendors: response?.totalActive || 0,
@@ -249,7 +249,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }) {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/products', params);
+      const response = await apiClient.get('/analytics/products', params);
       
       return {
         totalProducts: response?.overview?.totalProducts || 0,
@@ -294,7 +294,7 @@ export class AnalyticsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }) {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/orders', params);
+      const response = await apiClient.get('/admin/analytics/orders', params);
       
       return {
         totalOrders: response?.totalOrders || 0,
@@ -338,7 +338,7 @@ export class AnalyticsService {
   // System metrics
   async getSystemMetrics() {
     try {
-      const response = await apiClient.get('/api/proxy/admin/analytics/system');
+      const response = await apiClient.get('/admin/analytics/system');
       
       return {
         cpuUsage: response?.performance?.apiResponseTime || 75,

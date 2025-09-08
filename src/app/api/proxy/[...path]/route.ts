@@ -49,11 +49,21 @@ function getServiceUrl(path: string): { serviceUrl: string; servicePath: string 
     };
   }
 
-  // Handle notification-management routes - direct to notification service
-  if (firstSegment === 'notification-management') {
+  // Handle users routes - route through admin service for management
+  if (firstSegment === 'users') {
+    // All user management endpoints go through admin service
     return {
-      serviceUrl: NOTIFICATION_SERVICE_URL,
+      serviceUrl: ADMIN_SERVICE_URL,
       servicePath: cleanPath,
+    };
+  }
+
+  // Handle notification routes - these are handled by admin service
+  // The admin service provides notification management endpoints at /api/v1/notifications
+  if (firstSegment === 'notifications' || cleanPath.startsWith('admin/notifications')) {
+    return {
+      serviceUrl: ADMIN_SERVICE_URL,
+      servicePath: cleanPath.startsWith('admin/') ? cleanPath.replace('admin/', '') : cleanPath,
     };
   }
 
@@ -126,6 +136,11 @@ async function handler(request: NextRequest) {
       headers.set('x-user-email', session.user.email);
       headers.set('x-user-role', session.user.role);
     }
+
+    // Add service identification headers for microservice-to-microservice communication
+    headers.set('X-Client-Service', 'admin-service');
+    headers.set('X-Service-Name', 'admin-service');
+    headers.set('X-Request-Source', 'admin-panel');
 
     // Remove Next.js specific headers
     headers.delete('host');

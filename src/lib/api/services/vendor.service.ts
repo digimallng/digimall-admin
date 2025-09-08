@@ -75,24 +75,24 @@ export class VendorService {
 
   // Approve vendor
   async approveVendor(id: string, data?: {
+    comments?: string;
     notes?: string;
-    conditions?: string[];
   }): Promise<Vendor> {
     return apiClient.post<Vendor>(`/admin/vendors/${id}/approve`, {
       decision: 'approve',
-      ...data
+      comments: data?.comments || data?.notes,
     });
   }
 
   // Reject vendor
   async rejectVendor(id: string, data: {
     reason: string;
+    comments?: string;
     feedback?: string;
-    blockedFields?: string[];
   }): Promise<Vendor> {
     return apiClient.post<Vendor>(`/admin/vendors/${id}/approve`, {
       decision: 'reject',
-      ...data
+      comments: data.comments || data.feedback || data.reason,
     });
   }
 
@@ -582,48 +582,16 @@ export class VendorService {
     return 'stable';
   }
 
-  // Vendor Action Methods
-  async approveVendor(id: string, data?: { notes?: string; conditions?: string[] }): Promise<Vendor> {
-    return apiClient.patch(`/admin/vendors/${id}/approve`, {
-      decision: 'approve',
-      ...data
-    });
-  }
-
-  async rejectVendor(id: string, data: {
-    reason: string;
-    feedback?: string;
-    blockedFields?: string[];
-  }): Promise<Vendor> {
-    return apiClient.patch(`/admin/vendors/${id}/reject`, {
-      decision: 'reject',
-      ...data
-    });
-  }
-
-  async suspendVendor(id: string, data: {
-    reason: string;
-    duration?: number;
-    notifyCustomers?: boolean;
-  }): Promise<Vendor> {
-    return apiClient.patch(`/admin/vendors/${id}/suspend`, data);
-  }
-
-  async reactivateVendor(id: string, notes?: string): Promise<Vendor> {
-    return apiClient.patch(`/admin/vendors/${id}/reactivate`, {
-      notes
-    });
-  }
 
   // Document Management Methods
   async approveDocument(vendorId: string, documentId: string, notes?: string): Promise<void> {
-    return apiClient.patch(`/admin/vendors/${vendorId}/documents/${documentId}/approve`, {
+    return apiClient.post(`/admin/vendors/${vendorId}/documents/${documentId}/approve`, {
       notes
     });
   }
 
   async rejectDocument(vendorId: string, documentId: string, reason: string): Promise<void> {
-    return apiClient.patch(`/admin/vendors/${vendorId}/documents/${documentId}/reject`, {
+    return apiClient.post(`/admin/vendors/${vendorId}/documents/${documentId}/reject`, {
       reason
     });
   }
@@ -643,7 +611,7 @@ export class VendorService {
     reason?: string;
     notes?: string;
   }): Promise<void> {
-    return apiClient.patch('/admin/vendors/bulk-update', data);
+    return apiClient.post('/admin/vendors/bulk-update', data);
   }
 
   // Communication

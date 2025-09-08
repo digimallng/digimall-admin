@@ -40,7 +40,7 @@ export interface NotificationResponse {
 }
 
 export interface NotificationFilters {
-  status?: 'read' | 'unread' | 'all';
+  status?: 'pending' | 'sent' | 'delivered' | 'failed' | 'read' | 'unread' | 'all';
   type?: string;
   priority?: string;
   category?: string;
@@ -149,8 +149,19 @@ export class NotificationsService {
         page: filters.page || 1,
         limit: filters.limit || 20,
       };
+
+      // Handle status mapping - remove 'all' and 'unread' as they're not valid backend values
+      if (params.status === 'all') {
+        delete params.status; // Don't send status filter to get all notifications
+      } else if (params.status === 'unread') {
+        // Convert 'unread' to a query that gets non-read notifications
+        // Since backend uses different status values, we'll let backend handle this
+        delete params.status;
+        // Add a separate parameter for read status
+        params.read = false;
+      }
       
-      const response = await apiClient.get<NotificationResponse>('/api/proxy/notification-management', { params });
+      const response = await apiClient.get<NotificationResponse>('/admin/notifications', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -169,9 +180,7 @@ export class NotificationsService {
   // Get unread notifications count
   async getUnreadCount(): Promise<number> {
     try {
-      const response = await apiClient.get<NotificationResponse>('/api/proxy/notification-management', {
-        params: { status: 'unread', limit: 1 }
-      });
+      const response = await apiClient.get<NotificationResponse>('/admin/notifications', { read: false, limit: 1 });
       return response.unreadCount || 0;
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
@@ -182,7 +191,7 @@ export class NotificationsService {
   // Mark notification as read
   async markAsRead(notificationId: string): Promise<boolean> {
     try {
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, {
+      await apiClient.patch(`/admin/notifications/bulk-action`, {
         notificationIds: [notificationId],
         action: 'mark_read'
       });
@@ -196,7 +205,7 @@ export class NotificationsService {
   // Mark notification as unread
   async markAsUnread(notificationId: string): Promise<boolean> {
     try {
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, {
+      await apiClient.patch(`/admin/notifications/bulk-action`, {
         notificationIds: [notificationId],
         action: 'mark_unread'
       });
@@ -215,7 +224,7 @@ export class NotificationsService {
       if (unreadResponse.notifications.length === 0) return true;
       
       const notificationIds = unreadResponse.notifications.map(n => n.id);
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, {
+      await apiClient.patch(`/admin/notifications/bulk-action`, {
         notificationIds,
         action: 'mark_read'
       });
@@ -229,7 +238,7 @@ export class NotificationsService {
   // Delete notification
   async deleteNotification(notificationId: string): Promise<boolean> {
     try {
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, {
+      await apiClient.patch(`/admin/notifications/bulk-action`, {
         notificationIds: [notificationId],
         action: 'delete'
       });
@@ -243,7 +252,7 @@ export class NotificationsService {
   // Bulk actions on notifications
   async bulkAction(data: BulkActionData): Promise<boolean> {
     try {
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, data);
+      await apiClient.patch(`/admin/notifications/bulk-action`, data);
       return true;
     } catch (error) {
       console.error('Failed to perform bulk action:', error);
@@ -259,7 +268,7 @@ export class NotificationsService {
     channel?: string;
   }): Promise<NotificationStats> {
     try {
-      const response = await apiClient.post('/api/proxy/notification-management/stats', params);
+      const response = await apiClient.post('/admin/notifications/stats', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch notification stats:', error);
@@ -285,7 +294,7 @@ export class NotificationsService {
   // Create notification
   async createNotification(data: CreateNotificationData): Promise<NotificationItem | null> {
     try {
-      const response = await apiClient.post<NotificationItem>('/api/proxy/notification-management', data);
+      const response = await apiClient.post<NotificationItem>('/admin/notifications', data);
       return response;
     } catch (error) {
       console.error('Failed to create notification:', error);
@@ -296,7 +305,7 @@ export class NotificationsService {
   // Send bulk notification
   async sendBulkNotification(data: BulkNotificationData): Promise<{ sent: number; total: number; notifications: NotificationItem[] } | null> {
     try {
-      const response = await apiClient.post('/api/proxy/notification-management/bulk', data);
+      const response = await apiClient.post('/admin/notifications/bulk', data);
       return response;
     } catch (error) {
       console.error('Failed to send bulk notification:', error);
@@ -307,7 +316,7 @@ export class NotificationsService {
   // Get notification templates
   async getNotificationTemplates(): Promise<NotificationTemplate[]> {
     try {
-      const response = await apiClient.get<NotificationTemplate[]>('/api/proxy/notification-management/templates');
+      const response = await apiClient.get<NotificationTemplate[]>('/admin/notifications/templates');
       return response;
     } catch (error) {
       console.error('Failed to fetch notification templates:', error);
@@ -318,7 +327,7 @@ export class NotificationsService {
   // Create notification template
   async createNotificationTemplate(data: Omit<NotificationTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<NotificationTemplate | null> {
     try {
-      const response = await apiClient.post<NotificationTemplate>('/api/proxy/notification-management/templates', data);
+      const response = await apiClient.post<NotificationTemplate>('/admin/notifications/templates', data);
       return response;
     } catch (error) {
       console.error('Failed to create notification template:', error);
@@ -329,7 +338,7 @@ export class NotificationsService {
   // Update notification template
   async updateNotificationTemplate(templateId: string, data: Partial<NotificationTemplate>): Promise<NotificationTemplate | null> {
     try {
-      const response = await apiClient.patch<NotificationTemplate>(`/api/proxy/notification-management/templates/${templateId}`, data);
+      const response = await apiClient.patch<NotificationTemplate>(`/admin/notifications/templates/${templateId}`, data);
       return response;
     } catch (error) {
       console.error('Failed to update notification template:', error);
@@ -340,7 +349,7 @@ export class NotificationsService {
   // Delete notification template
   async deleteNotificationTemplate(templateId: string): Promise<boolean> {
     try {
-      await apiClient.delete(`/api/proxy/notification-management/templates/${templateId}`);
+      await apiClient.delete(`/admin/notifications/templates/${templateId}`);
       return true;
     } catch (error) {
       console.error('Failed to delete notification template:', error);
@@ -355,7 +364,7 @@ export class NotificationsService {
       if (userId) params.userId = userId;
       if (vendorId) params.vendorId = vendorId;
       
-      const response = await apiClient.get<NotificationPreferences>('/api/proxy/notification-management/preferences', { params });
+      const response = await apiClient.get<NotificationPreferences>('/admin/notifications/preferences', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch notification preferences:', error);
@@ -366,7 +375,7 @@ export class NotificationsService {
   // Update notification preferences
   async updateNotificationPreferences(data: Partial<NotificationPreferences>): Promise<NotificationPreferences | null> {
     try {
-      const response = await apiClient.patch<NotificationPreferences>('/api/proxy/notification-management/preferences', data);
+      const response = await apiClient.patch<NotificationPreferences>('/admin/notifications/preferences', data);
       return response;
     } catch (error) {
       console.error('Failed to update notification preferences:', error);
@@ -377,7 +386,7 @@ export class NotificationsService {
   // Get delivery rate analytics
   async getDeliveryRates(params: { startDate: string; endDate: string; type?: string; channel?: string }) {
     try {
-      const response = await apiClient.get('/api/proxy/notification-management/analytics/delivery-rates', { params });
+      const response = await apiClient.get('/admin/notifications/analytics/delivery-rates', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch delivery rates:', error);
@@ -388,7 +397,7 @@ export class NotificationsService {
   // Get engagement analytics
   async getEngagementAnalytics(params: { startDate: string; endDate: string; type?: string; channel?: string }) {
     try {
-      const response = await apiClient.get('/api/proxy/notification-management/analytics/engagement', { params });
+      const response = await apiClient.get('/admin/notifications/analytics/engagement', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch engagement analytics:', error);
@@ -399,7 +408,7 @@ export class NotificationsService {
   // Get channel performance
   async getChannelPerformance(params: { startDate: string; endDate: string; type?: string; channel?: string }) {
     try {
-      const response = await apiClient.get('/api/proxy/notification-management/analytics/channel-performance', { params });
+      const response = await apiClient.get('/admin/notifications/analytics/channel-performance', params);
       return response;
     } catch (error) {
       console.error('Failed to fetch channel performance:', error);
@@ -410,7 +419,7 @@ export class NotificationsService {
   // Resend notification
   async resendNotification(notificationId: string): Promise<boolean> {
     try {
-      await apiClient.patch(`/api/proxy/notification-management/bulk-action`, {
+      await apiClient.patch(`/admin/notifications/bulk-action`, {
         notificationIds: [notificationId],
         action: 'resend'
       });

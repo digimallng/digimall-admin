@@ -106,8 +106,8 @@ export class UsersService {
     try {
       // Get comprehensive stats and user count
       const [stats, userCount] = await Promise.all([
-        apiClient.get('/internal/analytics/statistics'),
-        apiClient.get('/analytics/count')
+        apiClient.get('/user-service/internal/analytics/statistics'),
+        apiClient.get('/user-service/analytics/count')
       ]);
 
       return {

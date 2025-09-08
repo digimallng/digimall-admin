@@ -1228,9 +1228,11 @@ export interface UserFilters {
 }
 
 export interface VendorFilters {
-  status?: 'pending' | 'verified' | 'under_review' | 'approved' | 'rejected' | 'suspended';
-  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  status?: 'pending' | 'verified' | 'under_review' | 'approved' | 'rejected' | 'suspended' | 'active' | 'inactive';
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected' | 'suspended';
   businessType?: string;
+  tier?: 'basic' | 'premium' | 'enterprise' | 'vip';
+  verified?: boolean;
   search?: string;
   businessName?: string;
   email?: string;

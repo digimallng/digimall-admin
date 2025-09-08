@@ -204,9 +204,27 @@ export default function VendorDetailPage() {
   };
 
   // Action conditions
-  const canApprove = vendor && (vendor.status === 'pending' || vendor.status === 'under_review');
-  const canSuspend = vendor && (vendor.status === 'verified' || vendor.status === 'approved');
-  const canReactivate = vendor && (vendor.status === 'suspended');
+  const canApprove = vendor && (
+    vendor.status === 'pending' || 
+    vendor.status === 'under_review' || 
+    vendor.status === 'pending_verification' ||
+    vendor.verificationStatus === 'pending' ||
+    vendor.verificationStatus === 'unverified'
+  );
+  const canSuspend = vendor && (
+    vendor.status === 'verified' || 
+    vendor.status === 'approved' || 
+    vendor.status === 'active' ||
+    vendor.verificationStatus === 'verified'
+  );
+  const canReactivate = vendor && (
+    vendor.status === 'suspended' || 
+    vendor.verificationStatus === 'suspended'
+  );
+
+  // Debug logging for action conditions
+  console.log('Vendor status:', vendor?.status, 'Verification:', vendor?.verificationStatus);
+  console.log('Action conditions:', { canApprove, canSuspend, canReactivate });
 
   if (isLoading) {
     return (
