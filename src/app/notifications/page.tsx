@@ -48,6 +48,62 @@ export default function NotificationsPage() {
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Helper function to safely format timestamps
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return 'Unknown time';
+    
+    const date = new Date(timestamp);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid timestamp in notifications:', timestamp);
+      return 'Invalid date';
+    }
+    
+    try {
+      return format(date, 'MMM dd, yyyy - hh:mm a');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Format error';
+    }
+  };
+
+  // Helper functions to handle HTML content
+  const stripHtmlTags = (html: string) => {
+    if (!html) return '';
+    // Remove HTML tags and decode HTML entities
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  };
+
+  const formatNotificationMessage = (message: string) => {
+    if (!message) return 'No content';
+    
+    // If message looks like HTML content (contains HTML tags)
+    if (message.includes('<') && message.includes('>')) {
+      const stripped = stripHtmlTags(message);
+      // If stripped content is still very long, truncate it
+      return stripped.length > 200 ? stripped.substring(0, 200) + '...' : stripped;
+    }
+    
+    // Regular message, just truncate if needed
+    return message.length > 200 ? message.substring(0, 200) + '...' : message;
+  };
+
+  const formatNotificationTitle = (title: string) => {
+    if (!title) return 'Notification';
+    
+    // If title looks like HTML content (contains HTML tags)
+    if (title.includes('<') && title.includes('>')) {
+      const stripped = stripHtmlTags(title);
+      return stripped.length > 80 ? stripped.substring(0, 80) + '...' : stripped;
+    }
+    
+    // Regular title, just truncate if needed
+    return title.length > 80 ? title.substring(0, 80) + '...' : title;
+  };
+
   // Fetch notifications with real data
   const { data: notificationResponse, isLoading, error, refetch } = useQuery({
     queryKey: ['notifications', filters, searchTerm],
@@ -505,7 +561,7 @@ export default function NotificationsPage() {
                                 isRead ? 'text-gray-700' : 'text-gray-900'
                               )}
                             >
-                              {notification.title}
+                              {formatNotificationTitle(notification.title)}
                             </h3>
                             <CategoryIcon className='h-4 w-4 text-gray-400' />
                             {notification.priority && (
@@ -534,11 +590,11 @@ export default function NotificationsPage() {
                               isRead ? 'text-gray-500' : 'text-gray-700'
                             )}
                           >
-                            {notification.message}
+                            {formatNotificationMessage(notification.message)}
                           </p>
                           <div className='flex items-center gap-2 text-xs text-gray-500'>
                             <Clock className='h-3 w-3' />
-                            {format(new Date(notification.timestamp), 'MMM dd, yyyy - hh:mm a')}
+                            {formatTimestamp(notification.sentAt || notification.createdAt)}
                           </div>
                         </div>
 
