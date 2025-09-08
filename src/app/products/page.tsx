@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { EmptyState } from '@/components/ui/empty-state';
 import { productService, type Product, type ProductStats, type ProductQuery } from '@/lib/api/services';
 import {
   Search,
@@ -346,176 +347,204 @@ export default function ProductsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className='overflow-x-auto'>
-            <table className='w-full text-sm'>
-              <thead>
-                <tr className='border-b'>
-                  <th className='pb-3 text-left font-medium text-gray-600'>
-                    <input
-                      type='checkbox'
-                      checked={selectedProducts.length === products.length && products.length > 0}
-                      onChange={toggleSelectAll}
-                      className='rounded border-gray-300'
-                    />
-                  </th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Product</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Price</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Stock</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Views</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Sales</th>
-                  <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
-                </tr>
-              </thead>
-              <tbody className='divide-y'>
-                {products.map(product => (
-                  <tr key={product.id} className='hover:bg-gray-50'>
-                    <td className='py-4'>
+          {!loading && products.length === 0 ? (
+            <EmptyState
+              icon={<Package className="h-6 w-6 text-muted-foreground" />}
+              title="No products found"
+              description={
+                searchTerm || filterStatus !== 'all'
+                  ? "No products match your current filters. Try adjusting your search or filters."
+                  : "There are no products in the system yet. Products will appear here once vendors start adding them."
+              }
+              action={
+                searchTerm || filterStatus !== 'all' ? (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setFilterStatus('all');
+                      setPage(1);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                ) : null
+              }
+            />
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm'>
+                <thead>
+                  <tr className='border-b'>
+                    <th className='pb-3 text-left font-medium text-gray-600'>
                       <input
                         type='checkbox'
-                        checked={selectedProducts.includes(product.id)}
-                        onChange={() => toggleProductSelection(product.id)}
+                        checked={selectedProducts.length === products.length && products.length > 0}
+                        onChange={toggleSelectAll}
                         className='rounded border-gray-300'
                       />
-                    </td>
-                    <td className='py-4'>
-                      <div className='flex items-center space-x-3'>
-                        {product.images?.[0] && (
-                          <img
-                            src={product.images[0].url}
-                            alt={product.name}
-                            className='h-10 w-10 rounded-lg object-cover'
-                          />
-                        )}
-                        <div>
-                          <div className='font-medium text-gray-900'>{product.name}</div>
-                          <div className='text-xs text-gray-500'>SKU: {product.sku}</div>
-                          {product.isFeatured && (
-                            <Star className='h-3 w-3 fill-yellow-400 text-yellow-400' />
+                    </th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Product</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Price</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Stock</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Views</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Sales</th>
+                    <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y'>
+                  {products.map(product => (
+                    <tr key={product.id} className='hover:bg-gray-50'>
+                      <td className='py-4'>
+                        <input
+                          type='checkbox'
+                          checked={selectedProducts.includes(product.id)}
+                          onChange={() => toggleProductSelection(product.id)}
+                          className='rounded border-gray-300'
+                        />
+                      </td>
+                      <td className='py-4'>
+                        <div className='flex items-center space-x-3'>
+                          {product.images?.[0] && (
+                            <img
+                              src={product.images[0].url}
+                              alt={product.name}
+                              className='h-10 w-10 rounded-lg object-cover'
+                            />
                           )}
+                          <div>
+                            <div className='font-medium text-gray-900'>{product.name}</div>
+                            <div className='text-xs text-gray-500'>SKU: {product.sku}</div>
+                            {product.isFeatured && (
+                              <Star className='h-3 w-3 fill-yellow-400 text-yellow-400' />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className='py-4'>
-                      <div>
-                        <div className='text-gray-900'>{product.vendor?.businessName}</div>
-                        <div className='text-xs text-gray-500'>{product.vendor?.email}</div>
-                      </div>
-                    </td>
-                    <td className='py-4 text-gray-600'>{product.category?.name}</td>
-                    <td className='py-4 text-gray-900'>{formatCurrency(product.price)}</td>
-                    <td className='py-4'>
-                      <span className={`text-gray-600`}>
-                        {product.trackInventory ? product.stockQuantity : '∞'}
-                      </span>
-                      {product.trackInventory && product.stockQuantity <= (product.lowStockThreshold || 5) && (
-                        <AlertTriangle className='ml-1 inline h-3 w-3 text-orange-500' />
-                      )}
-                    </td>
-                    <td className='py-4'>
-                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(product.status)}`}>
-                        {product.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className='py-4 text-gray-600'>{formatNumber(product.viewCount)}</td>
-                    <td className='py-4 text-gray-600'>{formatNumber(product.soldQuantity)}</td>
-                    <td className='py-4'>
-                      <div className='flex items-center space-x-2'>
-                        {product.status === 'DRAFT' && (
-                          <button
-                            onClick={() => handleProductAction('approve', product.id, product.name)}
-                            disabled={actionLoading === product.id}
-                            className='rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50'
-                            title='Approve Product'
-                          >
-                            <Check className='h-4 w-4' />
-                          </button>
+                      </td>
+                      <td className='py-4'>
+                        <div>
+                          <div className='text-gray-900'>{product.vendor?.businessName}</div>
+                          <div className='text-xs text-gray-500'>{product.vendor?.email}</div>
+                        </div>
+                      </td>
+                      <td className='py-4 text-gray-600'>{product.category?.name}</td>
+                      <td className='py-4 text-gray-900'>{formatCurrency(product.price)}</td>
+                      <td className='py-4'>
+                        <span className={`text-gray-600`}>
+                          {product.trackInventory ? product.stockQuantity : '∞'}
+                        </span>
+                        {product.trackInventory && product.stockQuantity <= (product.lowStockThreshold || 5) && (
+                          <AlertTriangle className='ml-1 inline h-3 w-3 text-orange-500' />
                         )}
-                        {product.status === 'ACTIVE' && (
+                      </td>
+                      <td className='py-4'>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(product.status)}`}>
+                          {product.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className='py-4 text-gray-600'>{formatNumber(product.viewCount)}</td>
+                      <td className='py-4 text-gray-600'>{formatNumber(product.soldQuantity)}</td>
+                      <td className='py-4'>
+                        <div className='flex items-center space-x-2'>
+                          {product.status === 'DRAFT' && (
+                            <button
+                              onClick={() => handleProductAction('approve', product.id, product.name)}
+                              disabled={actionLoading === product.id}
+                              className='rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50'
+                              title='Approve Product'
+                            >
+                              <Check className='h-4 w-4' />
+                            </button>
+                          )}
+                          {product.status === 'ACTIVE' && (
+                            <button
+                              onClick={() => handleProductAction('suspend', product.id, product.name)}
+                              disabled={actionLoading === product.id}
+                              className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
+                              title='Suspend Product'
+                            >
+                              <X className='h-4 w-4' />
+                            </button>
+                          )}
+                          {product.isFeatured ? (
+                            <button
+                              onClick={() => handleProductAction('unfeature', product.id, product.name)}
+                              disabled={actionLoading === product.id}
+                              className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
+                              title='Remove from Featured'
+                            >
+                              <StarOff className='h-4 w-4' />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleProductAction('feature', product.id, product.name)}
+                              disabled={actionLoading === product.id}
+                              className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
+                              title='Add to Featured'
+                            >
+                              <Star className='h-4 w-4' />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleProductAction('suspend', product.id, product.name)}
+                            onClick={() => handleProductAction('delete', product.id, product.name)}
                             disabled={actionLoading === product.id}
                             className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
-                            title='Suspend Product'
+                            title='Delete Product'
                           >
-                            <X className='h-4 w-4' />
+                            <Trash2 className='h-4 w-4' />
                           </button>
-                        )}
-                        {product.isFeatured ? (
-                          <button
-                            onClick={() => handleProductAction('unfeature', product.id, product.name)}
-                            disabled={actionLoading === product.id}
-                            className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
-                            title='Remove from Featured'
-                          >
-                            <StarOff className='h-4 w-4' />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleProductAction('feature', product.id, product.name)}
-                            disabled={actionLoading === product.id}
-                            className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
-                            title='Add to Featured'
-                          >
-                            <Star className='h-4 w-4' />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleProductAction('delete', product.id, product.name)}
-                          disabled={actionLoading === product.id}
-                          className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
-                          title='Delete Product'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className='mt-4 flex items-center justify-between'>
-            <p className='text-sm text-gray-600'>
-              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} results
-            </p>
-            <div className='flex gap-2'>
-              <button
-                onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                disabled={page === 1 || loading}
-                className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
-              >
-                Previous
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    disabled={loading}
-                    className={`rounded px-3 py-1 text-sm ${
-                      page === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    } disabled:opacity-50`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={page === totalPages || loading}
-                className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
-              >
-                Next
-              </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+
+            {products.length > 0 && (
+              <div className='mt-4 flex items-center justify-between'>
+                <p className='text-sm text-gray-600'>
+                  Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} results
+                </p>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                    disabled={page === 1 || loading}
+                    className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        disabled={loading}
+                        className={`rounded px-3 py-1 text-sm ${
+                          page === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'border border-gray-300 hover:bg-gray-50'
+                        } disabled:opacity-50`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={page === totalPages || loading}
+                    className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          )}
         </CardContent>
       </Card>
     </div>
