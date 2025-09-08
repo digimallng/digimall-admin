@@ -239,7 +239,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
                               </p>
                               <div className='flex items-center justify-between mt-1'>
                                 <p className='text-xs text-gray-400'>
-                                  {formatTimeAgo(notification.timestamp)}
+                                  {formatTimeAgo(notification.sentAt || notification.createdAt)}
                                 </p>
                                 {notification.priority && (
                                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${
