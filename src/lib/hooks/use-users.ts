@@ -178,21 +178,6 @@ export function useUpdateUser() {
   });
 }
 
-export function useDeleteUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => userService.deleteUser(id),
-    onSuccess: (_, id) => {
-      // Remove from cache
-      queryClient.removeQueries({ queryKey: userKeys.detail(id) });
-      // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
-      // Invalidate stats
-      queryClient.invalidateQueries({ queryKey: userKeys.stats() });
-    },
-  });
-}
 
 export function useActivateUser() {
   const queryClient = useQueryClient();
@@ -307,6 +292,23 @@ export function useBulkUpdateUsers() {
     onSuccess: () => {
       // Invalidate all user-related queries
       queryClient.invalidateQueries({ queryKey: userKeys.all });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => userService.deleteUser(id),
+    onSuccess: (_, id) => {
+      // Remove the user from all caches
+      queryClient.removeQueries({ queryKey: userKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: userKeys.sessions(id) });
+      // Invalidate the users list to refresh it
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+      // Invalidate stats
+      queryClient.invalidateQueries({ queryKey: userKeys.stats() });
     },
   });
 }

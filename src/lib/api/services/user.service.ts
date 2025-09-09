@@ -120,7 +120,7 @@ export class UserService {
 
   // Delete user
   async deleteUser(id: string): Promise<void> {
-    return apiClient.delete(`/users/${id}`);
+    return apiClient.delete(`/user-management/${id}`);
   }
 
   // Activate user
