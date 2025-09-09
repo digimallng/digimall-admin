@@ -14,7 +14,6 @@ import {
   useUpdatePlatformConfig,
   useCreateSystemNotification,
   useUpdateSystemNotification,
-  useTestNotificationService,
   useUpdateMaintenanceMode,
   type PlatformConfig,
   type SystemNotification,
@@ -40,7 +39,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  Download,
   Smartphone,
   Server,
 } from 'lucide-react';
@@ -124,12 +122,12 @@ export default function SettingsPage() {
 
   const categories = [
     { id: 'general', label: 'General', icon: Globe },
-    { id: 'commission', label: 'Commission', icon: DollarSign },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'vendor', label: 'Vendor', icon: Users },
+    // { id: 'commission', label: 'Commission', icon: DollarSign },
+    // { id: 'security', label: 'Security', icon: Shield },
+    // { id: 'vendor', label: 'Vendor', icon: Users },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
-    { id: 'shipping', label: 'Shipping', icon: Truck },
+    // { id: 'payments', label: 'Payments', icon: CreditCard },
+    // { id: 'shipping', label: 'Shipping', icon: Truck },
     { id: 'system', label: 'System', icon: Server },
   ];
 
@@ -327,11 +325,6 @@ export default function SettingsPage() {
           description='Configure platform settings and system preferences'
           icon={Settings}
           actions={[
-            {
-              label: 'Export Config',
-              icon: Download,
-              variant: 'secondary',
-            },
             {
               label: 'Save Changes',
               icon: Save,

@@ -74,7 +74,7 @@ export class SettingsService {
   // Platform Configuration Management
   async getPlatformConfig(category?: string): Promise<PlatformConfig[]> {
     try {
-      // First try to get settings from admin service system config endpoint
+      // Get settings from admin service system config endpoint
       const systemResponse = await apiClient.get('/system/config');
       
       if (systemResponse && typeof systemResponse === 'object') {
@@ -84,35 +84,25 @@ export class SettingsService {
         }
       }
       
-      // Fallback to system service getSystemSettings method
-      try {
-        const systemSettings = await systemService.getSystemSettings(category);
-        if (systemSettings) {
-          return this.transformSystemSettingsToConfig(systemSettings, category);
-        }
-      } catch (fallbackError) {
-        console.warn('System service fallback failed:', fallbackError);
-      }
-      
-      // Final fallback to default configuration structure
-      return this.getDefaultPlatformConfig(category);
+      // If no configs found, return empty array instead of fallback
+      return [];
     } catch (error) {
       console.error('Failed to fetch platform config:', error);
-      // Return default configuration on error
-      return this.getDefaultPlatformConfig(category);
+      // Return empty array on error - let UI handle the error state
+      throw new Error(`Failed to load platform configuration: ${error.message}`);
     }
   }
 
   async updatePlatformConfig(id: string, value: string | number | boolean): Promise<PlatformConfig> {
     try {
-      // First try to update via system config endpoint
       const config = await this.getPlatformConfigById(id);
       if (!config) {
         throw new Error('Configuration not found');
       }
 
-      // Try to update via system service updateSetting
-      await systemService.updateSetting(config.key, value);
+      // Update via system config endpoint
+      const updateData = { [config.key]: value };
+      await apiClient.put('/system/config', updateData);
       
       // Return updated config
       return { ...config, value };
@@ -137,66 +127,37 @@ export class SettingsService {
   // System Notifications Management
   async getSystemNotifications(): Promise<SystemNotification[]> {
     try {
-      // Try using notification management controller
-      const response = await apiClient.get('/notification-management/system-notifications');
+      // Use notification management controller - regular notifications endpoint
+      const response = await apiClient.get('/notification-management');
       
       if (response && Array.isArray(response)) {
         return response.map(this.transformSystemNotification);
       }
       
-      // Fallback to notification service
-      const notifications = await notificationsService.getNotifications({
-        type: 'system',
-        limit: 100
-      });
-      
-      if (notifications?.notifications) {
-        return notifications.notifications.map(this.transformNotificationToSystem);
-      }
-      
       return [];
     } catch (error) {
       console.error('Failed to fetch system notifications:', error);
-      return [];
+      throw new Error(`Failed to load system notifications: ${error.message}`);
     }
   }
 
   async createSystemNotification(notification: Omit<SystemNotification, 'id' | 'createdAt'>): Promise<SystemNotification> {
     try {
-      // Try using notification management controller
-      const response = await apiClient.post('/notification-management/system-notifications', {
-        ...notification,
-        createdAt: new Date().toISOString()
+      // Use notification management controller
+      const response = await apiClient.post('/notification-management', {
+        title: notification.title,
+        message: notification.message,
+        type: 'system',
+        priority: notification.priority,
+        targetAudience: notification.targetUsers,
+        scheduledFor: notification.startDate.toISOString(),
+        expiresAt: notification.endDate?.toISOString()
       });
       
       return this.transformSystemNotification(response);
     } catch (error) {
       console.error('Failed to create system notification:', error);
-      // Fallback to notification service
-      const created = await notificationsService.createNotification({
-        title: notification.title,
-        message: notification.message,
-        type: 'system',
-        priority: notification.priority,
-        actionUrl: notification.startDate ? `/maintenance?start=${notification.startDate.toISOString()}` : undefined
-      });
-      
-      if (created) {
-        return {
-          id: created.id,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          active: notification.active,
-          priority: notification.priority,
-          targetUsers: notification.targetUsers,
-          startDate: notification.startDate,
-          endDate: notification.endDate,
-          createdAt: new Date()
-        };
-      }
-      
-      throw new Error('Failed to create system notification');
+      throw new Error(`Failed to create system notification: ${error.message}`);
     }
   }
 
@@ -222,71 +183,27 @@ export class SettingsService {
   // Notification Services Monitoring
   async getNotificationServices(): Promise<NotificationService[]> {
     try {
-      // Try system service queue status first
-      const queueStatus = await systemService.getQueueStatus();
-      if (queueStatus?.queues) {
-        return this.transformQueueStatusToServices(queueStatus);
-      }
+      // Get real system status from admin service
+      const systemStatus = await apiClient.get('/system/status');
       
-      // Try system status for services health
-      const systemStatus = await systemService.getSystemStatus();
       if (systemStatus?.services) {
         return this.transformSystemServicesToNotificationServices(systemStatus.services);
       }
       
-      // Fallback to default services status
-      return await this.generateNotificationServicesStatus();
+      // Return empty array if no services data
+      return [];
     } catch (error) {
       console.error('Failed to fetch notification services:', error);
-      return await this.generateNotificationServicesStatus();
+      throw new Error(`Failed to load notification services: ${error.message}`);
     }
   }
 
-  async testNotificationService(serviceId: string): Promise<{
-    success: boolean;
-    responseTime: number;
-    message: string;
-    timestamp: string;
-  }> {
-    try {
-      const response = await apiClient.post(`/admin/notification/services/${serviceId}/test`);
-      return {
-        success: response.success || false,
-        responseTime: response.responseTime || 0,
-        message: response.message || 'Test completed',
-        timestamp: response.timestamp || new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('Failed to test notification service:', error);
-      return {
-        success: false,
-        responseTime: 0,
-        message: 'Test failed: ' + (error.message || 'Unknown error'),
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  async restartNotificationService(serviceId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await apiClient.post(`/admin/notification/services/${serviceId}/restart`);
-      return {
-        success: response.success || true,
-        message: response.message || 'Service restart initiated'
-      };
-    } catch (error) {
-      console.error('Failed to restart notification service:', error);
-      return {
-        success: false,
-        message: 'Failed to restart service: ' + (error.message || 'Unknown error')
-      };
-    }
-  }
+  // Test and restart methods removed - no backend support
 
   // Maintenance Mode Management
   async enableMaintenanceMode(data: { message: string; endTime?: string; allowedIPs?: string[] }): Promise<any> {
     try {
-      return await systemService.enableMaintenanceMode(data);
+      return await apiClient.post('/system/maintenance', { enabled: true, message: data.message });
     } catch (error) {
       console.error('Failed to enable maintenance mode:', error);
       throw error;
@@ -295,7 +212,7 @@ export class SettingsService {
 
   async disableMaintenanceMode(): Promise<{ success: boolean }> {
     try {
-      return await systemService.disableMaintenanceMode();
+      return await apiClient.post('/system/maintenance', { enabled: false });
     } catch (error) {
       console.error('Failed to disable maintenance mode:', error);
       throw error;
@@ -305,31 +222,21 @@ export class SettingsService {
   // System Health and Status
   async getSystemStatus(): Promise<any> {
     try {
-      const [health, config, metrics] = await Promise.all([
-        systemService.getSystemHealth(),
-        systemService.getSystemConfig(),
-        systemService.getSystemMetrics()
+      const [status, metrics] = await Promise.all([
+        apiClient.get('/system/status'),
+        apiClient.get('/system/metrics')
       ]);
       
       return {
-        overall: health?.status || 'unknown',
-        services: health?.services || {},
-        resources: health?.performance || {},
+        overall: status?.overall || 'unknown',
+        services: status?.services || {},
+        resources: status?.resources || {},
         metrics: metrics || {},
-        config: config || {},
         timestamp: new Date().toISOString()
       };
     } catch (error) {
       console.error('Failed to fetch system status:', error);
-      return {
-        overall: 'error',
-        services: {},
-        resources: {},
-        metrics: {},
-        config: {},
-        error: error.message,
-        timestamp: new Date().toISOString()
-      };
+      throw new Error(`Failed to load system status: ${error.message}`);
     }
   }
 
@@ -575,175 +482,9 @@ export class SettingsService {
     return notificationServices;
   }
 
-  private async generateNotificationServicesStatus(): Promise<NotificationService[]> {
-    // Generate realistic service status based on system health
-    const services = ['email', 'sms', 'push', 'webhook'];
-    const results: NotificationService[] = [];
-    
-    for (const serviceType of services) {
-      try {
-        // Try to get real health data
-        const health = await systemService.getHealthCheck();
-        const isHealthy = health?.status !== 'error';
-        
-        results.push({
-          id: `${serviceType}-service`,
-          name: `${this.formatLabel(serviceType)} Service`,
-          type: serviceType as any,
-          status: isHealthy ? 'healthy' : 'degraded',
-          uptime: isHealthy ? 99.5 + Math.random() * 0.4 : 95.0 + Math.random() * 4.0,
-          lastCheck: new Date(),
-          responseTime: 50 + Math.random() * 200,
-          version: '1.0.0',
-          queues: {
-            waiting: Math.floor(Math.random() * 10),
-            active: Math.floor(Math.random() * 5),
-            completed: Math.floor(Math.random() * 1000) + 100,
-            failed: Math.floor(Math.random() * 20),
-            delayed: Math.floor(Math.random() * 5),
-            paused: 0
-          },
-          stats: {
-            sent24h: Math.floor(Math.random() * 1000) + 200,
-            failed24h: Math.floor(Math.random() * 50),
-            successRate: 95.0 + Math.random() * 4.0
-          },
-          config: {
-            provider: this.getProviderName(serviceType),
-            endpoint: `https://api.digimall.ng/${serviceType}`,
-            rateLimit: serviceType === 'email' ? 1000 : 500
-          }
-        });
-      } catch (error) {
-        console.error(`Failed to get health for ${serviceType}:`, error);
-      }
-    }
-    
-    return results;
-  }
+  // generateNotificationServicesStatus method removed - using real data only
 
-  private getDefaultPlatformConfig(category?: string): PlatformConfig[] {
-    const defaultConfigs: PlatformConfig[] = [
-      // General Settings
-      {
-        id: 'platform_name',
-        key: 'platform_name',
-        label: 'Platform Name',
-        value: 'digiMall',
-        type: 'string',
-        category: 'general',
-        description: 'The name of your e-commerce platform',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'platform_description',
-        key: 'platform_description',
-        label: 'Platform Description',
-        value: "Nigeria's leading multi-vendor e-commerce platform",
-        type: 'textarea',
-        category: 'general',
-        description: 'Brief description of your platform',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'default_currency',
-        key: 'default_currency',
-        label: 'Default Currency',
-        value: 'NGN',
-        type: 'select',
-        category: 'general',
-        options: ['NGN', 'USD', 'EUR', 'GBP'],
-        description: 'Default currency for transactions',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'platform_timezone',
-        key: 'platform_timezone',
-        label: 'Platform Timezone',
-        value: 'Africa/Lagos',
-        type: 'select',
-        category: 'general',
-        options: ['Africa/Lagos', 'UTC', 'America/New_York', 'Europe/London'],
-        description: 'Default timezone for the platform',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'maintenance_mode',
-        key: 'maintenance_mode',
-        label: 'Maintenance Mode',
-        value: false,
-        type: 'boolean',
-        category: 'general',
-        description: 'Enable maintenance mode to restrict access',
-        required: false,
-        editable: true,
-      },
-      // Commission Settings
-      {
-        id: 'default_commission_rate',
-        key: 'default_commission_rate',
-        label: 'Default Commission Rate',
-        value: 5.0,
-        type: 'number',
-        category: 'commission',
-        description: 'Default commission rate percentage for new vendors',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'minimum_payout_amount',
-        key: 'minimum_payout_amount',
-        label: 'Minimum Payout Amount',
-        value: 10000,
-        type: 'number',
-        category: 'commission',
-        description: 'Minimum amount required for vendor payouts',
-        required: true,
-        editable: true,
-      },
-      {
-        id: 'payout_schedule',
-        key: 'payout_schedule',
-        label: 'Payout Schedule',
-        value: 'weekly',
-        type: 'select',
-        category: 'commission',
-        options: ['daily', 'weekly', 'monthly'],
-        description: 'How often to process vendor payouts',
-        required: true,
-        editable: true,
-      },
-      // Security Settings
-      {
-        id: 'two_factor_required',
-        key: 'two_factor_required',
-        label: 'Require Two-Factor Authentication',
-        value: true,
-        type: 'boolean',
-        category: 'security',
-        description: 'Require 2FA for all admin accounts',
-        required: false,
-        editable: true,
-      },
-      {
-        id: 'session_timeout',
-        key: 'session_timeout',
-        label: 'Session Timeout (minutes)',
-        value: 30,
-        type: 'number',
-        category: 'security',
-        description: 'Auto-logout users after inactivity',
-        required: true,
-        editable: true,
-      }
-    ];
-    
-    return category ? defaultConfigs.filter(config => config.category === category) : defaultConfigs;
-  }
+  // getDefaultPlatformConfig method removed - using real data only
 
   private inferConfigType(value: any): 'string' | 'number' | 'boolean' | 'select' | 'textarea' {
     if (typeof value === 'boolean') return 'boolean';

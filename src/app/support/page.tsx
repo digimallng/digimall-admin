@@ -28,6 +28,9 @@ import {
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { ExportService } from '@/services/export.service';
+import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 type ActiveTab = 'overview' | 'tickets' | 'agents' | 'analytics' | 'knowledge-base' | 'settings';
 
@@ -63,6 +66,85 @@ export default function SupportPage() {
 
   const handleCreateTicket = () => {
     setShowCreateTicketModal(true);
+  };
+
+  const handleExportReport = async (exportFormat: 'csv' | 'excel' = 'csv') => {
+    try {
+      if (!data) {
+        toast.error('No support data available to export');
+        return;
+      }
+
+      const exportData = [];
+
+      // Support metrics
+      exportData.push({
+        'Report Type': 'Support Metrics',
+        'Total Tickets': data.totalTickets || 0,
+        'Open Tickets': data.openTickets || 0,
+        'Closed Tickets': data.closedTickets || 0,
+        'Pending Tickets': data.pendingTickets || 0,
+        'Average Response Time': data.averageResponseTime || 0,
+        'Customer Satisfaction': data.satisfaction || 0,
+        'Total Agents': data.totalAgents || 0,
+        'Active Agents': data.activeAgents || 0,
+        'Generated At': format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+      });
+
+      // Recent tickets data
+      if (data.recentTickets && data.recentTickets.length > 0) {
+        data.recentTickets.forEach(ticket => {
+          exportData.push({
+            'Report Type': 'Ticket',
+            'Ticket ID': ticket.id,
+            'Subject': ticket.subject,
+            'Priority': ticket.priority,
+            'Status': ticket.status,
+            'Customer': ticket.customer?.name || '',
+            'Customer Email': ticket.customer?.email || '',
+            'Assigned Agent': ticket.assignedAgent?.name || 'Unassigned',
+            'Category': ticket.category || '',
+            'Created At': format(new Date(ticket.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+            'Updated At': format(new Date(ticket.updatedAt), 'yyyy-MM-dd HH:mm:ss'),
+            'Response Time': ticket.responseTime || '',
+            'Resolution Time': ticket.resolutionTime || '',
+          });
+        });
+      }
+
+      // Agent performance data
+      if (data.agents && data.agents.length > 0) {
+        data.agents.forEach(agent => {
+          exportData.push({
+            'Report Type': 'Agent Performance',
+            'Agent ID': agent.id,
+            'Agent Name': agent.name,
+            'Email': agent.email,
+            'Status': agent.status,
+            'Assigned Tickets': agent.assignedTickets || 0,
+            'Resolved Tickets': agent.resolvedTickets || 0,
+            'Average Rating': agent.averageRating || 0,
+            'Response Rate': agent.responseRate || 0,
+            'Last Activity': agent.lastActivity ? format(new Date(agent.lastActivity), 'yyyy-MM-dd HH:mm:ss') : '',
+          });
+        });
+      }
+
+      if (exportData.length === 0) {
+        toast.error('No data available to export');
+        return;
+      }
+
+      ExportService.exportData(exportData, exportFormat, 'support-report', {
+        sheetName: 'Support Report',
+        includeTimestamp: true
+      });
+
+      toast.success(`Exported support report to ${exportFormat.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.');
+    }
   };
 
   const handleTicketCreated = (ticketId: string) => {
@@ -103,7 +185,7 @@ export default function SupportPage() {
                 label: 'Export Report',
                 icon: Download,
                 variant: 'secondary',
-                onClick: () => console.log('Export report'),
+                onClick: () => handleExportReport('csv'),
               },
               {
                 label: 'New Ticket',

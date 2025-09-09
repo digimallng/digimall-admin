@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { ExportService } from '@/services/export.service';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +41,7 @@ export default function ProductsPage() {
   const [total, setTotal] = useState(0);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   const limit = 20;
 
@@ -76,6 +78,19 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [searchTerm, filterStatus, page]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportDropdown) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    if (showExportDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showExportDropdown]);
 
   const handleProductAction = async (action: string, productId: string, productName: string) => {
     try {
@@ -169,6 +184,52 @@ export default function ProductsPage() {
     );
   };
 
+  const handleExport = async (exportFormat: 'csv' | 'excel' = 'csv') => {
+    try {
+      if (!products.length) {
+        toast.error('No products to export');
+        return;
+      }
+
+      const exportData = products.map(product => ({
+        'Product ID': product.id,
+        'Product Name': product.name,
+        'SKU': product.sku || '',
+        'Vendor': product.vendor?.businessName || '',
+        'Vendor Email': product.vendor?.email || '',
+        'Category': product.category?.name || '',
+        'Price': product.price,
+        'Currency': 'NGN',
+        'Stock Quantity': product.trackInventory ? product.stockQuantity : 'Unlimited',
+        'Low Stock Threshold': product.lowStockThreshold || '',
+        'Status': product.status,
+        'Is Featured': product.isFeatured ? 'Yes' : 'No',
+        'Track Inventory': product.trackInventory ? 'Yes' : 'No',
+        'View Count': product.viewCount || 0,
+        'Sold Quantity': product.soldQuantity || 0,
+        'Weight': product.weight || '',
+        'Dimensions': product.dimensions ? `${product.dimensions.length}x${product.dimensions.width}x${product.dimensions.height}` : '',
+        'Description': product.description || '',
+        'Short Description': product.shortDescription || '',
+        'Tags': product.tags ? product.tags.join(', ') : '',
+        'Rating': product.rating || '',
+        'Review Count': product.reviewCount || 0,
+        'Created At': format(new Date(product.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+        'Updated At': format(new Date(product.updatedAt), 'yyyy-MM-dd HH:mm:ss'),
+      }));
+
+      ExportService.exportData(exportData, exportFormat, `products-${searchTerm ? 'filtered-' : ''}export`, {
+        sheetName: 'Products',
+        includeTimestamp: true
+      });
+
+      toast.success(`Exported ${exportData.length} products to ${exportFormat.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.');
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -236,6 +297,7 @@ export default function ProductsPage() {
             label: 'Export',
             icon: Download,
             variant: 'secondary',
+            onClick: () => setShowExportDropdown(!showExportDropdown),
           },
           {
             label: 'Add Product',
@@ -244,6 +306,34 @@ export default function ProductsPage() {
           },
         ]}
       />
+
+      {/* Export Dropdown */}
+      {showExportDropdown && (
+        <div className="relative">
+          <div className="absolute right-0 top-2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-48">
+            <button
+              onClick={() => {
+                handleExport('csv');
+                setShowExportDropdown(false);
+              }}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export as CSV
+            </button>
+            <button
+              onClick={() => {
+                handleExport('excel');
+                setShowExportDropdown(false);
+              }}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export as Excel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5'>
         <StatsCard
@@ -372,178 +462,180 @@ export default function ProductsPage() {
               }
             />
           ) : (
-            <div className='overflow-x-auto'>
-              <table className='w-full text-sm'>
-                <thead>
-                  <tr className='border-b'>
-                    <th className='pb-3 text-left font-medium text-gray-600'>
-                      <input
-                        type='checkbox'
-                        checked={selectedProducts.length === products.length && products.length > 0}
-                        onChange={toggleSelectAll}
-                        className='rounded border-gray-300'
-                      />
-                    </th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Product</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Price</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Stock</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Views</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Sales</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y'>
-                  {products.map(product => (
-                    <tr key={product.id} className='hover:bg-gray-50'>
-                      <td className='py-4'>
+            <>
+              <div className='overflow-x-auto'>
+                <table className='w-full text-sm'>
+                  <thead>
+                    <tr className='border-b'>
+                      <th className='pb-3 text-left font-medium text-gray-600'>
                         <input
                           type='checkbox'
-                          checked={selectedProducts.includes(product.id)}
-                          onChange={() => toggleProductSelection(product.id)}
+                          checked={selectedProducts.length === products.length && products.length > 0}
+                          onChange={toggleSelectAll}
                           className='rounded border-gray-300'
                         />
-                      </td>
-                      <td className='py-4'>
-                        <div className='flex items-center space-x-3'>
-                          {product.images?.[0] && (
-                            <img
-                              src={product.images[0].url}
-                              alt={product.name}
-                              className='h-10 w-10 rounded-lg object-cover'
-                            />
-                          )}
-                          <div>
-                            <div className='font-medium text-gray-900'>{product.name}</div>
-                            <div className='text-xs text-gray-500'>SKU: {product.sku}</div>
-                            {product.isFeatured && (
-                              <Star className='h-3 w-3 fill-yellow-400 text-yellow-400' />
+                      </th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Product</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Price</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Stock</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Views</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Sales</th>
+                      <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y'>
+                    {products.map(product => (
+                      <tr key={product.id} className='hover:bg-gray-50'>
+                        <td className='py-4'>
+                          <input
+                            type='checkbox'
+                            checked={selectedProducts.includes(product.id)}
+                            onChange={() => toggleProductSelection(product.id)}
+                            className='rounded border-gray-300'
+                          />
+                        </td>
+                        <td className='py-4'>
+                          <div className='flex items-center space-x-3'>
+                            {product.images?.[0] && (
+                              <img
+                                src={product.images[0].url}
+                                alt={product.name}
+                                className='h-10 w-10 rounded-lg object-cover'
+                              />
                             )}
+                            <div>
+                              <div className='font-medium text-gray-900'>{product.name}</div>
+                              <div className='text-xs text-gray-500'>SKU: {product.sku}</div>
+                              {product.isFeatured && (
+                                <Star className='h-3 w-3 fill-yellow-400 text-yellow-400' />
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className='py-4'>
-                        <div>
-                          <div className='text-gray-900'>{product.vendor?.businessName}</div>
-                          <div className='text-xs text-gray-500'>{product.vendor?.email}</div>
-                        </div>
-                      </td>
-                      <td className='py-4 text-gray-600'>{product.category?.name}</td>
-                      <td className='py-4 text-gray-900'>{formatCurrency(product.price)}</td>
-                      <td className='py-4'>
-                        <span className={`text-gray-600`}>
-                          {product.trackInventory ? product.stockQuantity : '∞'}
-                        </span>
-                        {product.trackInventory && product.stockQuantity <= (product.lowStockThreshold || 5) && (
-                          <AlertTriangle className='ml-1 inline h-3 w-3 text-orange-500' />
-                        )}
-                      </td>
-                      <td className='py-4'>
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(product.status)}`}>
-                          {product.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className='py-4 text-gray-600'>{formatNumber(product.viewCount)}</td>
-                      <td className='py-4 text-gray-600'>{formatNumber(product.soldQuantity)}</td>
-                      <td className='py-4'>
-                        <div className='flex items-center space-x-2'>
-                          {product.status === 'DRAFT' && (
-                            <button
-                              onClick={() => handleProductAction('approve', product.id, product.name)}
-                              disabled={actionLoading === product.id}
-                              className='rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50'
-                              title='Approve Product'
-                            >
-                              <Check className='h-4 w-4' />
-                            </button>
+                        </td>
+                        <td className='py-4'>
+                          <div>
+                            <div className='text-gray-900'>{product.vendor?.businessName}</div>
+                            <div className='text-xs text-gray-500'>{product.vendor?.email}</div>
+                          </div>
+                        </td>
+                        <td className='py-4 text-gray-600'>{product.category?.name}</td>
+                        <td className='py-4 text-gray-900'>{formatCurrency(product.price)}</td>
+                        <td className='py-4'>
+                          <span className={`text-gray-600`}>
+                            {product.trackInventory ? product.stockQuantity : '∞'}
+                          </span>
+                          {product.trackInventory && product.stockQuantity <= (product.lowStockThreshold || 5) && (
+                            <AlertTriangle className='ml-1 inline h-3 w-3 text-orange-500' />
                           )}
-                          {product.status === 'ACTIVE' && (
+                        </td>
+                        <td className='py-4'>
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(product.status)}`}>
+                            {product.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className='py-4 text-gray-600'>{formatNumber(product.viewCount)}</td>
+                        <td className='py-4 text-gray-600'>{formatNumber(product.soldQuantity)}</td>
+                        <td className='py-4'>
+                          <div className='flex items-center space-x-2'>
+                            {product.status === 'DRAFT' && (
+                              <button
+                                onClick={() => handleProductAction('approve', product.id, product.name)}
+                                disabled={actionLoading === product.id}
+                                className='rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-50'
+                                title='Approve Product'
+                              >
+                                <Check className='h-4 w-4' />
+                              </button>
+                            )}
+                            {product.status === 'ACTIVE' && (
+                              <button
+                                onClick={() => handleProductAction('suspend', product.id, product.name)}
+                                disabled={actionLoading === product.id}
+                                className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
+                                title='Suspend Product'
+                              >
+                                <X className='h-4 w-4' />
+                              </button>
+                            )}
+                            {product.isFeatured ? (
+                              <button
+                                onClick={() => handleProductAction('unfeature', product.id, product.name)}
+                                disabled={actionLoading === product.id}
+                                className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
+                                title='Remove from Featured'
+                              >
+                                <StarOff className='h-4 w-4' />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleProductAction('feature', product.id, product.name)}
+                                disabled={actionLoading === product.id}
+                                className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
+                                title='Add to Featured'
+                              >
+                                <Star className='h-4 w-4' />
+                              </button>
+                            )}
                             <button
-                              onClick={() => handleProductAction('suspend', product.id, product.name)}
+                              onClick={() => handleProductAction('delete', product.id, product.name)}
                               disabled={actionLoading === product.id}
                               className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
-                              title='Suspend Product'
+                              title='Delete Product'
                             >
-                              <X className='h-4 w-4' />
+                              <Trash2 className='h-4 w-4' />
                             </button>
-                          )}
-                          {product.isFeatured ? (
-                            <button
-                              onClick={() => handleProductAction('unfeature', product.id, product.name)}
-                              disabled={actionLoading === product.id}
-                              className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
-                              title='Remove from Featured'
-                            >
-                              <StarOff className='h-4 w-4' />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleProductAction('feature', product.id, product.name)}
-                              disabled={actionLoading === product.id}
-                              className='rounded p-1 text-yellow-600 hover:bg-yellow-100 disabled:opacity-50'
-                              title='Add to Featured'
-                            >
-                              <Star className='h-4 w-4' />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleProductAction('delete', product.id, product.name)}
-                            disabled={actionLoading === product.id}
-                            className='rounded p-1 text-red-600 hover:bg-red-100 disabled:opacity-50'
-                            title='Delete Product'
-                          >
-                            <Trash2 className='h-4 w-4' />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {products.length > 0 && (
-              <div className='mt-4 flex items-center justify-between'>
-                <p className='text-sm text-gray-600'>
-                  Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} results
-                </p>
-                <div className='flex gap-2'>
-                  <button
-                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                    disabled={page === 1 || loading}
-                    className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        disabled={loading}
-                        className={`rounded px-3 py-1 text-sm ${
-                          page === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'border border-gray-300 hover:bg-gray-50'
-                        } disabled:opacity-50`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={page === totalPages || loading}
-                    className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
-                  >
-                    Next
-                  </button>
-                </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+
+              {products.length > 0 && (
+                <div className='mt-4 flex items-center justify-between'>
+                  <p className='text-sm text-gray-600'>
+                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} results
+                  </p>
+                  <div className='flex gap-2'>
+                    <button
+                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      disabled={page === 1 || loading}
+                      className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          disabled={loading}
+                          className={`rounded px-3 py-1 text-sm ${
+                            page === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          } disabled:opacity-50`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={page === totalPages || loading}
+                      className='rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50'
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

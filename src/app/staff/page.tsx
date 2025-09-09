@@ -21,6 +21,9 @@ import { StaffPermissions } from '@/components/staff/StaffPermissions';
 import { CreateStaffModal } from '@/components/modals/CreateStaffModal';
 import { InviteStaffModal } from '@/components/modals/InviteStaffModal';
 import { useStaff, useStaffLimitInfo, useStaffStats } from '@/lib/hooks/use-staff';
+import { ExportService } from '@/services/export.service';
+import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,9 +60,42 @@ export default function StaffPage() {
     ]);
   };
 
-  const handleExport = () => {
-    // Implementation for exporting staff data
-    console.log('Exporting staff data...');
+  const handleExport = async (exportFormat: 'csv' | 'excel' = 'csv') => {
+    try {
+      if (!data || data.length === 0) {
+        toast.error('No staff data to export');
+        return;
+      }
+
+      const exportData = data.map(staff => ({
+        'Staff ID': staff.id,
+        'Name': `${staff.firstName || ''} ${staff.lastName || ''}`.trim(),
+        'Email': staff.email,
+        'Role': staff.role,
+        'Department': staff.department || '',
+        'Status': staff.status,
+        'Phone': staff.phone || '',
+        'Employee ID': staff.employeeId || '',
+        'Hire Date': staff.hireDate ? format(new Date(staff.hireDate), 'yyyy-MM-dd') : '',
+        'Last Active': staff.lastActive ? format(new Date(staff.lastActive), 'yyyy-MM-dd HH:mm:ss') : '',
+        'Permissions': staff.permissions ? staff.permissions.join(', ') : '',
+        'Manager': staff.manager || '',
+        'Location': staff.location || '',
+        'Salary': staff.salary || '',
+        'Created At': format(new Date(staff.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+        'Updated At': format(new Date(staff.updatedAt), 'yyyy-MM-dd HH:mm:ss'),
+      }));
+
+      ExportService.exportData(exportData, exportFormat, 'staff-export', {
+        sheetName: 'Staff',
+        includeTimestamp: true
+      });
+
+      toast.success(`Exported ${exportData.length} staff records to ${exportFormat.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.');
+    }
   };
 
   const getStatusColor = (status: string) => {

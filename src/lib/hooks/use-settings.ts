@@ -9,7 +9,6 @@ export const settingsKeys = {
   notifications: () => [...settingsKeys.all, 'notifications'] as const,
   services: () => [...settingsKeys.all, 'services'] as const,
   system: () => [...settingsKeys.all, 'system'] as const,
-  backups: () => [...settingsKeys.all, 'backups'] as const,
   maintenance: () => [...settingsKeys.all, 'maintenance'] as const,
 } as const;
 
@@ -191,26 +190,7 @@ export function useUpdateSystemNotification() {
   });
 }
 
-// Test notification service
-export function useTestNotificationService() {
-  return useMutation({
-    mutationFn: ({ serviceId, testData }: { serviceId: string; testData?: any }) =>
-      settingsService.testNotificationService(serviceId),
-  });
-}
-
-// Restart notification service
-export function useRestartNotificationService() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (serviceId: string) => settingsService.restartNotificationService(serviceId),
-    onSuccess: () => {
-      // Invalidate services to refresh status
-      queryClient.invalidateQueries({ queryKey: settingsKeys.services() });
-    },
-  });
-}
+// Test and restart notification service functionality removed - no backend support
 
 // Update system maintenance mode
 export function useUpdateMaintenanceMode() {
@@ -232,50 +212,4 @@ export function useUpdateMaintenanceMode() {
   });
 }
 
-// Backup system data
-export function useBackupSystem() {
-  return useMutation({
-    mutationFn: async (params: {
-      type: 'full' | 'database' | 'files' | 'configuration';
-      schedule?: boolean;
-      retention?: number;
-    }) => {
-      // Mock implementation - replace with actual API call
-      return {
-        backupId: `backup_${Date.now()}`,
-        type: params.type,
-        status: 'started',
-        estimatedSize: Math.floor(Math.random() * 5000) + 1000, // MB
-        estimatedTime: Math.floor(Math.random() * 30) + 5, // minutes
-      };
-    },
-  });
-}
-
-// Get backup status
-export function useBackupStatus(backupId: string | null) {
-  return useQuery({
-    queryKey: [...settingsKeys.backups(), backupId],
-    queryFn: async () => {
-      if (!backupId) return null;
-
-      // Mock implementation - replace with actual API call
-      const statuses = ['in_progress', 'completed', 'failed'];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-
-      return {
-        id: backupId,
-        status,
-        progress: status === 'in_progress' ? Math.floor(Math.random() * 100) : 100,
-        size: Math.floor(Math.random() * 5000) + 1000, // MB
-        downloadUrl: status === 'completed' ? `https://api.digimall.ng/backups/${backupId}` : null,
-        error: status === 'failed' ? 'Backup failed due to insufficient storage' : null,
-      };
-    },
-    enabled: !!backupId,
-    refetchInterval: (data) => {
-      // Only refetch if still in progress
-      return data?.status === 'in_progress' ? 2000 : false;
-    },
-  });
-}
+// Backup functionality removed - no backend support

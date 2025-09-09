@@ -75,6 +75,9 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { ExportService } from '@/services/export.service';
+import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
@@ -106,6 +109,67 @@ export default function AnalyticsPage() {
     else if (days <= 90) setPeriod('month');
     else setPeriod('year');
   }, [dateRange]);
+
+  const handleExport = async (exportFormat: 'csv' | 'excel' = 'csv') => {
+    try {
+      const exportData = [];
+
+      // Summary data
+      if (analytics) {
+        exportData.push({
+          'Report Type': 'Summary',
+          'Total Users': analytics.totalUsers,
+          'Total Vendors': analytics.totalVendors,
+          'Total Products': analytics.totalProducts,
+          'Total Orders': analytics.totalOrders,
+          'Total Revenue': analytics.totalRevenue,
+          'Period': `${dateRange} days`,
+          'Generated At': format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+        });
+      }
+
+      // Revenue data
+      if (revenueData && revenueData.length > 0) {
+        revenueData.forEach(revenue => {
+          exportData.push({
+            'Report Type': 'Revenue',
+            'Period': revenue.period || revenue.date,
+            'Revenue': revenue.revenue || revenue.value,
+            'Orders': revenue.orders,
+            'Growth Rate': revenue.growthRate || '',
+          });
+        });
+      }
+
+      // Category data
+      if (categoryData && categoryData.length > 0) {
+        categoryData.forEach(category => {
+          exportData.push({
+            'Report Type': 'Category Performance',
+            'Category': category.name,
+            'Revenue': category.revenue,
+            'Orders': category.orders,
+            'Products': category.products,
+          });
+        });
+      }
+
+      if (exportData.length === 0) {
+        toast.error('No data available to export');
+        return;
+      }
+
+      ExportService.exportData(exportData, exportFormat, 'analytics-report', {
+        sheetName: 'Analytics Report',
+        includeTimestamp: true
+      });
+
+      toast.success(`Exported analytics report to ${exportFormat.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.');
+    }
+  };
 
   // Handle loading states
   if (analyticsLoading || revenueLoading || categoryLoading) {
@@ -231,6 +295,7 @@ export default function AnalyticsPage() {
             label: 'Export Report',
             icon: Download,
             variant: 'secondary',
+            onClick: () => handleExport('csv'),
           },
           {
             label: 'Refresh Data',

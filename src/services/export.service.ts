@@ -334,6 +334,203 @@ export class ExportService {
   }
 
   /**
+   * Export products to Excel
+   */
+  static exportProductsToExcel(
+    products: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'products',
+      sheetName = 'Products',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = products.map(product => ({
+      'Product ID': product.id,
+      'Product Name': product.name,
+      'SKU': product.sku || '',
+      'Vendor': product.vendor?.businessName || '',
+      'Category': product.category?.name || '',
+      'Price': product.price,
+      'Stock Quantity': product.trackInventory ? product.stockQuantity : 'Unlimited',
+      'Status': product.status,
+      'Is Featured': product.isFeatured ? 'Yes' : 'No',
+      'View Count': product.viewCount || 0,
+      'Sold Quantity': product.soldQuantity || 0,
+      'Created At': format(new Date(product.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+    }));
+
+    this.exportToExcel(exportData, filename, sheetName, includeTimestamp);
+  }
+
+  /**
+   * Export products to CSV
+   */
+  static exportProductsToCSV(
+    products: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'products',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = products.map(product => ({
+      'Product ID': product.id,
+      'Product Name': product.name,
+      'SKU': product.sku || '',
+      'Vendor': product.vendor?.businessName || '',
+      'Category': product.category?.name || '',
+      'Price': product.price,
+      'Stock Quantity': product.trackInventory ? product.stockQuantity : 'Unlimited',
+      'Status': product.status,
+      'Is Featured': product.isFeatured ? 'Yes' : 'No',
+      'View Count': product.viewCount || 0,
+      'Sold Quantity': product.soldQuantity || 0,
+      'Created At': format(new Date(product.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+    }));
+
+    this.exportToCSV(exportData, filename, includeTimestamp);
+  }
+
+  /**
+   * Export orders to Excel
+   */
+  static exportOrdersToExcel(
+    orders: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'orders',
+      sheetName = 'Orders',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = orders.map(order => ({
+      'Order ID': order.id,
+      'Order Number': order.orderNumber || '',
+      'Customer': order.customer?.name || '',
+      'Customer Email': order.customer?.email || '',
+      'Vendor': order.vendor?.businessName || '',
+      'Status': order.status,
+      'Payment Status': order.paymentStatus || '',
+      'Total Amount': order.totalAmount,
+      'Currency': order.currency || 'NGN',
+      'Items Count': order.items?.length || 0,
+      'Shipping Address': order.shippingAddress ? `${order.shippingAddress.street}, ${order.shippingAddress.city}` : '',
+      'Order Date': format(new Date(order.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+      'Delivery Date': order.deliveryDate ? format(new Date(order.deliveryDate), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+
+    this.exportToExcel(exportData, filename, sheetName, includeTimestamp);
+  }
+
+  /**
+   * Export orders to CSV
+   */
+  static exportOrdersToCSV(
+    orders: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'orders',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = orders.map(order => ({
+      'Order ID': order.id,
+      'Order Number': order.orderNumber || '',
+      'Customer': order.customer?.name || '',
+      'Customer Email': order.customer?.email || '',
+      'Vendor': order.vendor?.businessName || '',
+      'Status': order.status,
+      'Payment Status': order.paymentStatus || '',
+      'Total Amount': order.totalAmount,
+      'Currency': order.currency || 'NGN',
+      'Items Count': order.items?.length || 0,
+      'Shipping Address': order.shippingAddress ? `${order.shippingAddress.street}, ${order.shippingAddress.city}` : '',
+      'Order Date': format(new Date(order.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+      'Delivery Date': order.deliveryDate ? format(new Date(order.deliveryDate), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+
+    this.exportToCSV(exportData, filename, includeTimestamp);
+  }
+
+  /**
+   * Export vendors to Excel
+   */
+  static exportVendorsToExcel(
+    vendors: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'vendors',
+      sheetName = 'Vendors',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = vendors.map(vendor => ({
+      'Vendor ID': vendor.id,
+      'Business Name': vendor.businessName,
+      'Contact Name': `${vendor.firstName || ''} ${vendor.lastName || ''}`.trim(),
+      'Email': vendor.email,
+      'Phone': vendor.phone || '',
+      'Status': vendor.status,
+      'Verification Status': vendor.verificationStatus || '',
+      'Business Type': vendor.businessType || '',
+      'Registration Number': vendor.registrationNumber || '',
+      'Tax ID': vendor.taxId || '',
+      'Address': vendor.address ? `${vendor.address.street}, ${vendor.address.city}` : '',
+      'Country': vendor.address?.country || '',
+      'Total Products': vendor.totalProducts || 0,
+      'Total Sales': vendor.totalSales || 0,
+      'Rating': vendor.rating || 0,
+      'Commission Rate': vendor.commissionRate || 0,
+      'Joined Date': format(new Date(vendor.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+      'Last Active': vendor.lastActive ? format(new Date(vendor.lastActive), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+
+    this.exportToExcel(exportData, filename, sheetName, includeTimestamp);
+  }
+
+  /**
+   * Export vendors to CSV
+   */
+  static exportVendorsToCSV(
+    vendors: any[],
+    options: ExportOptions = {}
+  ): void {
+    const {
+      filename = 'vendors',
+      includeTimestamp = true,
+    } = options;
+
+    const exportData = vendors.map(vendor => ({
+      'Vendor ID': vendor.id,
+      'Business Name': vendor.businessName,
+      'Contact Name': `${vendor.firstName || ''} ${vendor.lastName || ''}`.trim(),
+      'Email': vendor.email,
+      'Phone': vendor.phone || '',
+      'Status': vendor.status,
+      'Verification Status': vendor.verificationStatus || '',
+      'Business Type': vendor.businessType || '',
+      'Registration Number': vendor.registrationNumber || '',
+      'Tax ID': vendor.taxId || '',
+      'Address': vendor.address ? `${vendor.address.street}, ${vendor.address.city}` : '',
+      'Country': vendor.address?.country || '',
+      'Total Products': vendor.totalProducts || 0,
+      'Total Sales': vendor.totalSales || 0,
+      'Rating': vendor.rating || 0,
+      'Commission Rate': vendor.commissionRate || 0,
+      'Joined Date': format(new Date(vendor.createdAt), 'yyyy-MM-dd HH:mm:ss'),
+      'Last Active': vendor.lastActive ? format(new Date(vendor.lastActive), 'yyyy-MM-dd HH:mm:ss') : '',
+    }));
+
+    this.exportToCSV(exportData, filename, includeTimestamp);
+  }
+
+  /**
    * Generic Excel export utility
    */
   private static exportToExcel(

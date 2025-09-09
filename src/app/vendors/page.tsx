@@ -52,6 +52,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils/cn';
+import { ExportService } from '@/services/export.service';
+import { toast } from 'react-hot-toast';
 
 export default function VendorsPage() {
   const { data: session } = useSession();
@@ -240,19 +242,30 @@ export default function VendorsPage() {
 
   const handleExport = async (format: 'csv' | 'excel' = 'csv') => {
     try {
-      const blob = await exportVendors.mutateAsync({ ...filters, format });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `vendors-${new Date().toISOString().split('T')[0]}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (!vendorsResponse?.vendors || vendorsResponse.vendors.length === 0) {
+        toast.error('No vendor data to export');
+        return;
+      }
+
+      const vendors = vendorsResponse.vendors;
+      
+      if (format === 'csv') {
+        ExportService.exportVendorsToCSV(vendors, {
+          filename: `vendors-${searchTerm ? 'filtered-' : ''}export`,
+          includeTimestamp: true
+        });
+      } else {
+        ExportService.exportVendorsToExcel(vendors, {
+          filename: `vendors-${searchTerm ? 'filtered-' : ''}export`,
+          sheetName: 'Vendors',
+          includeTimestamp: true
+        });
+      }
+
+      toast.success(`Exported ${vendors.length} vendors to ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Export failed:', error);
-      // You could show a toast notification here in a real app
-      alert('Export failed. Please try again.');
+      toast.error('Export failed. Please try again.');
     }
   };
 
