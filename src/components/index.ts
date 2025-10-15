@@ -61,7 +61,7 @@ export { Sidebar } from './layout/Sidebar';
 
 // UI Components
 export { AnimatedCard } from './ui/AnimatedCard';
-export { Card } from './ui/Card';
+export { Card } from './ui/card';
 export { ErrorMessage } from './ui/ErrorMessage';
 export { LoadingDashboard } from './ui/LoadingDashboard';
 export { Modal } from './ui/Modal';
