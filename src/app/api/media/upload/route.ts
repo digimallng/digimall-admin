@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Category ID required' }, { status: 400 });
     }
 
-    // Proxy the request to the admin service category image upload endpoint
-    const adminServiceUrl = process.env.ADMIN_SERVICE_URL || 'http://localhost:4800';
-    const uploadUrl = `${adminServiceUrl}/api/v1/categories/${categoryId}/upload-image`;
+    // Proxy the request to the unified backend category image upload endpoint
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const uploadUrl = `${backendUrl}/api/v1/categories/${categoryId}/upload-image`;
 
     // Create FormData for the backend request
     const backendFormData = new FormData();

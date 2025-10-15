@@ -1,51 +1,51 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Search, User, Sun, Moon, Command, LogOut, Settings, ChevronDown } from 'lucide-react';
+import { Bell, Search, User, Command, LogOut, Settings, ChevronDown, Menu } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { notificationsService } from '@/lib/api/services';
-import { MobileMenuButton } from './Sidebar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
-  onMenuToggle: () => void;
+  onMenuClick?: () => void;
 }
 
-export function Header({ onMenuToggle }: HeaderProps) {
+export function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications from admin service
   const { data: notificationResponse, refetch: refetchNotifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationsService.getNotifications({
       limit: 10,
-      status: 'all', // Get both read and unread for display
+      status: 'all',
     }),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
     enabled: !!session?.accessToken,
   });
 
   const notifications = notificationResponse?.notifications || [];
   const unreadCount = notificationResponse?.unreadCount || notifications.filter(n => !n.read).length || 0;
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -57,19 +57,17 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   const formatTimeAgo = (timestamp: string) => {
     if (!timestamp) return 'Unknown time';
-    
+
     const date = new Date(timestamp);
-    
-    // Check if date is valid
+
     if (isNaN(date.getTime())) {
       console.warn('Invalid timestamp:', timestamp);
       return 'Unknown time';
     }
-    
+
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    // Handle negative differences (future dates)
+
     if (diffInMinutes < 0) return 'Just now';
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
@@ -88,7 +86,6 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   const stripHtmlTags = (html: string) => {
     if (!html) return '';
-    // Remove HTML tags and decode HTML entities
     const div = document.createElement('div');
     div.innerHTML = html;
     return div.textContent || div.innerText || '';
@@ -96,38 +93,32 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   const formatNotificationMessage = (message: string) => {
     if (!message) return 'No content';
-    
-    // If message looks like HTML content (contains HTML tags)
+
     if (message.includes('<') && message.includes('>')) {
       const stripped = stripHtmlTags(message);
-      // If stripped content is still very long, truncate it
       return stripped.length > 120 ? stripped.substring(0, 120) + '...' : stripped;
     }
-    
-    // Regular message, just truncate if needed
+
     return message.length > 120 ? message.substring(0, 120) + '...' : message;
   };
 
   const formatNotificationTitle = (title: string) => {
     if (!title) return 'Notification';
-    
-    // If title looks like HTML content (contains HTML tags)
+
     if (title.includes('<') && title.includes('>')) {
       const stripped = stripHtmlTags(title);
       return stripped.length > 60 ? stripped.substring(0, 60) + '...' : stripped;
     }
-    
-    // Regular title, just truncate if needed
+
     return title.length > 60 ? title.substring(0, 60) + '...' : title;
   };
 
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.read) {
       await notificationsService.markAsRead(notification.id);
-      refetchNotifications(); // Refresh the notifications list
+      refetchNotifications();
     }
-    
-    // If there's an action URL, navigate to it
+
     if (notification.actionUrl) {
       window.location.href = notification.actionUrl;
     }
@@ -139,207 +130,205 @@ export function Header({ onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className='sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200/50 bg-white/80 px-4 backdrop-blur-md lg:px-6'>
-      <div className='flex flex-1 items-center space-x-4'>
-        <MobileMenuButton onClick={onMenuToggle} />
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden h-9 w-9"
+        onClick={onMenuClick}
+      >
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Open menu</span>
+      </Button>
 
-        <div className='relative w-full max-w-md'>
-          <div className='absolute inset-y-0 left-0 flex items-center pl-3'>
-            <Search className='h-4 w-4 text-gray-400' />
-          </div>
-          <input
-            type='search'
-            placeholder='Search anything...'
-            className='w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-10 pr-4 text-sm transition-all duration-200 placeholder:text-gray-500 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20'
+      <div className="flex flex-1 items-center gap-2">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search anything..."
+            className="w-full pl-9 pr-20"
           />
-          <div className='absolute inset-y-0 right-0 flex items-center pr-3'>
-            <kbd className='inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-500'>
-              <Command className='mr-1 h-3 w-3' />K
-            </kbd>
-          </div>
+          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <Command className="h-3 w-3" />K
+          </kbd>
         </div>
       </div>
 
-      <div className='flex items-center space-x-2'>
+      <div className="flex items-center gap-2">
         {/* Theme Toggle */}
-        <button className='relative rounded-xl p-2.5 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900'>
-          <Sun className='h-5 w-5' />
-        </button>
+        <ThemeToggle />
 
         {/* Notifications */}
-        <div className='relative' ref={notificationRef}>
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className='relative rounded-xl p-2.5 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900'
-          >
-            <Bell className='h-5 w-5' />
-            {unreadCount > 0 && (
-              <span className='absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-[10px] font-medium text-white'>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
+        <Popover open={showNotifications} onOpenChange={setShowNotifications}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative h-9 w-9">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -right-1 -top-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+              <span className="sr-only">Notifications</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="flex items-center justify-between p-4 pb-2">
+              <h4 className="text-sm font-semibold">
+                Notifications {unreadCount > 0 && `(${unreadCount})`}
+              </h4>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={handleMarkAllAsRead}
+                  >
+                    Mark all read
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 text-xs"
+                  onClick={() => refetchNotifications()}
+                >
+                  Refresh
+                </Button>
+              </div>
+            </div>
 
-          {/* Notification Dropdown */}
-          {showNotifications && (
-            <div className='absolute right-0 top-full mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-lg'>
-              <div className='p-4'>
-                <div className='flex items-center justify-between mb-3'>
-                  <h3 className='text-sm font-semibold text-gray-900'>
-                    Notifications {unreadCount > 0 && `(${unreadCount})`}
-                  </h3>
-                  <div className='flex items-center gap-2'>
-                    {unreadCount > 0 && (
-                      <button 
-                        onClick={handleMarkAllAsRead}
-                        className='text-xs text-green-600 hover:text-green-700'
-                      >
-                        Mark All Read
-                      </button>
-                    )}
-                    <button 
-                      onClick={refetchNotifications}
-                      className='text-xs text-blue-600 hover:text-blue-700'
-                    >
-                      Refresh
-                    </button>
-                  </div>
+            <Separator />
+
+            <div className="max-h-80 overflow-y-auto p-2">
+              {notifications.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No notifications
                 </div>
-                
-                <div className='max-h-64 overflow-y-auto'>
-                  {notifications.length === 0 ? (
-                    <div className='py-4 text-center text-sm text-gray-500'>
-                      No notifications
-                    </div>
-                  ) : (
-                    <div className='space-y-2'>
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 ${
-                            notification.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          <div className='flex items-start space-x-2'>
-                            <span className='text-sm'>{getNotificationIcon(notification.type)}</span>
-                            <div className='flex-1 min-w-0'>
-                              <div className='flex items-center justify-between'>
-                                <p className={`text-sm truncate ${
-                                  notification.read ? 'font-normal text-gray-700' : 'font-medium text-gray-900'
-                                }`}>
-                                  {formatNotificationTitle(notification.title)}
-                                </p>
-                                {!notification.read && (
-                                  <div className='w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 ml-2'></div>
-                                )}
-                              </div>
-                              <p className='text-xs text-gray-600 mt-1'>
-                                {formatNotificationMessage(notification.message)}
-                              </p>
-                              <div className='flex items-center justify-between mt-1'>
-                                <p className='text-xs text-gray-400'>
-                                  {formatTimeAgo(notification.sentAt || notification.createdAt)}
-                                </p>
-                                {notification.priority && (
-                                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                    notification.priority === 'urgent' ? 'bg-red-100 text-red-600' :
-                                    notification.priority === 'high' ? 'bg-orange-100 text-orange-600' :
-                                    notification.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {notification.priority}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+              ) : (
+                <div className="space-y-1">
+                  {notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
+                      className={cn(
+                        "w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent",
+                        notification.read ? 'bg-muted/50 border-transparent' : 'bg-primary/5 border-primary/20'
+                      )}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm">{getNotificationIcon(notification.type)}</span>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={cn(
+                              "text-sm truncate",
+                              notification.read ? 'font-normal text-muted-foreground' : 'font-medium'
+                            )}>
+                              {formatNotificationTitle(notification.title)}
+                            </p>
+                            {!notification.read && (
+                              <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {formatNotificationMessage(notification.message)}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                              {formatTimeAgo(notification.sentAt || notification.createdAt)}
+                            </p>
+                            {notification.priority && (
+                              <Badge
+                                variant={
+                                  notification.priority === 'urgent' ? 'destructive' :
+                                  notification.priority === 'high' ? 'default' :
+                                  'secondary'
+                                }
+                                className="h-5 text-[10px]"
+                              >
+                                {notification.priority}
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                
-                <div className='border-t pt-2 mt-3'>
-                  <button className='w-full text-center text-xs text-blue-600 hover:text-blue-700'>
-                    View all notifications
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+
+            <Separator />
+
+            <div className="p-2">
+              <Button variant="ghost" size="sm" className="w-full justify-center text-xs">
+                View all notifications
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Separator orientation="vertical" className="h-6" />
 
         {/* User Profile */}
-        <div className='relative' ref={userMenuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className='ml-3 flex items-center space-x-3 rounded-xl bg-gray-50/50 p-2 transition-all duration-200 hover:bg-gray-100/50'
-          >
-            <div className='relative'>
-              <div className='h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-0.5'>
-                <div className='flex h-full w-full items-center justify-center rounded-full bg-white/20'>
-                  {session?.user?.image ? (
-                    <img
-                      src={session.user.image}
-                      alt={session?.user?.name || 'User'}
-                      className='h-full w-full rounded-full object-cover'
-                    />
-                  ) : (
-                    <User className='h-4 w-4 text-white' />
-                  )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="gap-2 pl-2">
+              <div className="relative">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-0.5">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-white/20">
+                    {session?.user?.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session?.user?.name || 'User'}
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-4 w-4 text-white" />
+                    )}
+                  </div>
                 </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
               </div>
-              <div className='absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500'></div>
-            </div>
-            <div className='hidden text-sm sm:block text-left'>
-              <p className='font-medium text-gray-900'>
-                {session?.user?.name || 'Admin User'}
-              </p>
-              <p className='text-gray-500'>
-                {session?.user?.email || 'admin@digimall.ng'}
-              </p>
-            </div>
-            <ChevronDown className='h-4 w-4 text-gray-400' />
-          </button>
-
-          {/* User Dropdown Menu */}
-          {showUserMenu && (
-            <div className='absolute right-0 top-full mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg'>
-              <div className='p-2'>
-                <div className='px-3 py-2 border-b border-gray-100'>
-                  <p className='text-sm font-medium text-gray-900'>
-                    {session?.user?.name || 'Admin User'}
-                  </p>
-                  <p className='text-xs text-gray-500'>
-                    {session?.user?.email || 'admin@digimall.ng'}
-                  </p>
-                </div>
-                
-                <div className='py-1'>
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      // Navigate to settings
-                    }}
-                    className='flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg'
-                  >
-                    <Settings className='mr-2 h-4 w-4' />
-                    Settings
-                  </button>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className='flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg'
-                  >
-                    <LogOut className='mr-2 h-4 w-4' />
-                    Sign Out
-                  </button>
-                </div>
+              <div className="hidden text-left text-sm sm:block">
+                <p className="font-medium leading-none">
+                  {session?.user?.name || 'Admin User'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {session?.user?.email || 'admin@digimall.ng'}
+                </p>
               </div>
-            </div>
-          )}
-        </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">
+                  {session?.user?.name || 'Admin User'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {session?.user?.email || 'admin@digimall.ng'}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

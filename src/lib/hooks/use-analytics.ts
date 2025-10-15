@@ -1,6 +1,12 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { analyticsService } from '../api/services';
-import { DashboardAnalytics, RevenueData, CategoryStats } from '../api/types';
+import type {
+  DashboardAnalyticsResponse,
+  RevenueAnalyticsResponse,
+  OrderAnalyticsResponse,
+  PerformanceAnalyticsResponse,
+  DashboardAnalyticsParams,
+} from '../api/types';
 
 // Query keys
 export const analyticsKeys = {
@@ -17,44 +23,46 @@ export const analyticsKeys = {
 
 // Dashboard analytics hook
 export function useDashboardAnalytics(
-  options?: Omit<UseQueryOptions<DashboardAnalytics, Error>, 'queryKey' | 'queryFn'>
+  params?: DashboardAnalyticsParams,
+  options?: Omit<UseQueryOptions<DashboardAnalyticsResponse, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: analyticsKeys.dashboard(),
-    queryFn: () => analyticsService.getDashboardAnalytics(),
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    queryFn: () => analyticsService.getDashboard(params),
+    staleTime: 3 * 60 * 1000, // Consider data fresh for 3 minutes
+    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchInterval: false, // Disable auto-refetch, use manual refresh button
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    retry: 1,
     ...options,
   });
 }
 
 // Revenue data hook
 export function useRevenueData(
-  params?: {
-    startDate?: string;
-    endDate?: string;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
-  options?: Omit<UseQueryOptions<RevenueData[], Error>, 'queryKey' | 'queryFn'>
+  params?: DashboardAnalyticsParams,
+  options?: Omit<UseQueryOptions<RevenueAnalyticsResponse, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: analyticsKeys.revenue(params),
-    queryFn: () => analyticsService.getRevenueData(params),
-    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
+    queryFn: () => analyticsService.getRevenue(params),
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    refetchInterval: false, // Disable auto-refetch
+    refetchOnWindowFocus: false,
+    retry: 1,
     ...options,
   });
 }
 
 // Category stats hook
 export function useCategoryStats(
-  params?: {
-    limit?: number;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
-  options?: Omit<UseQueryOptions<CategoryStats[], Error>, 'queryKey' | 'queryFn'>
+  params?: DashboardAnalyticsParams,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: analyticsKeys.categories(params),
-    queryFn: () => analyticsService.getCategoryStats(params),
+    queryFn: () => analyticsService.getProducts(params),
     refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
     ...options,
   });
@@ -62,16 +70,12 @@ export function useCategoryStats(
 
 // User analytics hook
 export function useUserAnalytics(
-  params?: {
-    startDate?: string;
-    endDate?: string;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
+  params?: DashboardAnalyticsParams,
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: analyticsKeys.users(params),
-    queryFn: () => analyticsService.getUserAnalytics(params),
+    queryFn: () => analyticsService.getUsers(params),
     refetchInterval: 10 * 60 * 1000,
     ...options,
   });
@@ -79,16 +83,12 @@ export function useUserAnalytics(
 
 // Vendor analytics hook
 export function useVendorAnalytics(
-  params?: {
-    startDate?: string;
-    endDate?: string;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
+  params?: DashboardAnalyticsParams,
   options?: UseQueryOptions<any, Error>
 ) {
   return useQuery({
     queryKey: analyticsKeys.vendors(params),
-    queryFn: () => analyticsService.getVendorAnalytics(params),
+    queryFn: () => analyticsService.getVendors(params),
     refetchInterval: 10 * 60 * 1000,
     ...options,
   });
@@ -96,16 +96,12 @@ export function useVendorAnalytics(
 
 // Product analytics hook
 export function useProductAnalytics(
-  params?: {
-    startDate?: string;
-    endDate?: string;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
+  params?: DashboardAnalyticsParams,
   options?: UseQueryOptions<any, Error>
 ) {
   return useQuery({
     queryKey: analyticsKeys.products(params),
-    queryFn: () => analyticsService.getProductAnalytics(params),
+    queryFn: () => analyticsService.getProducts(params),
     refetchInterval: 10 * 60 * 1000,
     ...options,
   });
@@ -113,29 +109,34 @@ export function useProductAnalytics(
 
 // Order analytics hook
 export function useOrderAnalytics(
-  params?: {
-    startDate?: string;
-    endDate?: string;
-    period?: 'day' | 'week' | 'month' | 'year';
-  },
-  options?: UseQueryOptions<any, Error>
+  params?: DashboardAnalyticsParams,
+  options?: UseQueryOptions<OrderAnalyticsResponse, Error>
 ) {
   return useQuery({
     queryKey: analyticsKeys.orders(params),
-    queryFn: () => analyticsService.getOrderAnalytics(params),
-    refetchInterval: 10 * 60 * 1000,
+    queryFn: () => analyticsService.getOrders(params),
+    staleTime: 3 * 60 * 1000, // Consider data fresh for 3 minutes
+    cacheTime: 10 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 1,
     ...options,
   });
 }
 
 // System metrics hook
 export function useSystemMetrics(
-  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+  params?: DashboardAnalyticsParams,
+  options?: Omit<UseQueryOptions<PerformanceAnalyticsResponse, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: analyticsKeys.system(),
-    queryFn: () => analyticsService.getSystemMetrics(),
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds for system metrics
+    queryFn: () => analyticsService.getPerformance(params),
+    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+    cacheTime: 5 * 60 * 1000,
+    refetchInterval: false, // Changed from 30 seconds to manual only
+    refetchOnWindowFocus: false,
+    retry: 1,
     ...options,
   });
 }

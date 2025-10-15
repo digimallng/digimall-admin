@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  // Test direct connection to chat service
+  // Test direct connection to unified backend
   try {
-    const chatHealthResponse = await fetch('http://localhost:3005/api/v1/health');
-    const chatHealth = await chatHealthResponse.json();
-
-    const adminHealthResponse = await fetch('http://localhost:4800/api/v1/health');
-    const adminHealth = await adminHealthResponse.json();
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendHealthResponse = await fetch(`${backendUrl}/health`);
+    const backendHealth = await backendHealthResponse.json();
 
     return NextResponse.json({
       success: true,
       services: {
-        chat: {
-          url: 'http://localhost:3005/api/v1',
-          health: chatHealth,
-          status: chatHealthResponse.ok ? 'connected' : 'error',
-        },
-        admin: {
-          url: 'http://localhost:4800/api/v1',
-          health: adminHealth,
-          status: adminHealthResponse.ok ? 'connected' : 'error',
+        backend: {
+          url: backendUrl,
+          health: backendHealth,
+          status: backendHealthResponse.ok ? 'connected' : 'error',
         },
       },
     });
@@ -30,8 +23,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         services: {
-          chat: { status: 'disconnected' },
-          admin: { status: 'disconnected' },
+          backend: { status: 'disconnected' },
         },
       },
       { status: 500 }

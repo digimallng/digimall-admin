@@ -3,19 +3,35 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
-import { Button } from '@/components/ui/button';
-import { VendorApprovalModal } from '@/components/modals/VendorApprovalModal';
 import {
-  useVendor,
-  useApproveVendor,
-  useRejectVendor,
-  useSuspendVendor,
-  useReactivateVendor,
-} from '@/lib/hooks/use-vendors';
+  useVendorById,
+  useApproveRejectVendor,
+  useSuspendUnsuspendVendor,
+  useVendorPerformance,
+} from '@/lib/api/hooks/use-vendors';
 import {
   ArrowLeft,
   Building,
@@ -38,9 +54,16 @@ import {
   Ban,
   Play,
   Eye,
+  Award,
+  TrendingUp,
+  ShoppingCart,
+  CreditCard,
+  Store,
+  Target,
+  Activity,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils/cn';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function VendorDetailPage() {
@@ -49,698 +72,651 @@ export default function VendorDetailPage() {
   const { data: session } = useSession();
   const vendorId = params.id as string;
 
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | null>(null);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [suspendModalOpen, setSuspendModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [suspendReason, setSuspendReason] = useState('');
 
   const {
     data: vendor,
     isLoading,
     error,
     refetch,
-  } = useVendor(vendorId, {
-    enabled: !!session?.accessToken && !!vendorId,
-  });
+  } = useVendorById(vendorId, !!vendorId);
 
-  const approveVendor = useApproveVendor();
-  const rejectVendor = useRejectVendor();
-  const suspendVendor = useSuspendVendor();
-  const reactivateVendor = useReactivateVendor();
+  const { data: performance } = useVendorPerformance(vendorId, !!vendorId);
+  const approveRejectVendor = useApproveRejectVendor();
+  const suspendUnsuspendVendor = useSuspendUnsuspendVendor();
 
   // Handlers
-  const handleApprovalAction = (action: 'approve' | 'reject') => {
-    setApprovalAction(action);
-    setApprovalModalOpen(true);
-  };
-
-  const handleApproval = async (data: { notes?: string; conditions?: string[] }) => {
+  const handleApprove = async () => {
     if (!vendor) return;
     try {
-      await approveVendor.mutateAsync({
+      await approveRejectVendor.mutateAsync({
         id: vendor.id,
-        data: { decision: 'approve', ...data },
+        data: {
+          approved: true
+        },
       });
       toast.success('Vendor approved successfully');
-      setApprovalModalOpen(false);
-      setApprovalAction(null);
+      setApproveModalOpen(false);
       refetch();
     } catch (error: any) {
-      console.error('Vendor approval failed:', error);
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to approve vendor';
-      toast.error(errorMessage);
+      toast.error(error.message || 'Failed to approve vendor');
     }
   };
 
-  const handleRejection = async (data: {
-    reason: string;
-    feedback?: string;
-    blockedFields?: string[];
-  }) => {
-    if (!vendor) return;
+  const handleReject = async () => {
+    if (!vendor || !rejectReason.trim()) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
     try {
-      await rejectVendor.mutateAsync({
+      await approveRejectVendor.mutateAsync({
         id: vendor.id,
-        data: { decision: 'reject', ...data },
+        data: {
+          approved: false,
+          rejectionReason: rejectReason
+        },
       });
-      toast.success('Vendor rejected successfully');
-      setApprovalModalOpen(false);
-      setApprovalAction(null);
+      toast.success('Vendor rejected');
+      setRejectModalOpen(false);
+      setRejectReason('');
       refetch();
     } catch (error: any) {
-      console.error('Vendor rejection failed:', error);
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to reject vendor';
-      toast.error(errorMessage);
+      toast.error(error.message || 'Failed to reject vendor');
     }
   };
 
   const handleSuspend = async () => {
-    if (!vendor) return;
+    if (!vendor || !suspendReason.trim()) {
+      toast.error('Please provide a suspension reason');
+      return;
+    }
     try {
-      await suspendVendor.mutateAsync({
+      await suspendUnsuspendVendor.mutateAsync({
         id: vendor.id,
-        data: { reason: 'Policy violation' },
+        data: { action: 'suspend', reason: suspendReason },
       });
       toast.success('Vendor suspended successfully');
+      setSuspendModalOpen(false);
+      setSuspendReason('');
       refetch();
     } catch (error: any) {
-      console.error('Vendor suspension failed:', error);
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to suspend vendor';
-      toast.error(errorMessage);
+      toast.error(error.message || 'Failed to suspend vendor');
     }
   };
 
-  const handleReactivate = async () => {
+  const handleUnsuspend = async () => {
     if (!vendor) return;
     try {
-      await reactivateVendor.mutateAsync({ id: vendor.id });
-      toast.success('Vendor reactivated successfully');
+      await suspendUnsuspendVendor.mutateAsync({
+        id: vendor.id,
+        data: { action: 'unsuspend', reason: 'Unsuspended by admin' },
+      });
+      toast.success('Vendor unsuspended successfully');
       refetch();
     } catch (error: any) {
-      console.error('Vendor reactivation failed:', error);
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to reactivate vendor';
-      toast.error(errorMessage);
+      toast.error(error.message || 'Failed to unsuspend vendor');
     }
   };
 
   // Status helpers
-  const getStatusIcon = (status: string | undefined | null) => {
-    if (!status) return <AlertTriangle className="h-5 w-5 text-gray-500" />;
-    
-    switch (status.toLowerCase()) {
-      case 'verified':
-      case 'approved':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'under_review':
-      case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      case 'rejected':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'suspended':
-        return <Ban className="h-5 w-5 text-red-500" />;
-      default:
-        return <AlertTriangle className="h-5 w-5 text-gray-500" />;
-    }
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { className: string; icon: any }> = {
+      active: { className: 'bg-green-500', icon: CheckCircle },
+      pending: { className: 'bg-yellow-500', icon: AlertTriangle },
+      suspended: { className: 'bg-red-500', icon: XCircle },
+      inactive: { className: 'bg-gray-500', icon: XCircle },
+      verified: { className: 'bg-green-500', icon: CheckCircle },
+      under_review: { className: 'bg-yellow-500', icon: Clock },
+      rejected: { className: 'bg-red-500', icon: XCircle },
+    };
+
+    const config = variants[status?.toLowerCase()] || variants.inactive;
+    const Icon = config.icon;
+
+    return (
+      <Badge className={cn('gap-1', config.className)}>
+        <Icon className='h-3 w-3' />
+        {status}
+      </Badge>
+    );
   };
 
-  const getStatusColor = (status: string | undefined | null) => {
-    if (!status) return 'bg-gray-50 text-gray-800 ring-gray-600/20';
-    
-    switch (status.toLowerCase()) {
-      case 'verified':
-      case 'approved':
-        return 'bg-green-50 text-green-800 ring-green-600/20';
-      case 'under_review':
-      case 'pending':
-        return 'bg-yellow-50 text-yellow-800 ring-yellow-600/20';
-      case 'rejected':
-        return 'bg-red-50 text-red-800 ring-red-600/20';
-      case 'suspended':
-        return 'bg-orange-50 text-orange-800 ring-orange-600/20';
-      default:
-        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
-    }
-  };
-
-  const getVerificationStatusColor = (status: string | undefined | null) => {
-    if (!status) return 'bg-gray-50 text-gray-800 ring-gray-600/20';
-    
-    switch (status.toLowerCase()) {
-      case 'verified':
-        return 'bg-green-50 text-green-800 ring-green-600/20';
-      case 'pending':
-        return 'bg-yellow-50 text-yellow-800 ring-yellow-600/20';
-      case 'rejected':
-        return 'bg-red-50 text-red-800 ring-red-600/20';
-      case 'suspended':
-        return 'bg-orange-50 text-orange-800 ring-orange-600/20';
-      case 'unverified':
-        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
-      default:
-        return 'bg-gray-50 text-gray-800 ring-gray-600/20';
-    }
+  const getTierBadge = (tier: string) => {
+    const colors: Record<string, string> = {
+      basic: 'bg-gray-500',
+      silver: 'bg-slate-400',
+      gold: 'bg-yellow-500',
+      platinum: 'bg-purple-500',
+    };
+    return <Badge className={colors[tier?.toLowerCase()] || 'bg-gray-500'}>{tier}</Badge>;
   };
 
   // Action conditions
-  const canApprove = vendor && (
-    vendor.status === 'pending' || 
-    vendor.status === 'under_review' || 
-    vendor.status === 'pending_verification' ||
-    vendor.verificationStatus === 'pending' ||
-    vendor.verificationStatus === 'unverified'
-  );
-  const canSuspend = vendor && (
-    vendor.status === 'verified' || 
-    vendor.status === 'approved' || 
-    vendor.status === 'active' ||
-    vendor.verificationStatus === 'verified'
-  );
-  const canReactivate = vendor && (
-    vendor.status === 'suspended' || 
-    vendor.verificationStatus === 'suspended'
-  );
-
-  // Debug logging for action conditions
-  console.log('Vendor status:', vendor?.status, 'Verification:', vendor?.verificationStatus);
-  console.log('Action conditions:', { canApprove, canSuspend, canReactivate });
+  const canApprove = vendor?.status === 'pending';
+  const canSuspend = vendor?.status === 'active';
+  const canUnsuspend = vendor?.status === 'suspended';
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className='min-h-screen flex items-center justify-center'>
+        <LoadingSpinner size='lg' />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6">
-        <ErrorMessage message="Failed to load vendor details" onRetry={() => refetch()} />
+      <div className='min-h-screen flex items-center justify-center'>
+        <ErrorMessage
+          title='Failed to load vendor details'
+          message='There was an error loading the vendor information.'
+          onRetry={refetch}
+        />
       </div>
     );
   }
 
   if (!vendor) {
     return (
-      <div className="p-6">
-        <ErrorMessage message="Vendor not found" />
+      <div className='min-h-screen flex items-center justify-center'>
+        <ErrorMessage
+          title='Vendor not found'
+          message='The requested vendor could not be found.'
+        />
       </div>
     );
   }
 
+  const businessInfo = vendor.businessInfo || vendor;
+  const metrics = vendor.metrics || vendor;
+  const kyc = vendor.kyc || {};
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={vendor.businessName || 'Vendor Details'}
-        description={`Vendor ID: ${vendor.id}`}
-        icon={Building}
-        actions={[
-          {
-            label: 'Back to Vendors',
-            icon: ArrowLeft,
-            variant: 'secondary',
-            onClick: () => router.push('/vendors'),
-          },
-          {
-            label: 'View Profile',
-            icon: Eye,
-            variant: 'secondary',
-          },
-        ]}
-      />
+    <div className='space-y-6'>
+      {/* Header */}
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-4'>
+          <Button variant='ghost' size='icon' onClick={() => router.push('/vendors')}>
+            <ArrowLeft className='h-5 w-5' />
+          </Button>
+          <div>
+            <h1 className='text-3xl font-bold tracking-tight'>
+              {businessInfo.businessName || 'Vendor Details'}
+            </h1>
+            <p className='text-muted-foreground mt-1'>
+              View and manage vendor information
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* Quick Actions & Status - Top Priority */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Quick Actions & Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            {/* Status Column */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Business Status</label>
-                <div className="mt-1 flex items-center gap-2">
-                  {getStatusIcon(vendor.status)}
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset',
-                      getStatusColor(vendor.status)
+      {/* Vendor Profile Header */}
+      <Card className='overflow-hidden'>
+        <div className='h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5' />
+        <CardContent className='pt-0'>
+          <div className='flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8 -mt-16 relative z-10'>
+            <Avatar className='h-32 w-32 border-4 border-background'>
+              <AvatarFallback className='bg-primary text-primary-foreground text-4xl'>
+                {businessInfo.businessName?.charAt(0) || 'V'}
+              </AvatarFallback>
+            </Avatar>
+            <div className='flex-1 pb-4'>
+              <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <h2 className='text-2xl font-bold'>{businessInfo.businessName}</h2>
+                  <div className='flex flex-wrap items-center gap-2 mt-2'>
+                    {getStatusBadge(vendor.status)}
+                    {getTierBadge(vendor.tier || 'basic')}
+                    {kyc.status === 'verified' && (
+                      <Badge variant='outline' className='gap-1'>
+                        <Award className='h-3 w-3' />
+                        KYC Verified
+                      </Badge>
                     )}
-                  >
-                    {vendor.status?.charAt(0).toUpperCase() + vendor.status?.slice(1) || 'Unknown'}
-                  </span>
+                  </div>
+                  <div className='flex items-center gap-4 mt-3 text-sm text-muted-foreground'>
+                    <div className='flex items-center gap-1'>
+                      <Star className='h-4 w-4 text-yellow-400 fill-yellow-400' />
+                      <span className='font-medium'>
+                        {metrics.averageRating || 0}
+                      </span>
+                      <span>({metrics.totalReviews || 0} reviews)</span>
+                    </div>
+                    <Separator orientation='vertical' className='h-4' />
+                    <div className='flex items-center gap-1'>
+                      <Calendar className='h-4 w-4' />
+                      <span>Joined {format(new Date(vendor.createdAt), 'MMM dd, yyyy')}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  {canApprove && (
+                    <>
+                      <Button onClick={() => setApproveModalOpen(true)} size='sm'>
+                        <CheckCircle className='h-4 w-4 mr-2' />
+                        Approve
+                      </Button>
+                      <Button
+                        onClick={() => setRejectModalOpen(true)}
+                        variant='destructive'
+                        size='sm'
+                      >
+                        <XCircle className='h-4 w-4 mr-2' />
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                  {canSuspend && (
+                    <Button
+                      onClick={() => setSuspendModalOpen(true)}
+                      variant='destructive'
+                      size='sm'
+                    >
+                      <Ban className='h-4 w-4 mr-2' />
+                      Suspend
+                    </Button>
+                  )}
+                  {canUnsuspend && (
+                    <Button onClick={handleUnsuspend} size='sm'>
+                      <Play className='h-4 w-4 mr-2' />
+                      Unsuspend
+                    </Button>
+                  )}
                 </div>
               </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-500">Verification</label>
-                <div className="mt-1 flex items-center gap-2">
-                  {getStatusIcon(vendor.verificationStatus)}
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset',
-                      getVerificationStatusColor(vendor.verificationStatus)
-                    )}
-                  >
-                    {vendor.verificationStatus?.charAt(0).toUpperCase() + vendor.verificationStatus?.slice(1) || 'Unknown'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Key Metrics - 2 columns */}
-            <div className="lg:col-span-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{vendor.totalOrders || 0}</div>
-                  <p className="text-sm text-gray-500">Total Orders</p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    ₦{(Number(vendor.totalSales) || Number(vendor.totalRevenue) || 0).toLocaleString()}
-                  </div>
-                  <p className="text-sm text-gray-500">Revenue</p>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {vendor.rating || vendor.averageRating || '0.0'}
-                  </div>
-                  <p className="text-sm text-gray-500">Rating</p>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600 capitalize">
-                    {vendor.tier || 'Basic'}
-                  </div>
-                  <p className="text-sm text-gray-500">Tier</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions Column */}
-            <div className="space-y-3">
-              {canApprove && (
-                <div className="space-y-2">
-                  <Button
-                    className="w-full bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => handleApprovalAction('approve')}
-                    disabled={approveVendor.isPending}
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Approve
-                  </Button>
-                  <Button
-                    className="w-full bg-red-600 text-white hover:bg-red-700"
-                    onClick={() => handleApprovalAction('reject')}
-                    disabled={rejectVendor.isPending}
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Reject
-                  </Button>
-                </div>
-              )}
-
-              {canSuspend && (
-                <Button
-                  className="w-full bg-orange-600 text-white hover:bg-orange-700"
-                  onClick={handleSuspend}
-                  disabled={suspendVendor.isPending}
-                >
-                  <Ban className="mr-2 h-4 w-4" />
-                  Suspend
-                </Button>
-              )}
-
-              {canReactivate && (
-                <Button
-                  className="bg-primary hover:bg-primary/90 w-full text-white"
-                  onClick={handleReactivate}
-                  disabled={reactivateVendor.isPending}
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  Reactivate
-                </Button>
-              )}
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => router.push(`/vendors/${vendor.id}/edit`)}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Details
-              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main Content - 2 columns */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Business Information */}
+      {/* Performance Metrics */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Total Revenue
+            </CardTitle>
+            <DollarSign className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              ₦{(metrics.totalRevenue || 0).toLocaleString()}
+            </div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              All-time sales
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Total Orders
+            </CardTitle>
+            <ShoppingCart className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{metrics.totalOrders || 0}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Completed orders
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Products Listed
+            </CardTitle>
+            <Package className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{metrics.totalProducts || 0}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Active products
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Avg. Rating
+            </CardTitle>
+            <Star className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{metrics.averageRating || 0}</div>
+            <Progress value={(metrics.averageRating || 0) * 20} className='mt-2 h-1' />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Information Tabs */}
+      <Tabs defaultValue='business' className='space-y-4'>
+        <TabsList>
+          <TabsTrigger value='business'>Business Info</TabsTrigger>
+          <TabsTrigger value='contact'>Contact</TabsTrigger>
+          <TabsTrigger value='documents'>Documents</TabsTrigger>
+          <TabsTrigger value='performance'>Performance</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='business' className='space-y-4'>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <Building className='h-5 w-5' />
                 Business Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Business Name</label>
-                  <p className="font-medium text-gray-900">{vendor.businessName || 'Not provided'}</p>
+            <CardContent className='space-y-4'>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Business Name
+                  </label>
+                  <p className='text-sm'>{businessInfo.businessName || 'N/A'}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Business Type</label>
-                  <p className="text-gray-900">{vendor.businessType || vendor.businessCategory || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Business Type
+                  </label>
+                  <p className='text-sm'>{businessInfo.businessType || 'N/A'}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Registration Number</label>
-                  <p className="text-gray-900">{vendor.registrationNumber || vendor.cacNumber || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Registration Number
+                  </label>
+                  <p className='text-sm'>{businessInfo.registrationNumber || 'N/A'}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Tax ID</label>
-                  <p className="text-gray-900">{vendor.taxId || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Tax ID
+                  </label>
+                  <p className='text-sm'>{businessInfo.taxId || 'N/A'}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Website</label>
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-gray-400" />
-                    <p className="text-gray-900">{vendor.website || vendor.businessWebsite || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Website
+                  </label>
+                  <div className='flex items-center gap-2'>
+                    <Globe className='h-4 w-4 text-muted-foreground' />
+                    <p className='text-sm'>{businessInfo.website || 'N/A'}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Established Year</label>
-                  <p className="text-gray-900">{vendor.establishedYear || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Tier
+                  </label>
+                  <div className='flex items-center gap-2'>
+                    {getTierBadge(vendor.tier || 'basic')}
+                  </div>
                 </div>
               </div>
 
-              {vendor.businessDescription && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Business Description</label>
-                  <p className="mt-1 text-gray-900">{vendor.businessDescription}</p>
-                </div>
+              {businessInfo.description && (
+                <>
+                  <Separator />
+                  <div className='space-y-1'>
+                    <label className='text-sm font-medium text-muted-foreground'>
+                      Description
+                    </label>
+                    <p className='text-sm'>{businessInfo.description}</p>
+                  </div>
+                </>
               )}
 
-              <div>
-                <label className="text-sm font-medium text-gray-500">Business Address</label>
-                <div className="mt-1 flex items-start gap-2">
-                  <MapPin className="mt-0.5 h-4 w-4 text-gray-400" />
-                  <div>
-                    <p className="text-gray-900">
-                      {typeof vendor.businessAddress === 'string' 
-                        ? vendor.businessAddress 
-                        : vendor.businessAddress?.street || 'Not provided'}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {vendor.businessCity || (typeof vendor.businessAddress !== 'string' && vendor.businessAddress?.city)}, {' '}
-                      {vendor.businessState || (typeof vendor.businessAddress !== 'string' && vendor.businessAddress?.state)}
+              <Separator />
+              <div className='space-y-1'>
+                <label className='text-sm font-medium text-muted-foreground'>
+                  Business Address
+                </label>
+                <div className='flex items-start gap-2'>
+                  <MapPin className='h-4 w-4 text-muted-foreground mt-0.5' />
+                  <div className='text-sm'>
+                    <p>{businessInfo.address?.street || 'N/A'}</p>
+                    <p className='text-muted-foreground'>
+                      {businessInfo.address?.city}, {businessInfo.address?.state}
                     </p>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Contact Information */}
+        <TabsContent value='contact' className='space-y-4'>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <Phone className='h-5 w-5' />
                 Contact Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Primary Phone</label>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <p className="text-gray-900">{vendor.primaryPhone || vendor.businessPhone || vendor.user?.phone || 'Not provided'}</p>
+            <CardContent className='space-y-4'>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Primary Phone
+                  </label>
+                  <div className='flex items-center gap-2'>
+                    <Phone className='h-4 w-4 text-muted-foreground' />
+                    <p className='text-sm'>{vendor.phone || 'N/A'}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Alternative Phone</label>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <p className="text-gray-900">{vendor.alternativePhone || 'Not provided'}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Business Email</label>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <p className="text-gray-900">{vendor.businessEmail || vendor.user?.email || 'Not provided'}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Support Email</label>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <p className="text-gray-900">{vendor.supportEmail || 'Not provided'}</p>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium text-muted-foreground'>
+                    Email
+                  </label>
+                  <div className='flex items-center gap-2'>
+                    <Mail className='h-4 w-4 text-muted-foreground' />
+                    <p className='text-sm'>{vendor.email || 'N/A'}</p>
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-              {/* Owner Information */}
-              <div className="pt-4 border-t border-gray-200">
-                <label className="text-sm font-medium text-gray-500">Owner Information</label>
-                <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+        <TabsContent value='documents' className='space-y-4'>
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <FileText className='h-5 w-5' />
+                KYC Documents
+              </CardTitle>
+              <CardDescription>
+                Document verification status and information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='flex items-center justify-between p-4 border rounded-lg'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-2 bg-primary/10 rounded-lg'>
+                    <FileText className='h-5 w-5 text-primary' />
+                  </div>
                   <div>
-                    <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium text-gray-900">
-                      {vendor.user?.firstName && vendor.user?.lastName 
-                        ? `${vendor.user.firstName} ${vendor.user.lastName}`
-                        : 'Not provided'
-                      }
+                    <p className='font-medium'>KYC Verification</p>
+                    <p className='text-sm text-muted-foreground'>
+                      Status: {kyc.status || 'Not submitted'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="text-gray-900">{vendor.user?.email || 'Not provided'}</p>
+                </div>
+                {getStatusBadge(kyc.status || 'pending')}
+              </div>
+
+              {kyc.documents && kyc.documents.length > 0 && (
+                <div className='space-y-2'>
+                  <label className='text-sm font-medium'>Submitted Documents</label>
+                  <div className='space-y-2'>
+                    {kyc.documents.map((doc: any, index: number) => (
+                      <div
+                        key={index}
+                        className='flex items-center justify-between p-3 border rounded-lg'
+                      >
+                        <div className='flex items-center gap-2'>
+                          <FileText className='h-4 w-4 text-muted-foreground' />
+                          <span className='text-sm'>{doc.type || `Document ${index + 1}`}</span>
+                        </div>
+                        <Button variant='ghost' size='sm'>
+                          <Eye className='h-4 w-4 mr-2' />
+                          View
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Performance Metrics */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Performance Metrics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    ₦{(Number(vendor.totalSales) || Number(vendor.totalRevenue) || 0).toLocaleString()}
+        <TabsContent value='performance' className='space-y-4'>
+          <div className='grid gap-4 md:grid-cols-2'>
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                  <Activity className='h-5 w-5' />
+                  Sales Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <div className='space-y-2'>
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>Total Revenue</span>
+                    <span className='font-medium'>
+                      ₦{(metrics.totalRevenue || 0).toLocaleString()}
+                    </span>
                   </div>
-                  <p className="text-sm text-gray-500">Total Sales</p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{vendor.totalOrders || 0}</div>
-                  <p className="text-sm text-gray-500">Total Orders</p>
-                </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="flex items-center justify-center gap-1 text-2xl font-bold text-yellow-600">
-                    <Star className="h-5 w-5" />
-                    {vendor.rating || vendor.averageRating || '0.0'}
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>Total Orders</span>
+                    <span className='font-medium'>{metrics.totalOrders || 0}</span>
                   </div>
-                  <p className="text-sm text-gray-500">Rating</p>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{vendor.reviewCount || vendor.totalReviews || 0}</div>
-                  <p className="text-sm text-gray-500">Reviews</p>
-                </div>
-              </div>
-
-              {/* Additional Metrics */}
-              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Commission Rate</label>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {vendor.commissionRate ? `${vendor.commissionRate}%` : vendor.commission ? `${vendor.commission}%` : 'Not set'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Tier Level</label>
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-yellow-500" />
-                    <p className="font-semibold text-gray-900 capitalize">{vendor.tier || 'Basic'} Tier</p>
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>Avg. Order Value</span>
+                    <span className='font-medium'>
+                      ₦
+                      {metrics.totalOrders
+                        ? Math.round((metrics.totalRevenue || 0) / metrics.totalOrders).toLocaleString()
+                        : 0}
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Verification Level</label>
-                  <p className="text-lg font-semibold text-gray-900">{vendor.verificationLevel || 0}/5</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                  <Target className='h-5 w-5' />
+                  Customer Satisfaction
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <div className='space-y-2'>
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>Average Rating</span>
+                    <span className='font-medium'>{metrics.averageRating || 0}/5</span>
+                  </div>
+                  <Progress value={(metrics.averageRating || 0) * 20} className='h-2' />
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>Total Reviews</span>
+                    <span className='font-medium'>{metrics.totalReviews || 0}</span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Created:</span>
-                <span className="text-gray-900">
-                  {vendor.createdAt ? format(new Date(vendor.createdAt), 'MMM dd, yyyy') : 'Unknown'}
-                </span>
-              </div>
-              
-              {vendor.approvedAt && (
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  <span className="text-gray-500">Approved:</span>
-                  <span className="text-gray-900">
-                    {format(new Date(vendor.approvedAt), 'MMM dd, yyyy')}
-                  </span>
-                </div>
-              )}
+      {/* Approve Modal */}
+      <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Vendor</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to approve {businessInfo.businessName}?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setApproveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApprove} disabled={approveRejectVendor.isPending}>
+              Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              {vendor.rejectedAt && (
-                <div className="flex items-center gap-2 text-sm">
-                  <XCircle className="h-4 w-4 text-red-400" />
-                  <span className="text-gray-500">Rejected:</span>
-                  <span className="text-gray-900">
-                    {format(new Date(vendor.rejectedAt), 'MMM dd, yyyy')}
-                  </span>
-                </div>
-              )}
+      {/* Reject Modal */}
+      <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Vendor</DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting {businessInfo.businessName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4 py-4'>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder='Enter rejection reason...'
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setRejectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={handleReject}
+              disabled={approveRejectVendor.isPending || !rejectReason.trim()}
+            >
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              {vendor.suspendedAt && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Ban className="h-4 w-4 text-orange-400" />
-                  <span className="text-gray-500">Suspended:</span>
-                  <span className="text-gray-900">
-                    {format(new Date(vendor.suspendedAt), 'MMM dd, yyyy')}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Document Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Documents Submitted</span>
-                <span className={cn(
-                  'text-sm font-medium',
-                  vendor.documentsSubmitted ? 'text-green-600' : 'text-red-600'
-                )}>
-                  {vendor.documentsSubmitted ? 'Yes' : 'No'}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Documents Verified</span>
-                <span className={cn(
-                  'text-sm font-medium',
-                  vendor.documentsVerified ? 'text-green-600' : 'text-red-600'
-                )}>
-                  {vendor.documentsVerified ? 'Yes' : 'No'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Doc Verification Status</span>
-                <span className={cn(
-                  'px-2 py-1 rounded-full text-xs font-medium',
-                  vendor.documentVerificationStatus === 'verified' 
-                    ? 'bg-green-100 text-green-800' 
-                    : vendor.documentVerificationStatus === 'rejected'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                )}>
-                  {vendor.documentVerificationStatus || 'Pending'}
-                </span>
-              </div>
-
-              {vendor.rejectionReason && (
-                <div className="pt-3 border-t border-gray-200">
-                  <label className="text-sm font-medium text-gray-500">Rejection Reason</label>
-                  <p className="text-sm text-red-600 mt-1">{vendor.rejectionReason}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Quick Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">User ID</span>
-                <span className="text-sm font-mono text-gray-900">{vendor.userId || 'N/A'}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Vendor ID</span>
-                <span className="text-sm font-mono text-gray-900">{vendor.id}</span>
-              </div>
-
-              {vendor.approvedBy && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Approved By</span>
-                  <span className="text-sm text-gray-900">{vendor.approvedBy}</span>
-                </div>
-              )}
-
-              {vendor.rejectedBy && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Rejected By</span>
-                  <span className="text-sm text-gray-900">{vendor.rejectedBy}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Vendor Approval Modal */}
-      <VendorApprovalModal
-        isOpen={approvalModalOpen}
-        onClose={() => {
-          setApprovalModalOpen(false);
-          setApprovalAction(null);
-        }}
-        onApprove={handleApproval}
-        onReject={handleRejection}
-        vendor={vendor}
-        action={approvalAction}
-        isLoading={approveVendor.isPending || rejectVendor.isPending}
-      />
+      {/* Suspend Modal */}
+      <Dialog open={suspendModalOpen} onOpenChange={setSuspendModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspend Vendor</DialogTitle>
+            <DialogDescription>
+              Provide a reason for suspending {businessInfo.businessName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4 py-4'>
+            <Textarea
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              placeholder='Enter suspension reason...'
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setSuspendModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={handleSuspend}
+              disabled={suspendUnsuspendVendor.isPending || !suspendReason.trim()}
+            >
+              Suspend
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

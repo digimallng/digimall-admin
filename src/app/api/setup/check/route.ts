@@ -14,17 +14,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check if super admin exists by querying the admin service
-    const adminServiceUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://admin.digimall.ng/api/v1'
-      : process.env.ADMIN_SERVICE_URL 
-        ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
-        : 'http://localhost:4800/api/v1';
+    // Check if super admin exists by querying the unified backend
+    const backendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://api.digimall.ng'
+      : process.env.NEXT_PUBLIC_BACKEND_URL
+        ? process.env.NEXT_PUBLIC_BACKEND_URL
+        : 'http://localhost:3000';
 
-    console.log('Checking setup status with admin service:', adminServiceUrl);
+    console.log('Checking setup status with unified backend:', backendUrl);
 
-    // Query the admin service setup status endpoint
-    const response = await fetch(`${adminServiceUrl}/setup/verify-setup`, {
+    // Query the backend setup status endpoint
+    const response = await fetch(`${backendUrl}/api/v1/staff/setup/verify-setup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       // Try alternative verification - check if any admins exist
       try {
         console.log('Trying alternative admin verification...');
-        const adminCheckResponse = await fetch(`${adminServiceUrl}/users/admins`, {
+        const adminCheckResponse = await fetch(`${backendUrl}/api/v1/staff`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -74,29 +74,29 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('All verification methods failed, assuming setup needed');
-      
+
       return NextResponse.json({
         setupRequired: true,
-        message: 'Admin service not accessible or not initialized. Setup required.'
+        message: 'Backend not accessible or not initialized. Setup required.'
       });
     }
 
   } catch (error) {
     console.error('Setup check error:', error);
-    
+
     // If it's a connection error (service not running), assume setup is needed
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
-      console.log('Admin service not running, setup required');
+      console.log('Backend not running, setup required');
       return NextResponse.json({
         setupRequired: true,
-        message: 'Admin service not running. Setup required.'
+        message: 'Backend not running. Setup required.'
       });
     }
-    
+
     // On other network/errors, assume setup is needed for safety
     return NextResponse.json({
       setupRequired: true,
-      message: 'Unable to connect to admin service. Setup required.',
+      message: 'Unable to connect to backend. Setup required.',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

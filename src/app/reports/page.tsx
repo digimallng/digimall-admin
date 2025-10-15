@@ -1,9 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { AnimatedCard, AnimatedNumber, GlowingButton } from '@/components/ui/AnimatedCard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   usePlatformMetrics,
   useVendorPerformanceData,
@@ -87,7 +110,7 @@ export default function ReportsPage() {
     data: topVendorsByRevenue,
     isLoading: topVendorsLoading,
     error: topVendorsError,
-  } = useTopVendors({ limit: 5, period, sortBy: 'revenue' });
+  } = useTopVendors({ period });
 
   const {
     data: categoryDistribution,
@@ -117,16 +140,16 @@ export default function ReportsPage() {
   };
 
   const exportReport = (type: string) => {
-    const reportTypeMap: Record<string, 'revenue' | 'vendors' | 'analytics' | 'issues'> = {
+    const reportTypeMap: Record<string, 'dashboard' | 'users' | 'orders' | 'revenue'> = {
       'Revenue Report': 'revenue',
-      'Vendor Report': 'vendors',
-      'Analytics Report': 'analytics',
-      'Issues Report': 'issues',
+      'Dashboard Report': 'dashboard',
+      'Users Report': 'users',
+      'Orders Report': 'orders',
     };
 
     exportReportMutation.mutate({
-      reportType: reportTypeMap[type] || 'analytics',
-      format: 'pdf',
+      reportType: reportTypeMap[type] || 'dashboard',
+      format: 'csv',
       period: period as any,
     }, {
       onSuccess: (data) => {
@@ -148,8 +171,20 @@ export default function ReportsPage() {
   // Loading state
   if (metricsLoading || performanceLoading || topVendorsLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -158,12 +193,17 @@ export default function ReportsPage() {
   if (metricsError || performanceError || topVendorsError) {
     const error = metricsError || performanceError || topVendorsError;
     return (
-      <div className="flex h-screen items-center justify-center">
-        <ErrorMessage 
-          title="Failed to load reports data" 
-          message={error?.message || 'Unknown error occurred'} 
-        />
-      </div>
+      <Card className="mt-6">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <BarChart3 className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load reports data</h3>
+          <p className="text-sm text-gray-600 mb-4">{error?.message || 'Unknown error occurred'}</p>
+          <Button onClick={() => window.location.reload()}>
+            <Download className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -184,43 +224,35 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className='space-y-8'>
+    <div className='space-y-6'>
       {/* Header */}
-      <div className='relative'>
-        <div className='absolute inset-0 -z-10 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 rounded-3xl' />
-        <div className='p-8'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent'>
-                Platform Reports
-              </h1>
-              <p className='text-gray-600 mt-2 flex items-center gap-2'>
-                <BarChart3 className='h-4 w-4' />
-                Comprehensive platform analytics and insights
-              </p>
-            </div>
-            <div className='flex items-center gap-3'>
-              <select
-                value={dateRange}
-                onChange={e => setDateRange(e.target.value)}
-                className='rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-              >
-                <option value='7'>Last 7 days</option>
-                <option value='30'>Last 30 days</option>
-                <option value='90'>Last 90 days</option>
-                <option value='365'>Last year</option>
-              </select>
-              <GlowingButton 
-                size='sm' 
-                variant='primary'
-                onClick={() => exportReport('Analytics Report')}
-                disabled={exportReportMutation.isPending}
-              >
-                <Download className='h-4 w-4 mr-2' />
-                {exportReportMutation.isPending ? 'Exporting...' : 'Export All'}
-              </GlowingButton>
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Platform Reports</h1>
+          <p className="text-muted-foreground">
+            Comprehensive platform analytics and insights
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="365">Last year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="default"
+            onClick={() => exportReport('Dashboard Report')}
+            disabled={exportReportMutation.isPending}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {exportReportMutation.isPending ? 'Exporting...' : 'Export'}
+          </Button>
         </div>
       </div>
 
@@ -475,8 +507,8 @@ export default function ReportsPage() {
 
       {/* Quick Actions */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
-        <GlowingButton 
-          variant='primary' 
+        <GlowingButton
+          variant='primary'
           className='h-12 justify-center'
           onClick={() => exportReport('Revenue Report')}
           disabled={exportReportMutation.isPending}
@@ -484,32 +516,32 @@ export default function ReportsPage() {
           <Download className='h-4 w-4 mr-2' />
           {exportReportMutation.isPending ? 'Exporting...' : 'Revenue Report'}
         </GlowingButton>
-        <GlowingButton 
-          variant='secondary' 
+        <GlowingButton
+          variant='secondary'
           className='h-12 justify-center'
-          onClick={() => exportReport('Vendor Report')}
+          onClick={() => exportReport('Dashboard Report')}
           disabled={exportReportMutation.isPending}
         >
           <FileText className='h-4 w-4 mr-2' />
-          Vendor Report
+          Dashboard Report
         </GlowingButton>
-        <GlowingButton 
-          variant='success' 
+        <GlowingButton
+          variant='success'
           className='h-12 justify-center'
-          onClick={() => exportReport('Analytics Report')}
+          onClick={() => exportReport('Users Report')}
           disabled={exportReportMutation.isPending}
         >
           <BarChart3 className='h-4 w-4 mr-2' />
-          Analytics Report
+          Users Report
         </GlowingButton>
-        <GlowingButton 
-          variant='danger' 
+        <GlowingButton
+          variant='danger'
           className='h-12 justify-center'
-          onClick={() => exportReport('Issues Report')}
+          onClick={() => exportReport('Orders Report')}
           disabled={exportReportMutation.isPending}
         >
           <AlertTriangle className='h-4 w-4 mr-2' />
-          Issues Report
+          Orders Report
         </GlowingButton>
       </div>
     </div>

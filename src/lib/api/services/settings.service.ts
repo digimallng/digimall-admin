@@ -74,22 +74,18 @@ export class SettingsService {
   // Platform Configuration Management
   async getPlatformConfig(category?: string): Promise<PlatformConfig[]> {
     try {
-      // Get settings from admin service system config endpoint
-      const systemResponse = await apiClient.get('/system/config');
-      
+      // Get settings from admin service system config endpoint: GET /admin/system/config
+      const systemResponse = await apiClient.get('/admin/system/config');
+
       if (systemResponse && typeof systemResponse === 'object') {
         const transformedConfigs = this.transformSystemConfigToSettings(systemResponse, category);
-        if (transformedConfigs.length > 0) {
-          return transformedConfigs;
-        }
+        return transformedConfigs;
       }
-      
-      // If no configs found, return empty array instead of fallback
+
       return [];
     } catch (error) {
       console.error('Failed to fetch platform config:', error);
-      // Return empty array on error - let UI handle the error state
-      throw new Error(`Failed to load platform configuration: ${error.message}`);
+      throw new Error(`Failed to load platform configuration: ${error?.message || 'Unknown error'}`);
     }
   }
 
@@ -100,10 +96,20 @@ export class SettingsService {
         throw new Error('Configuration not found');
       }
 
-      // Update via system config endpoint
-      const updateData = { [config.key]: value };
-      await apiClient.put('/system/config', updateData);
-      
+      // Build nested update object based on config key
+      // e.g., "features.bargaining" => { features: { bargaining: value } }
+      const keys = config.key.split('.');
+      const updateData: any = {};
+
+      if (keys.length === 1) {
+        updateData[keys[0]] = value;
+      } else if (keys.length === 2) {
+        updateData[keys[0]] = { [keys[1]]: value };
+      }
+
+      // Update via system config endpoint: PUT /admin/system/config
+      await apiClient.put('/admin/system/config', updateData);
+
       // Return updated config
       return { ...config, value };
     } catch (error) {
@@ -184,7 +190,7 @@ export class SettingsService {
   async getNotificationServices(): Promise<NotificationService[]> {
     try {
       // Get real system status from admin service
-      const systemStatus = await apiClient.get('/system/status');
+      const systemStatus = await apiClient.get('/admin/system/status');
       
       if (systemStatus?.services) {
         return this.transformSystemServicesToNotificationServices(systemStatus.services);
@@ -203,7 +209,7 @@ export class SettingsService {
   // Maintenance Mode Management
   async enableMaintenanceMode(data: { message: string; endTime?: string; allowedIPs?: string[] }): Promise<any> {
     try {
-      return await apiClient.post('/system/maintenance', { enabled: true, message: data.message });
+      return await apiClient.post('/admin/system/maintenance', { enabled: true, message: data.message });
     } catch (error) {
       console.error('Failed to enable maintenance mode:', error);
       throw error;
@@ -212,7 +218,7 @@ export class SettingsService {
 
   async disableMaintenanceMode(): Promise<{ success: boolean }> {
     try {
-      return await apiClient.post('/system/maintenance', { enabled: false });
+      return await apiClient.post('/admin/system/maintenance', { enabled: false });
     } catch (error) {
       console.error('Failed to disable maintenance mode:', error);
       throw error;
@@ -223,8 +229,8 @@ export class SettingsService {
   async getSystemStatus(): Promise<any> {
     try {
       const [status, metrics] = await Promise.all([
-        apiClient.get('/system/status'),
-        apiClient.get('/system/metrics')
+        apiClient.get('/admin/system/status'),
+        apiClient.get('/admin/system/metrics')
       ]);
       
       return {
@@ -396,46 +402,56 @@ export class SettingsService {
 
   private transformSystemConfigToSettings(systemConfig: any, category?: string): PlatformConfig[] {
     const configs: PlatformConfig[] = [];
-    
-    if (systemConfig && typeof systemConfig === 'object') {
-      Object.entries(systemConfig).forEach(([key, value]: [string, any]) => {
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          // Handle nested settings objects
-          Object.entries(value).forEach(([nestedKey, nestedValue]: [string, any]) => {
-            const configCategory = this.getCategoryFromKey(key);
-            if (!category || configCategory === category) {
-              configs.push({
-                id: `${key}_${nestedKey}`,
-                key: `${key}.${nestedKey}`,
-                label: this.formatLabel(nestedKey),
-                value: nestedValue,
-                type: this.inferConfigType(nestedValue),
-                category: configCategory,
-                description: `Configure ${this.formatLabel(nestedKey)}`,
-                required: false,
-                editable: true
-              });
-            }
-          });
-        } else {
-          const configCategory = this.getCategoryFromKey(key);
-          if (!category || configCategory === category) {
-            configs.push({
-              id: key,
-              key,
-              label: this.formatLabel(key),
-              value,
-              type: this.inferConfigType(value),
-              category: configCategory,
-              description: `Configure ${this.formatLabel(key)}`,
-              required: false,
-              editable: true
-            });
-          }
-        }
-      });
+
+    if (!systemConfig || typeof systemConfig !== 'object') {
+      return configs;
     }
-    
+
+    // Process each top-level section (platform, features, limits, email, payment)
+    Object.entries(systemConfig).forEach(([sectionKey, sectionValue]: [string, any]) => {
+      if (typeof sectionValue === 'object' && sectionValue !== null && !Array.isArray(sectionValue)) {
+        // Handle nested settings objects (features, limits, etc.)
+        Object.entries(sectionValue).forEach(([nestedKey, nestedValue]: [string, any]) => {
+          const configCategory = this.getCategoryFromKey(sectionKey);
+
+          // Filter by category if provided
+          if (!category || configCategory === category) {
+            const fullKey = `${sectionKey}.${nestedKey}`;
+            const config: PlatformConfig = {
+              id: `${sectionKey}_${nestedKey}`,
+              key: fullKey,
+              label: this.formatLabel(nestedKey),
+              value: nestedValue,
+              type: this.inferConfigType(nestedValue),
+              category: configCategory,
+              description: this.getConfigDescription(sectionKey, nestedKey),
+              required: false,
+              editable: this.isConfigEditable(sectionKey, nestedKey)
+            };
+
+            configs.push(config);
+          }
+        });
+      } else {
+        // Handle top-level primitive values (if any)
+        const configCategory = this.getCategoryFromKey(sectionKey);
+
+        if (!category || configCategory === category) {
+          configs.push({
+            id: sectionKey,
+            key: sectionKey,
+            label: this.formatLabel(sectionKey),
+            value: sectionValue,
+            type: this.inferConfigType(sectionValue),
+            category: configCategory,
+            description: `Configure ${this.formatLabel(sectionKey)}`,
+            required: false,
+            editable: true
+          });
+        }
+      }
+    });
+
     return configs;
   }
 
@@ -524,9 +540,13 @@ export class SettingsService {
   }
 
   private getCategoryFromKey(key: string): string {
-    // Map configuration keys to categories
+    // Map configuration keys to categories based on API structure
     const categoryMappings: { [key: string]: string } = {
       platform: 'general',
+      features: 'general',
+      limits: 'general',
+      email: 'notifications',
+      payment: 'payments',
       currency: 'general',
       timezone: 'general',
       maintenance: 'general',
@@ -540,10 +560,8 @@ export class SettingsService {
       vendor: 'vendor',
       seller: 'vendor',
       notification: 'notifications',
-      email: 'notifications',
       sms: 'notifications',
       push: 'notifications',
-      payment: 'payments',
       gateway: 'payments',
       paypal: 'payments',
       stripe: 'payments',
@@ -567,6 +585,43 @@ export class SettingsService {
 
     // Default to general category
     return 'general';
+  }
+
+  private getConfigDescription(section: string, key: string): string {
+    // Provide meaningful descriptions for each config option
+    const descriptions: { [key: string]: string } = {
+      'platform.name': 'Platform display name',
+      'platform.version': 'Current platform version',
+      'platform.environment': 'Deployment environment (production, staging, development)',
+      'platform.maintenanceMode': 'Enable to put the platform in maintenance mode',
+      'features.bargaining': 'Allow customers to negotiate prices with vendors',
+      'features.chat': 'Enable real-time chat between users and vendors',
+      'features.reviews': 'Allow customers to leave product reviews',
+      'features.wishlist': 'Enable wishlist functionality for customers',
+      'features.subscriptions': 'Enable vendor subscription plans',
+      'limits.maxProductImages': 'Maximum number of images per product',
+      'limits.maxFileSize': 'Maximum file upload size in bytes',
+      'limits.orderRetentionDays': 'Number of days to retain order history',
+      'email.provider': 'Email service provider (resend, sendgrid, etc.)',
+      'email.fromAddress': 'Default sender email address',
+      'payment.providers': 'Enabled payment gateway providers',
+      'payment.currency': 'Default platform currency'
+    };
+
+    const fullKey = `${section}.${key}`;
+    return descriptions[fullKey] || `Configure ${this.formatLabel(key)}`;
+  }
+
+  private isConfigEditable(section: string, key: string): boolean {
+    // Some configs should not be edited (read-only)
+    const readOnlyConfigs = [
+      'platform.name',
+      'platform.version',
+      'platform.environment'
+    ];
+
+    const fullKey = `${section}.${key}`;
+    return !readOnlyConfigs.includes(fullKey);
   }
 }
 

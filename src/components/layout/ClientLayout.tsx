@@ -3,15 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { AppSidebar } from '@/components/layout/Sidebar';
+import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { Header } from '@/components/layout/Header';
-// COMMENTED OUT: Live chat websocket provider temporarily disabled
-// import { ChatWebSocketProvider } from '@/providers/chat-websocket-provider';
 import { AdminWebSocketProvider } from '@/providers/admin-websocket-provider';
+import { Spinner } from '@/components/ui/spinner';
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: session, status } = useSession();
   const pathname = usePathname();
 
@@ -19,11 +20,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Don't render layout for auth pages or setup pages
+  // Don't render layout for auth pages, setup pages, or API test page
   const isAuthPage = pathname.startsWith('/auth');
   const isSetupPage = pathname.startsWith('/setup');
+  const isApiTestPage = pathname.startsWith('/api-test');
 
-  if (isAuthPage || isSetupPage) {
+  if (isAuthPage || isSetupPage || isApiTestPage) {
     return <>{children}</>;
   }
 
@@ -34,10 +36,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   // Show loading state while checking authentication
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500/30 border-t-blue-500"></div>
-          <p className="text-gray-600">Loading...</p>
+          <Spinner className="mx-auto mb-4 h-8 w-8" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -50,18 +52,28 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminWebSocketProvider>
-      {/* COMMENTED OUT: Live chat websocket provider temporarily disabled */}
-      {/* <ChatWebSocketProvider> */}
-        <div className="flex h-screen overflow-hidden bg-gray-50">
-          <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-            <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 lg:p-6">
-              <div className="container mx-auto">{children}</div>
-            </main>
-          </div>
+      <div className="flex h-screen overflow-hidden">
+        {/* Desktop Sidebar - hidden on mobile */}
+        <div className="hidden lg:block">
+          <AppSidebar
+            isCollapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
         </div>
-      {/* </ChatWebSocketProvider> */}
+
+        {/* Mobile Sidebar - sheet drawer */}
+        <MobileSidebar
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+        />
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header onMenuClick={() => setMobileMenuOpen(true)} />
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            {children}
+          </main>
+        </div>
+      </div>
     </AdminWebSocketProvider>
   );
 }

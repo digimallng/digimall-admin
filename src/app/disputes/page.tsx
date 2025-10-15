@@ -1,221 +1,114 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
+import { useState } from 'react';
+import { format } from 'date-fns';
 import {
+  Shield,
   AlertTriangle,
-  Search,
-  Filter,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   Clock,
-  MessageCircle,
   Eye,
-  Shield,
-  TrendingUp,
-  TrendingDown,
+  RefreshCw,
+  Filter,
+  Search,
+  FileText,
+  DollarSign,
   User,
   Store,
-  Package,
-  DollarSign,
   Calendar,
   Flag,
-  Gavel,
-  FileText,
-  Phone,
-  Mail,
-  MapPin,
-  Star,
-  ThumbsUp,
-  ThumbsDown,
-  MoreVertical,
-  Download,
-  Send,
-  Paperclip,
-  RefreshCw,
-  Loader2,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils/cn';
-import { 
-  useDisputes, 
-  useDisputeCounts, 
-  useUpdateDispute, 
-  useResolveDispute,
-  useExportDisputes
-} from '@/lib/hooks/use-disputes';
-import type { 
-  Dispute, 
-  DisputeFilter,
-  DisputeStatus,
-  DisputeType,
-  DisputePriority 
-} from '@/lib/api/types/dispute.types';
+import { useDisputedEscrows, useEscrowStatistics, useResolveDispute } from '@/lib/hooks/use-escrow';
+import type { EscrowAccount, ResolveDisputeRequest } from '@/lib/api/types/escrow.types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/Textarea';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-// Remove mock data interfaces and data since we're using real API types and data now
-
 export default function DisputesPage() {
-  // State for filters and UI
+  // State management
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
+  const [selectedDispute, setSelectedDispute] = useState<EscrowAccount | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-
-  // Build filter object
-  const disputeFilter: DisputeFilter = {
-    page: currentPage,
-    limit: pageSize,
-    searchTerm: searchTerm || undefined,
-    status: statusFilter !== 'all' ? (statusFilter as DisputeStatus) : undefined,
-    type: typeFilter !== 'all' ? (typeFilter as DisputeType) : undefined,
-    priority: priorityFilter !== 'all' ? (priorityFilter as DisputePriority) : undefined,
-    sortBy: 'updatedAt',
-    sortOrder: 'desc',
-  };
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolution, setResolution] = useState<'release_to_vendor' | 'refund_to_customer'>('release_to_vendor');
+  const [resolutionNotes, setResolutionNotes] = useState('');
 
   // API hooks
-  const { 
-    disputes: disputesResponse, 
-    isLoading, 
-    error, 
-    refetch 
-  } = useDisputes(disputeFilter);
-  
-  const { 
-    data: disputeCounts, 
-    isLoading: countsLoading 
-  } = useDisputeCounts();
-  
-  const updateDisputeMutation = useUpdateDispute();
+  const {
+    data: disputedEscrows,
+    isLoading: disputedEscrowsLoading,
+    error: disputedEscrowsError,
+    refetch: refetchDisputedEscrows,
+  } = useDisputedEscrows({ page, limit });
+
+  const {
+    data: escrowStatistics,
+    isLoading: statisticsLoading,
+  } = useEscrowStatistics();
+
   const resolveDisputeMutation = useResolveDispute();
-  const exportDisputesMutation = useExportDisputes();
 
-  // Get disputes from API response
-  const disputes = disputesResponse?.disputes || [];
-  
-  // Calculate stats from API counts
-  const stats = {
-    total: disputeCounts?.total || 0,
-    open: disputeCounts?.open || 0,
-    investigating: disputeCounts?.investigating || 0,
-    resolved: disputeCounts?.resolved || 0,
-    escalated: disputeCounts?.escalated || 0,
-    avgResolutionTime: 3.2, // This would come from analytics API
-    satisfactionRate: 87.5, // This would come from analytics API
-  };
+  const disputes = disputedEscrows?.data || [];
+  const stats = escrowStatistics?.data;
 
-  const getStatusColor = (status: DisputeStatus) => {
-    switch (status) {
-      case DisputeStatus.OPEN:
-        return 'bg-blue-100 text-blue-800';
-      case DisputeStatus.UNDER_REVIEW:
-      case DisputeStatus.INVESTIGATING:
-        return 'bg-yellow-100 text-yellow-800';
-      case DisputeStatus.RESOLVED:
-        return 'bg-green-100 text-green-800';
-      case DisputeStatus.ESCALATED:
-        return 'bg-red-100 text-red-800';
-      case DisputeStatus.CLOSED:
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleResolveDispute = async () => {
+    if (!selectedDispute || !resolutionNotes.trim()) {
+      toast.error('Please provide resolution notes');
+      return;
     }
-  };
 
-  const getStatusIcon = (status: DisputeStatus) => {
-    switch (status) {
-      case DisputeStatus.OPEN:
-        return AlertTriangle;
-      case DisputeStatus.UNDER_REVIEW:
-      case DisputeStatus.INVESTIGATING:
-        return Eye;
-      case DisputeStatus.RESOLVED:
-        return CheckCircle;
-      case DisputeStatus.ESCALATED:
-        return Flag;
-      case DisputeStatus.CLOSED:
-        return XCircle;
-      default:
-        return Clock;
-    }
-  };
-
-  const getPriorityColor = (priority: DisputePriority) => {
-    switch (priority) {
-      case DisputePriority.URGENT:
-        return 'bg-red-100 text-red-800';
-      case DisputePriority.HIGH:
-        return 'bg-orange-100 text-orange-800';
-      case DisputePriority.MEDIUM:
-        return 'bg-yellow-100 text-yellow-800';
-      case DisputePriority.LOW:
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTypeIcon = (type: DisputeType) => {
-    switch (type) {
-      case DisputeType.REFUND_REQUEST:
-        return DollarSign;
-      case DisputeType.QUALITY_ISSUE:
-      case DisputeType.ITEM_NOT_AS_DESCRIBED:
-      case DisputeType.DAMAGED_ITEM:
-        return Package;
-      case DisputeType.ORDER_NOT_RECEIVED:
-      case DisputeType.DELIVERY_ISSUE:
-        return MapPin;
-      case DisputeType.SERVICE_ISSUE:
-        return User;
-      case DisputeType.FRAUD_COMPLAINT:
-        return Shield;
-      default:
-        return AlertTriangle;
-    }
-  };
-
-  const handleStatusChange = async (disputeId: string, newStatus: DisputeStatus) => {
     try {
-      if (newStatus === 'resolved') {
-        // For resolved status, we need to use the resolve mutation
-        await resolveDisputeMutation.mutateAsync({
-          disputeId,
-          data: {
-            resolution: 'no_action', // Default resolution, would be customizable
-            resolutionNotes: 'Marked as resolved by admin',
-            notifyCustomer: true,
-            notifyVendor: true,
-          },
-        });
-      } else {
-        // For other status changes, use the update mutation
-        await updateDisputeMutation.mutateAsync({
-          disputeId,
-          data: { status: newStatus },
-        });
-      }
-      
-      // Refresh the list
-      refetch();
-    } catch (error) {
-      console.error('Failed to update dispute status:', error);
-    }
-  };
+      const data: ResolveDisputeRequest = {
+        resolution,
+        resolutionNotes: resolutionNotes.trim(),
+      };
 
-  const handleExport = async (format: 'csv' | 'xlsx' | 'pdf' = 'csv') => {
-    try {
-      await exportDisputesMutation.mutateAsync({
-        filter: disputeFilter,
-        format,
+      await resolveDisputeMutation.mutateAsync({
+        id: selectedDispute._id,
+        data,
       });
-    } catch (error) {
-      console.error('Failed to export disputes:', error);
+
+      toast.success('Dispute resolved successfully');
+      setShowResolveModal(false);
+      setShowDetails(false);
+      setSelectedDispute(null);
+      setResolution('release_to_vendor');
+      setResolutionNotes('');
+      refetchDisputedEscrows();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to resolve dispute');
     }
   };
 
@@ -228,602 +121,525 @@ export default function DisputesPage() {
     }).format(value);
   };
 
+  const filteredDisputes = disputes.filter((dispute) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      dispute.escrowId.toLowerCase().includes(searchLower) ||
+      dispute.orderId.orderNumber.toLowerCase().includes(searchLower) ||
+      dispute.customerId.email.toLowerCase().includes(searchLower) ||
+      dispute.vendorId.businessInfo.businessName.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
-    <div className='space-y-8'>
+    <div className="space-y-6 p-4 md:p-8 pt-6">
       {/* Header */}
-      <div className='relative'>
-        <div className='absolute inset-0 -z-10 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 rounded-3xl' />
-        <div className='p-8'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent'>
-                Dispute Resolution
-              </h1>
-              <p className='text-gray-600 mt-2 flex items-center gap-2'>
-                <Gavel className='h-4 w-4' />
-                Platform dispute management and mediation system
-              </p>
-            </div>
-            <div className='flex items-center gap-3'>
-              <GlowingButton 
-                size='sm' 
-                variant='secondary'
-                onClick={() => handleExport('csv')}
-                disabled={exportDisputesMutation.isLoading}
-              >
-                {exportDisputesMutation.isLoading ? (
-                  <Loader2 className='h-4 w-4 mr-2 animate-spin' />
-                ) : (
-                  <Download className='h-4 w-4 mr-2' />
-                )}
-                Export Report
-              </GlowingButton>
-              <GlowingButton size='sm' variant='primary'>
-                <FileText className='h-4 w-4 mr-2' />
-                Create Case
-              </GlowingButton>
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dispute Resolution</h2>
+          <p className="text-muted-foreground mt-1">
+            Manage and resolve disputed escrow accounts
+          </p>
         </div>
-      </div>
-
-      {/* Stats Overview */}
-      <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-        <AnimatedCard delay={0}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Gavel className='h-6 w-6 text-white' />
-            </div>
-            {countsLoading ? (
-              <div className='animate-pulse'>
-                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
-                <div className='h-4 bg-gray-200 rounded w-20 mx-auto'></div>
-              </div>
-            ) : (
-              <>
-                <p className='text-2xl font-bold text-gray-900'>{stats.total}</p>
-                <p className='text-sm text-gray-600'>Total Disputes</p>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={100}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <AlertTriangle className='h-6 w-6 text-white' />
-            </div>
-            {countsLoading ? (
-              <div className='animate-pulse'>
-                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
-                <div className='h-4 bg-gray-200 rounded w-12 mx-auto'></div>
-              </div>
-            ) : (
-              <>
-                <p className='text-2xl font-bold text-gray-900'>{stats.open}</p>
-                <p className='text-sm text-gray-600'>Open</p>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={200}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Eye className='h-6 w-6 text-white' />
-            </div>
-            {countsLoading ? (
-              <div className='animate-pulse'>
-                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
-                <div className='h-4 bg-gray-200 rounded w-20 mx-auto'></div>
-              </div>
-            ) : (
-              <>
-                <p className='text-2xl font-bold text-gray-900'>{stats.investigating}</p>
-                <p className='text-sm text-gray-600'>Investigating</p>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={300}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <CheckCircle className='h-6 w-6 text-white' />
-            </div>
-            {countsLoading ? (
-              <div className='animate-pulse'>
-                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
-                <div className='h-4 bg-gray-200 rounded w-16 mx-auto'></div>
-              </div>
-            ) : (
-              <>
-                <p className='text-2xl font-bold text-gray-900'>{stats.resolved}</p>
-                <p className='text-sm text-gray-600'>Resolved</p>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={400}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-red-500 to-pink-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Flag className='h-6 w-6 text-white' />
-            </div>
-            {countsLoading ? (
-              <div className='animate-pulse'>
-                <div className='h-8 bg-gray-200 rounded w-16 mx-auto mb-2'></div>
-                <div className='h-4 bg-gray-200 rounded w-16 mx-auto'></div>
-              </div>
-            ) : (
-              <>
-                <p className='text-2xl font-bold text-gray-900'>{stats.escalated}</p>
-                <p className='text-sm text-gray-600'>Escalated</p>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={500}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Clock className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.avgResolutionTime}</p>
-            <p className='text-sm text-gray-600'>Avg Days</p>
-          </div>
-        </AnimatedCard>
-      </div>
-
-      {/* Filters */}
-      <div className='flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between'>
-        <div className='flex flex-wrap items-center gap-4'>
-          <div className='flex items-center gap-2'>
-            <Filter className='h-4 w-4 text-gray-500' />
-            <select
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1); // Reset to first page when filter changes
-              }}
-              className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-            >
-              <option value='all'>All Status</option>
-              <option value='open'>Open</option>
-              <option value='under_review'>Under Review</option>
-              <option value='investigating'>Investigating</option>
-              <option value='resolved'>Resolved</option>
-              <option value='escalated'>Escalated</option>
-              <option value='closed'>Closed</option>
-            </select>
-          </div>
-
-          <select
-            value={typeFilter}
-            onChange={e => {
-              setTypeFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-          >
-            <option value='all'>All Types</option>
-            <option value='order_not_received'>Order Not Received</option>
-            <option value='item_not_as_described'>Item Not As Described</option>
-            <option value='damaged_item'>Damaged Item</option>
-            <option value='quality_issue'>Quality Issue</option>
-            <option value='refund_request'>Refund Request</option>
-            <option value='delivery_issue'>Delivery Issue</option>
-            <option value='service_issue'>Service Issue</option>
-            <option value='fraud_complaint'>Fraud Complaint</option>
-            <option value='other'>Other</option>
-          </select>
-
-          <select
-            value={priorityFilter}
-            onChange={e => {
-              setPriorityFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-          >
-            <option value='all'>All Priorities</option>
-            <option value='urgent'>Urgent</option>
-            <option value='high'>High</option>
-            <option value='medium'>Medium</option>
-            <option value='low'>Low</option>
-          </select>
-          
-          <button
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className='inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50'
-          >
-            <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetchDisputedEscrows()} disabled={disputedEscrowsLoading}>
+            <RefreshCw className={cn('w-4 h-4 mr-2', disputedEscrowsLoading && 'animate-spin')} />
             Refresh
-          </button>
+          </Button>
         </div>
+      </div>
 
-        <div className='relative'>
-          <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-          <input
-            type='search'
-            placeholder='Search disputes...'
+      {/* Statistics Cards */}
+      {!statisticsLoading && stats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Escrows</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalEscrows.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">All escrow accounts</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Disputed Escrows</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {stats.statusBreakdown.disputed.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">Requiring resolution</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount)}</div>
+              <p className="text-xs text-muted-foreground">In escrow</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Hold Time</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.averageHoldTime.toFixed(1)}</div>
+              <p className="text-xs text-muted-foreground">Days average</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {statisticsLoading && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by escrow ID, order number, customer, or vendor..."
             value={searchTerm}
-            onChange={e => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className='w-64 rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
         </div>
       </div>
 
       {/* Disputes Table */}
-      <AnimatedCard delay={600}>
-        <div className='p-6'>
-          <div className='flex items-center justify-between mb-6'>
-            <div>
-              <h3 className='text-lg font-semibold text-gray-900'>Active Disputes</h3>
-              <p className='text-sm text-gray-600'>
-                {isLoading ? (
-                  'Loading disputes...'
-                ) : (
-                  `${disputesResponse?.total || 0} total disputes found`
-                )}
-              </p>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className='space-y-4'>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className='animate-pulse'>
-                  <div className='h-16 bg-gray-200 rounded'></div>
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Disputed Escrow Accounts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {disputedEscrowsLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : error ? (
-            <div className='text-center py-12 text-red-600'>
-              <AlertTriangle className='h-12 w-12 mx-auto mb-4' />
-              <h3 className='text-lg font-semibold mb-2'>Error Loading Disputes</h3>
-              <p className='text-sm text-gray-600 mb-4'>
-                {error?.message || 'Failed to load disputes'}
+          ) : disputedEscrowsError ? (
+            <div className="text-center py-12">
+              <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Error Loading Disputes</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {disputedEscrowsError?.message || 'Failed to load disputed escrows'}
               </p>
-              <button
-                onClick={() => refetch()}
-                className='inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700'
-              >
-                <RefreshCw className='h-4 w-4 mr-2' />
+              <Button onClick={() => refetchDisputedEscrows()}>
+                <RefreshCw className="w-4 h-4 mr-2" />
                 Try Again
-              </button>
+              </Button>
+            </div>
+          ) : filteredDisputes.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Escrow ID</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Funded Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDisputes.map((dispute) => (
+                    <TableRow key={dispute._id}>
+                      <TableCell className="font-mono text-sm">{dispute.escrowId}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{dispute.orderId.orderNumber}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {dispute.orderId.status}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {dispute.customerId.firstName} {dispute.customerId.lastName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {dispute.customerId.email}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {dispute.vendorId.businessInfo.businessName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {dispute.vendorId.businessInfo.contactEmail}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(dispute.amount)}
+                      </TableCell>
+                      <TableCell>
+                        {dispute.fundedAt
+                          ? format(new Date(dispute.fundedAt), 'MMM dd, yyyy')
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Disputed
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedDispute(dispute);
+                              setShowDetails(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedDispute(dispute);
+                              setShowResolveModal(true);
+                            }}
+                          >
+                            <Flag className="w-4 h-4 mr-1" />
+                            Resolve
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
-            <div className='overflow-x-auto'>
-              <table className='w-full text-sm'>
-                <thead>
-                  <tr className='border-b'>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Dispute ID</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Customer</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Vendor</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Subject</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Type</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Amount</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Priority</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Created</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y'>
-                  {disputes.map(dispute => {
-                    const StatusIcon = getStatusIcon(dispute.status);
-                    const TypeIcon = getTypeIcon(dispute.type);
-
-                    return (
-                      <tr key={dispute.id} className='hover:bg-gray-50'>
-                        <td className='py-4 font-medium text-gray-900'>{dispute.reference}</td>
-                        <td className='py-4 text-gray-600'>{dispute.customer.name}</td>
-                        <td className='py-4 text-gray-600'>{dispute.vendor.name}</td>
-                        <td className='py-4 text-gray-600 max-w-xs truncate'>{dispute.subject}</td>
-                        <td className='py-4'>
-                          <div className='flex items-center gap-2'>
-                            <TypeIcon className='h-4 w-4 text-gray-500' />
-                            <span className='capitalize'>{dispute.type.replace(/_/g, ' ')}</span>
-                          </div>
-                        </td>
-                        <td className='py-4 font-medium text-gray-900'>
-                          {formatCurrency(dispute.amount)}
-                        </td>
-                        <td className='py-4'>
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
-                              getPriorityColor(dispute.priority)
-                            )}
-                          >
-                            {dispute.priority}
-                          </span>
-                        </td>
-                        <td className='py-4'>
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold',
-                              getStatusColor(dispute.status)
-                            )}
-                          >
-                            <StatusIcon className='h-3 w-3' />
-                            {dispute.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className='py-4 text-gray-600'>
-                          {format(new Date(dispute.createdAt), 'MMM dd, yyyy')}
-                        </td>
-                        <td className='py-4'>
-                          <div className='flex items-center gap-2'>
-                            <button
-                              onClick={() => {
-                                setSelectedDispute(dispute);
-                                setShowDetails(true);
-                              }}
-                              className='text-blue-600 hover:text-blue-800 font-medium'
-                            >
-                              View
-                            </button>
-                            {dispute.status === DisputeStatus.OPEN && (
-                              <button
-                                onClick={() => handleStatusChange(dispute.id, DisputeStatus.INVESTIGATING)}
-                                className='text-yellow-600 hover:text-yellow-800 font-medium'
-                                disabled={updateDisputeMutation.isLoading}
-                              >
-                                {updateDisputeMutation.isLoading ? 'Loading...' : 'Investigate'}
-                              </button>
-                            )}
-                            {dispute.status === DisputeStatus.INVESTIGATING && (
-                              <button
-                                onClick={() => handleStatusChange(dispute.id, DisputeStatus.RESOLVED)}
-                                className='text-green-600 hover:text-green-800 font-medium'
-                                disabled={resolveDisputeMutation.isLoading}
-                              >
-                                {resolveDisputeMutation.isLoading ? 'Loading...' : 'Resolve'}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {!isLoading && !error && disputes.length === 0 && (
-            <div className='text-center py-12'>
-              <Gavel className='h-12 w-12 text-gray-400 mx-auto mb-4' />
-              <h3 className='text-lg font-semibold text-gray-900 mb-2'>No disputes found</h3>
-              <p className='text-gray-600'>Try adjusting your search or filters</p>
+            <div className="text-center py-12">
+              <Shield className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No disputes found</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchTerm ? 'Try adjusting your search' : 'All disputes have been resolved'}
+              </p>
             </div>
           )}
 
           {/* Pagination */}
-          {disputesResponse && disputesResponse.totalPages > 1 && (
-            <div className='flex items-center justify-between px-6 py-4 border-t'>
-              <div className='text-sm text-gray-700'>
-                Showing {((disputesResponse.page - 1) * disputesResponse.limit) + 1} to{' '}
-                {Math.min(disputesResponse.page * disputesResponse.limit, disputesResponse.total)} of{' '}
-                {disputesResponse.total} results
+          {disputedEscrows?.pagination && disputedEscrows.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {((disputedEscrows.pagination.page - 1) * disputedEscrows.pagination.limit) + 1} to{' '}
+                {Math.min(disputedEscrows.pagination.page * disputedEscrows.pagination.limit, disputedEscrows.pagination.total)} of{' '}
+                {disputedEscrows.pagination.total} results
               </div>
-              <div className='flex items-center space-x-2'>
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1 || isLoading}
-                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50'
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
                 >
                   Previous
-                </button>
-                <span className='text-sm text-gray-700'>
-                  Page {currentPage} of {disputesResponse.totalPages}
+                </Button>
+                <span className="text-sm text-muted-foreground flex items-center px-3">
+                  Page {page} of {disputedEscrows.pagination.totalPages}
                 </span>
-                <button
-                  onClick={() => setCurrentPage(Math.min(disputesResponse.totalPages, currentPage + 1))}
-                  disabled={currentPage >= disputesResponse.totalPages || isLoading}
-                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50'
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === disputedEscrows.pagination.totalPages}
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           )}
-        </div>
-      </AnimatedCard>
+        </CardContent>
+      </Card>
 
-      {/* Dispute Details Modal */}
-      {showDetails && selectedDispute && (
-        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
-          <div className='bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto'>
-            <div className='p-6 border-b'>
-              <div className='flex items-center justify-between'>
-                <h2 className='text-xl font-semibold'>Dispute Details - {selectedDispute.id}</h2>
-                <button
-                  onClick={() => setShowDetails(false)}
-                  className='text-gray-500 hover:text-gray-700'
-                >
-                  <XCircle className='h-6 w-6' />
-                </button>
-              </div>
-            </div>
+      {/* Details Modal */}
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Escrow Dispute Details</DialogTitle>
+            <DialogDescription>
+              Complete information about this disputed escrow account
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className='p-6 space-y-6'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Dispute Information</h3>
-                  <div className='space-y-2'>
-                    <p>
-                      <strong>Order ID:</strong> {selectedDispute.orderId}
-                    </p>
-                    <p>
-                      <strong>Customer:</strong> {selectedDispute.customer.name}
-                    </p>
-                    <p>
-                      <strong>Vendor:</strong> {selectedDispute.vendor.name}
-                    </p>
-                    <p>
-                      <strong>Subject:</strong> {selectedDispute.subject}
-                    </p>
-                    <p>
-                      <strong>Amount:</strong> {formatCurrency(selectedDispute.amount)}
-                    </p>
-                    <p>
-                      <strong>Type:</strong> {selectedDispute.type.replace(/_/g, ' ')}
-                    </p>
-                    <p>
-                      <strong>Priority:</strong> {selectedDispute.priority}
-                    </p>
-                  </div>
+          {selectedDispute && (
+            <div className="space-y-6">
+              {/* Escrow Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Escrow ID</Label>
+                  <p className="font-mono text-sm">{selectedDispute.escrowId}</p>
                 </div>
-
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Status & Timeline</h3>
-                  <div className='space-y-2'>
-                    <p>
-                      <strong>Status:</strong>
-                      <span
-                        className={cn(
-                          'ml-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold',
-                          getStatusColor(selectedDispute.status)
-                        )}
-                      >
-                        {selectedDispute.status}
-                      </span>
-                    </p>
-                    <p>
-                      <strong>Created:</strong>{' '}
-                      {format(selectedDispute.createdAt, 'MMM dd, yyyy HH:mm')}
-                    </p>
-                    <p>
-                      <strong>Updated:</strong>{' '}
-                      {format(selectedDispute.updatedAt, 'MMM dd, yyyy HH:mm')}
-                    </p>
-                    {selectedDispute.resolvedAt && (
-                      <p>
-                        <strong>Resolved:</strong>{' '}
-                        {format(selectedDispute.resolvedAt, 'MMM dd, yyyy HH:mm')}
-                      </p>
-                    )}
-                    <p>
-                      <strong>Assigned To:</strong> {selectedDispute.assignedTo || 'Unassigned'}
-                    </p>
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Order Number</Label>
+                  <p className="font-medium">{selectedDispute.orderId.orderNumber}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Amount</Label>
+                  <p className="text-lg font-bold">{formatCurrency(selectedDispute.amount)}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Currency</Label>
+                  <p>{selectedDispute.currency}</p>
                 </div>
               </div>
 
+              {/* Customer Information */}
               <div>
-                <h3 className='font-semibold text-gray-900 mb-3'>Description</h3>
-                <p className='text-gray-700 bg-gray-50 p-4 rounded-lg'>
-                  {selectedDispute.description}
-                </p>
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Customer Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Name</Label>
+                    <p>
+                      {selectedDispute.customerId.firstName} {selectedDispute.customerId.lastName}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Email</Label>
+                    <p className="text-sm">{selectedDispute.customerId.email}</p>
+                  </div>
+                  {selectedDispute.customerId.phone && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Phone</Label>
+                      <p className="text-sm">{selectedDispute.customerId.phone}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {selectedDispute.adminNotes && (
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Admin Notes</h3>
-                  <p className='text-gray-700 bg-yellow-50 p-4 rounded-lg'>
-                    {selectedDispute.adminNotes}
-                  </p>
+              {/* Vendor Information */}
+              <div>
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Store className="w-4 h-4" />
+                  Vendor Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Business Name</Label>
+                    <p>{selectedDispute.vendorId.businessInfo.businessName}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Contact Email</Label>
+                    <p className="text-sm">{selectedDispute.vendorId.businessInfo.contactEmail}</p>
+                  </div>
+                  {selectedDispute.vendorId.businessInfo.contactPhone && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Contact Phone</Label>
+                      <p className="text-sm">
+                        {selectedDispute.vendorId.businessInfo.contactPhone}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {selectedDispute.resolutionNotes && (
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Resolution</h3>
-                  <p className='text-gray-700 bg-green-50 p-4 rounded-lg'>
-                    {selectedDispute.resolutionNotes}
-                  </p>
+              {/* Timeline */}
+              <div>
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Timeline
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Created</Label>
+                    <p className="text-sm">
+                      {format(new Date(selectedDispute.createdAt), 'PPP pp')}
+                    </p>
+                  </div>
+                  {selectedDispute.fundedAt && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Funded</Label>
+                      <p className="text-sm">
+                        {format(new Date(selectedDispute.fundedAt), 'PPP pp')}
+                      </p>
+                    </div>
+                  )}
+                  {selectedDispute.expiresAt && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Expires</Label>
+                      <p className="text-sm">
+                        {format(new Date(selectedDispute.expiresAt), 'PPP pp')}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* Evidence Section */}
-              {selectedDispute.evidence && selectedDispute.evidence.length > 0 && (
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Evidence</h3>
-                  <div className='grid gap-2'>
-                    {selectedDispute.evidence.map((evidence) => (
-                      <div key={evidence.id} className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'>
-                        <FileText className='h-5 w-5 text-gray-500' />
-                        <div className='flex-1'>
-                          <p className='text-sm font-medium text-gray-900'>{evidence.filename}</p>
-                          <p className='text-xs text-gray-500'>
-                            {(evidence.size / 1024).toFixed(1)} KB • Uploaded {format(new Date(evidence.uploadedAt), 'MMM dd, yyyy')}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => window.open(evidence.url, '_blank')}
-                          className='text-blue-600 hover:text-blue-800 text-sm font-medium'
-                        >
-                          View
-                        </button>
-                      </div>
-                    ))}
+              {/* Release Conditions */}
+              <div>
+                <h4 className="font-semibold mb-3">Release Conditions</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Auto Release After</Label>
+                    <p>{selectedDispute.releaseConditions.autoReleaseAfterDays} days</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Delivery Confirmation</Label>
+                    <Badge variant={selectedDispute.releaseConditions.requiresDeliveryConfirmation ? 'default' : 'secondary'}>
+                      {selectedDispute.releaseConditions.requiresDeliveryConfirmation ? 'Required' : 'Not Required'}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Customer Approval</Label>
+                    <Badge variant={selectedDispute.releaseConditions.requiresCustomerApproval ? 'default' : 'secondary'}>
+                      {selectedDispute.releaseConditions.requiresCustomerApproval ? 'Required' : 'Not Required'}
+                    </Badge>
                   </div>
                 </div>
-              )}
-
-              {/* Timeline Section */}
-              {selectedDispute.timeline && selectedDispute.timeline.length > 0 && (
-                <div>
-                  <h3 className='font-semibold text-gray-900 mb-3'>Timeline</h3>
-                  <div className='space-y-3'>
-                    {selectedDispute.timeline.map((entry) => (
-                      <div key={entry.id} className='border-l-2 border-blue-200 pl-4'>
-                        <div className='flex items-center justify-between'>
-                          <span className='font-medium text-gray-900'>{entry.action}</span>
-                          <span className='text-sm text-gray-500'>
-                            {format(new Date(entry.createdAt), 'MMM dd, HH:mm')}
-                          </span>
-                        </div>
-                        <p className='text-sm text-gray-600'>{entry.description}</p>
-                        {entry.performedByName && (
-                          <p className='text-xs text-gray-500 mt-1'>by {entry.performedByName}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className='flex justify-end gap-3'>
-                <GlowingButton variant='secondary' onClick={() => setShowDetails(false)}>
-                  Close
-                </GlowingButton>
-                {selectedDispute.status === DisputeStatus.OPEN && (
-                  <GlowingButton
-                    variant='primary'
-                    onClick={() => {
-                      handleStatusChange(selectedDispute.id, DisputeStatus.INVESTIGATING);
-                      setShowDetails(false);
-                    }}
-                    disabled={updateDisputeMutation.isLoading}
-                  >
-                    {updateDisputeMutation.isLoading ? 'Processing...' : 'Start Investigation'}
-                  </GlowingButton>
-                )}
-                {selectedDispute.status === DisputeStatus.INVESTIGATING && (
-                  <GlowingButton
-                    variant='success'
-                    onClick={() => {
-                      handleStatusChange(selectedDispute.id, DisputeStatus.RESOLVED);
-                      setShowDetails(false);
-                    }}
-                    disabled={resolveDisputeMutation.isLoading}
-                  >
-                    {resolveDisputeMutation.isLoading ? 'Resolving...' : 'Mark Resolved'}
-                  </GlowingButton>
-                )}
               </div>
             </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetails(false)}>
+              Close
+            </Button>
+            {selectedDispute && (
+              <Button
+                onClick={() => {
+                  setShowDetails(false);
+                  setShowResolveModal(true);
+                }}
+              >
+                <Flag className="w-4 h-4 mr-2" />
+                Resolve Dispute
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resolve Dispute Modal */}
+      <Dialog open={showResolveModal} onOpenChange={setShowResolveModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resolve Dispute</DialogTitle>
+            <DialogDescription>
+              Choose resolution and provide notes for this disputed escrow account
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Resolution Decision</Label>
+              <Select value={resolution} onValueChange={(value: any) => setResolution(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="release_to_vendor">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      Release to Vendor
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="refund_to_customer">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-red-600" />
+                      Refund to Customer
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Resolution Notes</Label>
+              <Textarea
+                placeholder="Provide detailed notes explaining your resolution decision..."
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                rows={5}
+              />
+              <p className="text-xs text-muted-foreground">
+                These notes will be visible to both customer and vendor
+              </p>
+            </div>
+
+            {selectedDispute && (
+              <div className="rounded-lg bg-muted p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Escrow ID:</span>
+                  <span className="font-mono">{selectedDispute.escrowId}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold">{formatCurrency(selectedDispute.amount)}</span>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowResolveModal(false);
+                setResolution('release_to_vendor');
+                setResolutionNotes('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResolveDispute}
+              disabled={resolveDisputeMutation.isPending || !resolutionNotes.trim()}
+            >
+              {resolveDisputeMutation.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Resolving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Confirm Resolution
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { api } from '../client';
+import { apiClient } from '../core';
 
 // TypeScript interfaces for report data
 export interface PlatformMetrics {
@@ -78,7 +78,7 @@ export class ReportsService {
   }): Promise<PlatformMetrics> {
     try {
       // Get dashboard metrics from analytics with correct versioned path
-      const response = await api.get('/admin/analytics/dashboard', {
+      const response = await apiClient.get('/admin/analytics/dashboard', {
         params,
       });
 
@@ -133,7 +133,7 @@ export class ReportsService {
     endDate?: string;
   }): Promise<VendorPerformanceData[]> {
     try {
-      const response = await api.get('/admin/analytics/revenue', {
+      const response = await apiClient.get('/admin/analytics/revenue', {
         params,
       });
 
@@ -164,11 +164,9 @@ export class ReportsService {
     sortBy?: 'revenue' | 'orders' | 'growth';
   }): Promise<TopVendor[]> {
     try {
-      const response = await api.get('/admin/analytics/vendors', {
+      const response = await apiClient.get('/admin/analytics/vendors', {
         params: {
-          limit: params?.limit || 5,
           period: params?.period || 'month',
-          sortBy: params?.sortBy || 'revenue',
         },
       });
 
@@ -195,10 +193,9 @@ export class ReportsService {
     period?: 'day' | 'week' | 'month' | 'year';
   }): Promise<CategoryDistribution[]> {
     try {
-      const response = await api.get('/admin/analytics/categories', {
+      const response = await apiClient.get('/admin/analytics/categories', {
         params: {
           period: params?.period || 'month',
-          limit: 10,
         },
       });
 
@@ -221,17 +218,17 @@ export class ReportsService {
   // Get vendor status distribution
   async getVendorStatusDistribution(): Promise<VendorStatusDistribution[]> {
     try {
-      const response = await api.get('/admin/analytics/vendors');
+      const response = await apiClient.get('/admin/analytics/vendors');
       
       const data = response.data;
-      if (data.vendorsByStatus) {
+      if (data.vendorsByStatus && Array.isArray(data.vendorsByStatus)) {
         const statusData = data.vendorsByStatus;
-        const total = Object.values(statusData).reduce((sum: number, count: any) => sum + (count || 0), 0);
-        
-        return Object.entries(statusData).map(([status, count]: [string, any]) => ({
-          status: status.charAt(0).toUpperCase() + status.slice(1),
-          count: count || 0,
-          percentage: total > 0 ? Math.round(((count || 0) / total) * 100) : 0,
+        const total = statusData.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
+
+        return statusData.map((item: any) => ({
+          status: (item.status || 'Unknown').charAt(0).toUpperCase() + (item.status || 'Unknown').slice(1),
+          count: item.count || 0,
+          percentage: total > 0 ? Math.round(((item.count || 0) / total) * 100) : 0,
         }));
       }
 
@@ -248,7 +245,7 @@ export class ReportsService {
     vendorId?: string;
   }): Promise<CommissionAnalytics> {
     try {
-      const response = await api.get('/admin/financial/overview', {
+      const response = await apiClient.get('/admin/financial/overview', {
         params,
       });
 
@@ -272,28 +269,48 @@ export class ReportsService {
 
   // Export report data
   async exportReport(params: {
-    reportType: 'revenue' | 'vendors' | 'analytics' | 'issues' | 'commission';
-    format: 'pdf' | 'excel' | 'csv';
+    reportType: 'dashboard' | 'users' | 'orders' | 'revenue';
+    format: 'json' | 'csv' | 'excel';
     period?: 'day' | 'week' | 'month' | 'year';
     startDate?: string;
     endDate?: string;
   }): Promise<ExportResponse> {
     try {
-      const response = await api.get('/admin/analytics/export', {
-        params: {
-          type: params.reportType,
-          format: params.format,
-          period: params.period,
-          startDate: params.startDate,
-          endDate: params.endDate,
-        },
+      const response = await apiClient.post('/admin/analytics/export', {
+        type: params.reportType,
+        format: params.format,
+        period: params.period,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      }, {
         responseType: 'blob', // Important for file downloads
       });
 
-      // Create blob URL for download
-      const blob = new Blob([response.data]);
+      // Map format to MIME type and file extension
+      const formatConfig: Record<string, { mimeType: string; extension: string }> = {
+        'excel': {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          extension: 'xlsx',
+        },
+        'csv': {
+          mimeType: 'text/csv',
+          extension: 'csv',
+        },
+        'json': {
+          mimeType: 'application/json',
+          extension: 'json',
+        },
+      };
+
+      const config = formatConfig[params.format] || {
+        mimeType: 'application/octet-stream',
+        extension: params.format,
+      };
+
+      // Create blob URL for download with correct MIME type
+      const blob = new Blob([response.data], { type: config.mimeType });
       const downloadUrl = window.URL.createObjectURL(blob);
-      const filename = `${params.reportType}_report_${new Date().toISOString().split('T')[0]}.${params.format}`;
+      const filename = `${params.reportType}_report_${new Date().toISOString().split('T')[0]}.${config.extension}`;
 
       return {
         downloadUrl,
@@ -313,7 +330,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/admin/financial/overview', {
+      const response = await apiClient.get('/admin/financial/overview', {
         params,
       });
       return response.data;
@@ -330,7 +347,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/admin/analytics/users', {
+      const response = await apiClient.get('/admin/analytics/users', {
         params,
       });
       return response.data;
@@ -347,7 +364,7 @@ export class ReportsService {
     endDate?: string;
   }) {
     try {
-      const response = await api.get('/admin/analytics/products', {
+      const response = await apiClient.get('/admin/analytics/products', {
         params,
       });
       return response.data;

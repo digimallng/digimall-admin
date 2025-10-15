@@ -1,23 +1,35 @@
-// Export all services
-export { analyticsService, AnalyticsService } from './analytics.service';
-export { userService, UserService } from './user.service';
-export { vendorService, VendorService } from './vendor.service';
-export { productService, ProductService } from './product.service';
-export { orderService, OrderService } from './order.service';
-export { categoryService, CategoryService } from './category.service';
-export { planService, PlanService } from './plan.service';
-export { chatService, ChatService } from './chat.service';
-export { escrowService, EscrowService } from './escrow.service';
-export { financialService, FinancialService } from './financial.service';
-export { securityService, SecurityService } from './security.service';
-export { systemService, SystemService } from './system.service';
-export { supportService, SupportService } from './support.service';
-export { notificationsService, NotificationsService } from './notifications.service';
-export { settingsService, SettingsService } from './settings.service';
+/**
+ * API Services Export
+ *
+ * Central export point for all API services
+ */
 
-// Export API client and types
-export { apiClient, api, ApiError } from '../client';
-export type { ApiResponse, PaginatedResponse } from '../client';
+// Core services from new implementation
+export { staffService } from './staff.service';
+export { analyticsService } from './analytics.service';
+export { productsService } from './products.service';
+export { vendorsService } from './vendors.service';
+export { ordersService } from './orders.service';
+export { usersService } from './users.service';
+export { categoriesService } from './categories.service';
+export { securityService } from './security.service';
+export { systemService } from './system.service';
+export { subscriptionPlansService } from './subscription-plans.service';
+export { adminVendorService } from './admin-vendor.service';
+export { reviewsService } from './reviews.service';
+
+// New services
+export { uploadsService } from './uploads.service';
+export { landingService } from './landing.service';
+export { reportsCompleteService } from './reports-complete.service';
+export { settingsService } from './settings.service';
+export { disputeService } from './dispute.service';
+export { escrowService } from './escrow.service';
+export { notificationsService } from './notifications.service';
+export { auditService } from './audit.service';
+
+// Re-export types
 export * from '../types';
 
-export class NotificationItem {}
+// Re-export core modules
+export * from '../core';

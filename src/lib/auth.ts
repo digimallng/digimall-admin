@@ -7,22 +7,24 @@ export interface AdminUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'super_admin';
+  role: 'super_admin' | 'admin' | 'staff';
 }
 
 export interface AdminLoginResponse {
   user: AdminUser;
-  token: string;
+  accessToken: string;
   refreshToken: string;
   expiresIn: number;
 }
 
-// Environment-aware API base URL
+// Environment-aware API base URL - now pointing to unified backend
 const getApiBaseUrl = () => {
   if (process.env.NODE_ENV === 'production') {
     return 'https://admin.digimall.ng/api/v1';
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4800/api/v1';
+  return process.env.NEXT_PUBLIC_BACKEND_URL
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1`
+    : 'http://localhost:3000/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -42,13 +44,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          console.log('Attempting login with:', {
-            url: `${API_BASE_URL}/auth/login`,
+          console.log('Attempting staff login with:', {
+            url: `${API_BASE_URL}/staff/auth/login`,
             email: credentials.email,
             passwordLength: credentials.password.length
           });
 
-          const response = await fetch(`${API_BASE_URL}/auth/login`, {
+          const response = await fetch(`${API_BASE_URL}/staff/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -81,25 +83,36 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Server returned non-JSON response');
           }
           
-          // Handle the response from admin service
-          // Admin service returns: { message, user, tokens: { accessToken, refreshToken, expiresIn } }
-          const { user, tokens } = result;
-          
-          if (!user || !tokens) {
-            console.error('Missing user or tokens in response:', { user: !!user, tokens: !!tokens });
+          // Handle the response from unified backend
+          // Staff login endpoint returns: { accessToken, refreshToken, staff } or { accessToken, refreshToken, user }
+          const { user, staff, accessToken, refreshToken } = result;
+
+          // Support both "user" and "staff" field names
+          const userData = user || staff;
+
+          if (!userData || !accessToken || !refreshToken) {
+            console.error('Missing user/staff or tokens in response:', {
+              user: !!user,
+              staff: !!staff,
+              accessToken: !!accessToken,
+              refreshToken: !!refreshToken
+            });
             throw new Error('Invalid response structure from server');
           }
 
+          // JWT tokens typically have 24 hours expiry (86400 seconds)
+          const expiresIn = 86400;
+
           return {
-            id: user.id,
-            email: user.email,
-            name: `${user.firstName} ${user.lastName}`,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
-            expiresIn: tokens.expiresIn,
+            id: userData.id,
+            email: userData.email,
+            name: `${userData.firstName} ${userData.lastName}`,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            role: userData.role,
+            accessToken,
+            refreshToken,
+            expiresIn,
           };
         } catch (error) {
           console.error('Authentication error:', error);
@@ -157,10 +170,10 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signOut({ token }) {
-      // Call backend logout endpoint
+      // Call backend staff logout endpoint
       if (token?.accessToken) {
         try {
-          await fetch(`${API_BASE_URL}/auth/logout`, {
+          await fetch(`${API_BASE_URL}/staff/auth/logout`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token.accessToken}`,
@@ -177,7 +190,7 @@ export const authOptions: NextAuthOptions = {
 
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const response = await fetch(`${API_BASE_URL}/staff/auth/refresh-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -187,18 +200,20 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
       }),
     });
 
-    const result = await response.json();
-    const refreshedTokens = result.success ? result.data : result;
-
     if (!response.ok) {
-      throw refreshedTokens;
+      throw new Error('Failed to refresh token');
     }
+
+    const result = await response.json();
+
+    // Backend returns { accessToken, refreshToken }
+    const { accessToken, refreshToken } = result;
 
     return {
       ...token,
-      accessToken: refreshedTokens.token,
-      expiresAt: Date.now() + (refreshedTokens.expiresIn * 1000),
-      refreshToken: refreshedTokens.refreshToken ?? token.refreshToken,
+      accessToken,
+      expiresAt: Date.now() + (86400 * 1000), // 24 hours
+      refreshToken: refreshToken ?? token.refreshToken,
     };
   } catch (error) {
     console.error('Error refreshing access token:', error);

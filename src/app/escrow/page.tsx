@@ -1,103 +1,153 @@
 'use client';
 
 import { useState } from 'react';
-import { useEscrowDashboardData } from '@/lib/hooks/use-escrow';
-import { EscrowList } from '@/components/escrow/EscrowList';
-import { EscrowDetails } from '@/components/escrow/EscrowDetails';
-import { EscrowStats } from '@/components/escrow/EscrowStats';
-import { EscrowActionModal } from '@/components/escrow/EscrowActionModal';
-import { EscrowAnalytics } from '@/components/escrow/EscrowAnalytics';
-// import { EscrowDisputeManagement } from '@/components/escrow/EscrowDisputeManagement';
+import {
+  useEscrows,
+  useEscrowStatistics,
+  useExpiringSoonEscrows,
+  useDisputedEscrows,
+} from '@/lib/hooks/use-escrow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  TrendingUp, 
-  AlertTriangle, 
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import {
+  Shield,
+  AlertTriangle,
   Clock,
-  Eye,
-  BarChart3,
-  List,
   RefreshCw,
-  Download
+  Search,
+  DollarSign,
+  CheckCircle,
+  XCircle,
+  Eye,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import type { EscrowStatus, EscrowAccount } from '@/lib/api/types/escrow.types';
+import { EscrowDetailModal } from '@/components/modals/EscrowDetailModal';
 
 export default function EscrowPage() {
-  const [selectedEscrowId, setSelectedEscrowId] = useState<string | null>(null);
-  const [actionModal, setActionModal] = useState<{ 
-    isOpen: boolean; 
-    escrow: any | null; 
-    action: string | null 
-  }>({
-    isOpen: false,
-    escrow: null,
-    action: null,
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedEscrow, setSelectedEscrow] = useState<EscrowAccount | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Fetch data using new hooks
+  const {
+    data: escrowsData,
+    isLoading: escrowsLoading,
+    error: escrowsError,
+    refetch: refetchEscrows,
+  } = useEscrows({
+    page: currentPage,
+    limit: 20,
+    status: filterStatus !== 'all' ? (filterStatus as EscrowStatus) : undefined,
+    searchTerm: searchTerm || undefined,
   });
-  const [activeTab, setActiveTab] = useState('overview');
 
   const {
-    dashboard,
-    statistics,
-    expiringSoon,
-    activeDisputes,
-    isLoading,
-    error,
-    refetch
-  } = useEscrowDashboardData();
+    data: statistics,
+    isLoading: statsLoading,
+  } = useEscrowStatistics();
 
-  const handleViewEscrow = (escrowId: string) => {
-    setSelectedEscrowId(escrowId);
-    setActiveTab('details');
+  const {
+    data: expiringSoonData,
+  } = useExpiringSoonEscrows({ hours: 24, limit: 5 });
+
+  const {
+    data: disputedData,
+  } = useDisputedEscrows({ limit: 5 });
+
+  const escrows = escrowsData?.data || [];
+  const total = escrowsData?.total || 0;
+  const expiringSoon = expiringSoonData?.data || [];
+  const disputed = disputedData?.data || [];
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount / 100); // Convert from kobo to naira
   };
 
-  const handleEscrowAction = (escrowId: string, action: string) => {
-    // In a real implementation, fetch the escrow data here
-    setActionModal({
-      isOpen: true,
-      escrow: { id: escrowId, amount: 100000, currency: 'NGN', status: 'funded', reference: `ESC-${escrowId}` },
-      action,
-    });
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'released':
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Released
+          </Badge>
+        );
+      case 'refunded':
+        return (
+          <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+            <XCircle className="w-3 h-3 mr-1" />
+            Refunded
+          </Badge>
+        );
+      case 'disputed':
+        return (
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Disputed
+          </Badge>
+        );
+      case 'funded':
+        return (
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            <DollarSign className="w-3 h-3 mr-1" />
+            Funded
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary">
+            <Clock className="w-3 h-3 mr-1" />
+            {status}
+          </Badge>
+        );
+    }
   };
 
-  const closeActionModal = () => {
-    setActionModal({
-      isOpen: false,
-      escrow: null,
-      action: null,
-    });
-  };
-
-  const handleActionSuccess = () => {
-    refetch();
-    closeActionModal();
-  };
-
-  if (error) {
+  if (escrowsError) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Escrow Management</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Escrow Management</h1>
+          <p className="text-muted-foreground">Monitor and manage platform escrow accounts</p>
         </div>
-        
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to load escrow data. Please try refreshing the page.
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              className="ml-2"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Shield className="mx-auto h-12 w-12 text-destructive mb-4" />
+              <p className="text-lg font-medium mb-4">Failed to load escrow data</p>
+              <Button onClick={() => refetchEscrows()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -105,273 +155,283 @@ export default function EscrowPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Escrow Management</h1>
-          <p className="text-gray-600 mt-1">
-            Monitor and manage escrow transactions across the platform
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Escrow Management</h1>
+          <p className="text-muted-foreground">Monitor and manage platform escrow accounts</p>
         </div>
-        
-        <div className="flex items-center space-x-3">
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetchEscrows()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <EscrowStats statistics={statistics} loading={isLoading} />
+      {/* Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Escrows</CardTitle>
+            <Shield className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{statistics?.totalEscrows || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">All time</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Alert Cards for Critical Items */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Expiring Soon */}
-        {expiringSoon && expiringSoon.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-orange-800 flex items-center space-x-2">
-                <Clock className="h-4 w-4" />
-                <span>Expiring Soon</span>
-                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                  {expiringSoon.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {expiringSoon.slice(0, 3).map((escrow) => (
-                  <div key={escrow.id} className="flex items-center justify-between text-sm">
-                    <div>
-                      <div className="font-medium text-orange-900">{escrow.reference}</div>
-                      <div className="text-orange-700 text-xs">{escrow.customerName}</div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewEscrow(escrow.id)}
-                      className="text-orange-700 border-orange-300 hover:bg-orange-100"
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                {expiringSoon.length > 3 && (
-                  <div className="text-xs text-orange-600 pt-2 border-t border-orange-200">
-                    +{expiringSoon.length - 3} more expiring soon
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Amount</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{formatCurrency(statistics?.totalAmount || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">In escrow</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Active Disputes - temporarily disabled, backend endpoint not available */}
-        {/* {activeDisputes && activeDisputes.length > 0 && ( */}
-        {/*   <Card className="border-red-200 bg-red-50"> */}
-        {/*     <CardHeader className="pb-3"> */}
-        {/*       <CardTitle className="text-sm font-medium text-red-800 flex items-center space-x-2"> */}
-        {/*         <AlertTriangle className="h-4 w-4" /> */}
-        {/*         <span>Active Disputes</span> */}
-        {/*         <Badge variant="outline" className="text-red-600 border-red-300"> */}
-        {/*           {activeDisputes.length} */}
-        {/*         </Badge> */}
-        {/*       </CardTitle> */}
-        {/*     </CardHeader> */}
-        {/*     <CardContent> */}
-        {/*       <div className="space-y-2 max-h-32 overflow-y-auto"> */}
-        {/*         {activeDisputes.slice(0, 3).map((escrow) => ( */}
-        {/*           <div key={escrow.id} className="flex items-center justify-between text-sm"> */}
-        {/*             <div> */}
-        {/*               <div className="font-medium text-red-900">{escrow.reference}</div> */}
-        {/*               <div className="text-red-700 text-xs"> */}
-        {/*                 {escrow.dispute?.reason || 'No reason specified'} */}
-        {/*               </div> */}
-        {/*             </div> */}
-        {/*             <Button */}
-        {/*               variant="outline" */}
-        {/*               size="sm" */}
-        {/*               onClick={() => handleViewEscrow(escrow.id)} */}
-        {/*               className="text-red-700 border-red-300 hover:bg-red-100" */}
-        {/*             > */}
-        {/*               <Eye className="h-3 w-3" /> */}
-        {/*             </Button> */}
-        {/*           </div> */}
-        {/*         ))} */}
-        {/*         {activeDisputes.length > 3 && ( */}
-        {/*           <div className="text-xs text-red-600 pt-2 border-t border-red-200"> */}
-        {/*             +{activeDisputes.length - 3} more disputes */}
-        {/*           </div> */}
-        {/*         )} */}
-        {/*       </div> */}
-        {/*     </CardContent> */}
-        {/*   </Card> */}
-        {/* )} */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Funded</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{statistics?.statusBreakdown?.funded || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Active</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Disputed</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{statistics?.disputedEscrows || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Needs attention</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Expiring Soon</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{statistics?.expiringInNext24Hours || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Next 24 hours</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center space-x-2">
-            <TrendingUp className="h-4 w-4" />
-            <span>Overview</span>
-          </TabsTrigger>
-          <TabsTrigger value="escrows" className="flex items-center space-x-2">
-            <List className="h-4 w-4" />
-            <span>All Escrows</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>Analytics</span>
-          </TabsTrigger>
-          <TabsTrigger value="details" className="flex items-center space-x-2">
-            <Eye className="h-4 w-4" />
-            <span>Details</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5" />
-                  <span>Recent Escrow Activity</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dashboard?.recentActivity ? (
-                  <div className="space-y-3">
-                    {dashboard.recentActivity.slice(0, 5).map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm">
-                        <div>
-                          <div className="font-medium">{activity.reference}</div>
-                          <div className="text-gray-500 text-xs">{activity.action}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-gray-900">{activity.amount}</div>
-                          <div className="text-gray-500 text-xs">
-                            {format(new Date(activity.timestamp), 'MMM dd, HH:mm')}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    No recent activity
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* System Health */}
-            <Card>
-              <CardHeader>
-                <CardTitle>System Health</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Processing Rate</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium">98.5%</span>
+      {/* Alerts */}
+      {expiringSoon.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-orange-800 flex items-center space-x-2">
+              <Clock className="h-4 w-4" />
+              <span>Escrows Expiring in Next 24 Hours</span>
+              <Badge variant="outline" className="text-orange-600 border-orange-300">
+                {expiringSoon.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {expiringSoon.slice(0, 3).map((escrow) => (
+                <div key={escrow._id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <div className="font-medium text-orange-900">{escrow.escrowId}</div>
+                    <div className="text-orange-700 text-xs">
+                      {escrow.customerId.firstName} {escrow.customerId.lastName}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Average Resolution Time</span>
-                    <span className="text-sm font-medium">
-                      {statistics?.averageProcessingTime || 0}h
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Success Rate</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium">
-                        {statistics?.successRate?.toFixed(1) || 0}%
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Active Disputes</span>
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        (statistics?.disputedEscrows || 0) > 10 ? 'bg-red-500' : 
-                        (statistics?.disputedEscrows || 0) > 5 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}></div>
-                      <span className="text-sm font-medium">
-                        {statistics?.disputedEscrows || 0}
-                      </span>
+                  <div className="text-right">
+                    <div className="font-medium">{formatCurrency(escrow.amount)}</div>
+                    <div className="text-xs text-orange-700">
+                      {escrow.expiresAt && format(new Date(escrow.expiresAt), 'MMM dd, HH:mm')}
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="escrows" className="mt-6">
-          <EscrowList 
-            onViewEscrow={handleViewEscrow}
-            onEscrowAction={handleEscrowAction}
-          />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-6">
-          <EscrowAnalytics />
-        </TabsContent>
-
-        {/* Disputes tab temporarily disabled - backend endpoint not available */}
-        {/* <TabsContent value="disputes" className="mt-6"> */}
-        {/*   <EscrowDisputeManagement /> */}
-        {/* </TabsContent> */}
-
-        <TabsContent value="details" className="mt-6">
-          {selectedEscrowId ? (
-            <EscrowDetails
-              escrowId={selectedEscrowId}
-              onClose={() => {
-                setSelectedEscrowId(null);
-                setActiveTab('escrows');
-              }}
-              onActionComplete={handleActionSuccess}
-            />
-          ) : (
-            <div className="text-center py-12">
-              <Eye className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Escrow Selected</h3>
-              <p className="text-gray-500 mb-4">
-                Select an escrow from the list to view its details.
-              </p>
-              <Button onClick={() => setActiveTab('escrows')}>
-                <List className="h-4 w-4 mr-2" />
-                Browse Escrows
-              </Button>
+              ))}
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Action Modal */}
-      {actionModal.isOpen && actionModal.escrow && actionModal.action && (
-        <EscrowActionModal
-          isOpen={actionModal.isOpen}
-          onClose={closeActionModal}
-          escrow={actionModal.escrow}
-          action={actionModal.action}
-          onSuccess={handleActionSuccess}
-        />
+          </CardContent>
+        </Card>
       )}
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filter Escrows</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by escrow ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="funded">Funded</SelectItem>
+                <SelectItem value="released">Released</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
+                <SelectItem value="disputed">Disputed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Escrows Table */}
+      <Card>
+        <CardContent className="p-0">
+          {escrowsLoading ? (
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-32" />
+                  <Skeleton className="h-12 flex-1" />
+                  <Skeleton className="h-12 w-24" />
+                  <Skeleton className="h-12 w-24" />
+                </div>
+              ))}
+            </div>
+          ) : escrows.length === 0 ? (
+            <div className="p-12 text-center">
+              <Shield className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium mb-2">No escrows found</p>
+              <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Escrow ID</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {escrows.map((escrow) => (
+                      <TableRow key={escrow._id}>
+                        <TableCell className="font-medium">{escrow.escrowId}</TableCell>
+                        <TableCell>{escrow.orderId.orderNumber}</TableCell>
+                        <TableCell>
+                          {escrow.customerId.firstName} {escrow.customerId.lastName}
+                        </TableCell>
+                        <TableCell>{escrow.vendorId.businessInfo.businessName}</TableCell>
+                        <TableCell className="font-medium">{formatCurrency(escrow.amount)}</TableCell>
+                        <TableCell>{getStatusBadge(escrow.status)}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {escrow.expiresAt ? format(new Date(escrow.expiresAt), 'MMM dd, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedEscrow(escrow);
+                              setDetailModalOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * 20 + 1} to {Math.min(currentPage * 20, total)} of {total} results
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1 || escrowsLoading}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => prev + 1)}
+                    disabled={currentPage === (escrowsData?.totalPages || 1) || escrowsLoading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Escrow Detail Modal */}
+      <EscrowDetailModal
+        escrow={selectedEscrow}
+        open={detailModalOpen}
+        onOpenChange={(open) => {
+          setDetailModalOpen(open);
+          if (!open) {
+            setSelectedEscrow(null);
+          }
+        }}
+      />
     </div>
   );
 }

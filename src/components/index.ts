@@ -80,10 +80,10 @@ export { Tabs } from './ui/tabs';
 // Modal Components
 export { CreateStaffModal } from './modals/CreateStaffModal';
 export { DeleteConfirmationModal } from './modals/DeleteConfirmationModal';
-export { EditStaffModal } from './modals/EditStaffModal';
 export { OrderDetailModal } from './modals/OrderDetailModal';
 export { VendorApprovalModal } from './modals/VendorApprovalModal';
 export { VendorDetailModal } from './modals/VendorDetailModal';
+export { EscrowDetailModal } from './modals/EscrowDetailModal';
 
 // Provider Components
 export { default as ClientProviders } from './providers/ClientProviders';

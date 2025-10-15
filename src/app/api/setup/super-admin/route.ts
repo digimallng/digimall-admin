@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get admin service URL
-    const adminServiceUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://admin.digimall.ng/api/v1'
-      : process.env.ADMIN_SERVICE_URL 
-        ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
-        : 'http://localhost:4800/api/v1';
+    // Get unified backend URL
+    const backendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://api.digimall.ng'
+      : process.env.NEXT_PUBLIC_BACKEND_URL
+        ? process.env.NEXT_PUBLIC_BACKEND_URL
+        : 'http://localhost:3000';
 
-    console.log('Creating super admin via admin service:', adminServiceUrl);
+    console.log('Creating super admin via unified backend:', backendUrl);
     console.log('Setup request data:', {
       firstName,
       lastName,
@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
       passwordLength: password.length
     });
 
-    // Call the actual admin service to create super admin
-    const response = await fetch(`${adminServiceUrl}/setup/create-super-admin`, {
+    // Call the unified backend to create super admin
+    const response = await fetch(`${backendUrl}/api/v1/staff/setup/create-super-admin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         errorData = { error: errorText || 'Setup failed' };
       }
 
-      console.error('Admin service setup error:', {
+      console.error('Backend setup error:', {
         status: response.status,
         statusText: response.statusText,
         error: errorData
@@ -80,24 +80,24 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await response.json();
-    
+
     console.log('Super admin created successfully:', {
-      userId: result.user?.id,
-      email: result.user?.email
+      userId: result.user?.id || result.id,
+      email: result.user?.email || result.email
     });
 
     return NextResponse.json({
       success: true,
       message: 'Super admin account created successfully',
-      user: result.user
+      user: result.user || result
     });
 
   } catch (error) {
     console.error('Setup API error:', error);
-    
+
     return NextResponse.json(
-      { 
-        error: 'Failed to connect to admin service',
+      {
+        error: 'Failed to connect to unified backend',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

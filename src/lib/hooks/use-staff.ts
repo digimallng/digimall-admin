@@ -297,66 +297,33 @@ export function useUpdateRolePermissions() {
   });
 }
 
-// Support agent hooks
-export function useSupportAgents(filters?: {
-  teamId?: string;
-  status?: string;
-  available?: boolean;
-}) {
-  return useQuery({
-    queryKey: ['support-agents', filters],
-    queryFn: () => staffService.getSupportAgents(filters),
-    staleTime: 30000, // 30 seconds
-  });
-}
+// Note: Support agent hooks removed - endpoints don't exist in backend API
 
-export function useAssignStaffToSupportTeam() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ staffId, teamId }: { staffId: string; teamId: string }) =>
-      staffService.assignStaffToSupportTeam(staffId, teamId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-      queryClient.invalidateQueries({ queryKey: ['support-agents'] });
-      toast.success('Staff assigned to support team successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to assign staff to support team');
-    },
-  });
-}
-
+/**
+ * useUpdateAgentStatus - Deprecated hook (endpoint doesn't exist)
+ * Returns a no-op mutation for backward compatibility with StaffList component
+ */
 export function useUpdateAgentStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      staffId, 
-      status, 
-      reason 
-    }: { 
-      staffId: string; 
-      status: 'available' | 'busy' | 'away' | 'offline';
+    mutationFn: async ({ staffId, status, reason }: {
+      staffId: string;
+      status: string;
       reason?: string;
-    }) => staffService.updateAgentStatus(staffId, status, reason),
+    }) => {
+      // Backend doesn't have agent status endpoint
+      // Use regular staff status update instead
+      console.warn('useUpdateAgentStatus: Endpoint not available, using regular status update');
+      return { success: false, message: 'Agent status endpoint not available' };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      queryClient.invalidateQueries({ queryKey: ['support-agents'] });
-      toast.success('Agent status updated successfully');
+      toast.info('Agent status feature not available - use staff status instead');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update agent status');
+      toast.error('Agent status feature not available');
     },
-  });
-}
-
-export function useStaffWorkload(staffId: string) {
-  return useQuery({
-    queryKey: ['staff-workload', staffId],
-    queryFn: () => staffService.getStaffWorkload(staffId),
-    enabled: !!staffId,
-    refetchInterval: 60000, // Refresh every minute
   });
 }
 

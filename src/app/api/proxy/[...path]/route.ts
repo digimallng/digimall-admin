@@ -1,97 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { ApiError } from '@/lib/api/types/shared.types';
 
-// Service URLs - use environment variables or fallback to localhost
-const ADMIN_SERVICE_URL = process.env.ADMIN_SERVICE_URL 
-  ? `${process.env.ADMIN_SERVICE_URL}/api/v1`
-  : 'http://localhost:4800/api/v1';
+// Unified Backend URL - all services are now consolidated
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
-const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL
-  ? `${process.env.CHAT_SERVICE_URL}/api/v1`
-  : 'http://localhost:4700/api/v1';
-
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL
-  ? `${process.env.USER_SERVICE_URL}/api/v1`
-  : 'http://localhost:4300/api/v1';
-
-const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL
-  ? `${process.env.NOTIFICATION_SERVICE_URL}/api/v1`
-  : 'http://localhost:5100/api/v1';
-
-// Special routes that need different handling
-const SPECIAL_ROUTES = {
-  // Chat service - direct connection for WebSocket compatibility
-  chat: CHAT_SERVICE_URL,
-  // User service - direct connection for user management
-  'user-service': USER_SERVICE_URL,
-};
+// Request timeout (30 seconds)
+const REQUEST_TIMEOUT = 30000;
 
 function getServiceUrl(path: string): { serviceUrl: string; servicePath: string } {
   // Remove leading slash
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  const segments = cleanPath.split('/');
-  const firstSegment = segments[0];
 
-  // Handle chat routes specially - direct to chat service
-  if (firstSegment === 'chat' || firstSegment === 'messages') {
-    return {
-      serviceUrl: SPECIAL_ROUTES.chat,
-      servicePath: cleanPath,
-    };
-  }
+  // All routes now go to the unified backend
+  // The backend expects paths in the format: /api/v1/{endpoint}
+  // Examples:
+  // - admin/vendors -> /api/v1/admin/vendors
+  // - admin/products -> /api/v1/admin/products
+  // - staff/auth/login -> /api/v1/staff/auth/login
+  // - analytics/dashboard -> /api/v1/analytics/dashboard
 
-  // Handle user-service routes - direct to user service
-  if (firstSegment === 'user-service') {
-    return {
-      serviceUrl: SPECIAL_ROUTES['user-service'],
-      servicePath: cleanPath.replace('user-service/', ''),
-    };
-  }
-
-  // Handle users routes - route through admin service for management
-  if (firstSegment === 'users') {
-    // All user management endpoints go through admin service
-    return {
-      serviceUrl: ADMIN_SERVICE_URL,
-      servicePath: cleanPath,
-    };
-  }
-
-  // Handle notification routes - these are handled by admin service
-  // The admin service provides notification management endpoints at /api/v1/notifications
-  if (firstSegment === 'notifications' || cleanPath.startsWith('admin/notifications')) {
-    return {
-      serviceUrl: ADMIN_SERVICE_URL,
-      servicePath: cleanPath.startsWith('admin/') ? cleanPath.replace('admin/', '') : cleanPath,
-    };
-  }
-
-  // Handle system routes - these might go to a different service
-  if (firstSegment === 'system') {
-    return {
-      serviceUrl: ADMIN_SERVICE_URL,
-      servicePath: cleanPath,
-    };
-  }
-
-  // All other routes go to admin service
-  // The admin service handles all admin operations including:
-  // vendors, users, orders, products, categories, analytics, audit, etc.
-  
-  // Remove 'admin/' prefix if present since the admin service expects direct endpoint paths
-  // Examples: 
-  // - admin/analytics/dashboard -> analytics/dashboard
-  // - admin/vendors -> vendors
-  // - admin/users -> users
-  let adminPath = cleanPath;
-  if (adminPath.startsWith('admin/')) {
-    adminPath = adminPath.replace('admin/', '');
-  }
-  
   return {
-    serviceUrl: ADMIN_SERVICE_URL,
-    servicePath: adminPath,
+    serviceUrl: API_BASE_URL,
+    servicePath: cleanPath,
   };
 }
 
@@ -102,13 +35,33 @@ async function handler(request: NextRequest) {
     const pathMatch = pathname.match(/\/api\/proxy\/(.+)/);
     const proxyPath = pathMatch ? pathMatch[1] : '';
 
-    // Allow setup endpoints without authentication
-    const isSetupEndpoint = proxyPath.startsWith('setup/') || proxyPath.startsWith('admin/setup/');
-    
-    // Get the session (unless it's a setup endpoint)
-    const session = !isSetupEndpoint ? await getServerSession(authOptions) : null;
+    // Allow auth endpoints without authentication (login, register, etc.)
+    const isAuthEndpoint = proxyPath.startsWith('staff/auth/login') ||
+                          proxyPath.startsWith('staff/auth/refresh-token') ||
+                          proxyPath.startsWith('staff/auth/logout') ||
+                          proxyPath.startsWith('staff/setup/') ||
+                          proxyPath.startsWith('auth/') ||
+                          proxyPath.startsWith('setup/');
 
-    if (!isSetupEndpoint && !session) {
+    // Get the session (unless it's an auth endpoint)
+    const session = !isAuthEndpoint ? await getServerSession(authOptions) : null;
+
+    // Check for Authorization header as fallback (for API test suite)
+    const authHeader = request.headers.get('authorization');
+    const hasBearerToken = authHeader?.startsWith('Bearer ');
+
+    // Debug logging for auth issues
+    if (!isAuthEndpoint && !session) {
+      console.log('Auth check:', {
+        path: proxyPath,
+        hasSession: !!session,
+        authHeader: authHeader?.substring(0, 50),
+        hasBearerToken,
+      });
+    }
+
+    // Require either session OR bearer token for non-auth endpoints
+    if (!isAuthEndpoint && !session && !hasBearerToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -127,19 +80,25 @@ async function handler(request: NextRequest) {
 
     // Prepare headers
     const headers = new Headers(request.headers);
-    
-    // Only add auth headers for non-setup endpoints
-    if (!isSetupEndpoint && session) {
-      headers.set('Authorization', `Bearer ${session.accessToken}`);
-      // Add user information headers that microservices might need
-      headers.set('x-user-id', session.user.id);
-      headers.set('x-user-email', session.user.email);
-      headers.set('x-user-role', session.user.role);
+
+    // Only add auth headers for non-auth endpoints
+    if (!isAuthEndpoint) {
+      if (session) {
+        // Use session token for authenticated dashboard requests
+        headers.set('Authorization', `Bearer ${session.accessToken}`);
+        // Add user information headers that backend might need
+        headers.set('x-user-id', session.user.id);
+        headers.set('x-user-email', session.user.email);
+        headers.set('x-user-role', session.user.role);
+      } else if (hasBearerToken) {
+        // For API test suite - forward the Authorization header as-is
+        // The header is already in the request, but we ensure it's preserved
+        headers.set('Authorization', authHeader);
+      }
     }
 
-    // Add service identification headers for microservice-to-microservice communication
-    headers.set('X-Client-Service', 'admin-service');
-    headers.set('X-Service-Name', 'admin-service');
+    // Add service identification headers
+    headers.set('X-Client-Service', 'admin-frontend');
     headers.set('X-Request-Source', 'admin-panel');
 
     // Remove Next.js specific headers
@@ -168,10 +127,13 @@ async function handler(request: NextRequest) {
       targetUrl: targetUrl.toString(),
       method: request.method,
       hasAuth: !!headers.get('Authorization'),
+      authHeader: headers.get('Authorization')?.substring(0, 30) + '...',
+      hasSession: !!session,
+      hasBearerToken,
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    // Make the request to the target service
+    // Make the request to the target service with timeout
     let fetchBody: any = undefined;
     if (body) {
       if (headers.get('content-type')?.includes('multipart/form-data')) {
@@ -186,46 +148,124 @@ async function handler(request: NextRequest) {
       }
     }
 
-    const response = await fetch(targetUrl.toString(), {
-      method: request.method,
-      headers,
-      body: fetchBody,
-      // @ts-ignore - duplex option is required for streaming bodies in Node.js 18+
-      duplex: 'half',
-    });
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-    // Get response data
-    const responseData = await response.text();
+    try {
+      const response = await fetch(targetUrl.toString(), {
+        method: request.method,
+        headers,
+        body: fetchBody,
+        signal: controller.signal,
+        // @ts-ignore - duplex option is required for streaming bodies in Node.js 18+
+        duplex: 'half',
+      });
 
-    console.log('Proxy response:', {
-      status: response.status,
-      statusText: response.statusText,
-      data: responseData,
-    });
+      clearTimeout(timeoutId);
 
-    // Create response with appropriate headers
-    const proxyResponse = new NextResponse(responseData, {
-      status: response.status,
-      statusText: response.statusText,
-    });
+      // Check if response is binary (for file downloads)
+      const contentType = response.headers.get('content-type') || '';
+      const isBinary = contentType.includes('application/octet-stream') ||
+                       contentType.includes('application/vnd.openxmlformats-officedocument') ||
+                       contentType.includes('application/vnd.ms-excel') ||
+                       contentType.includes('application/pdf') ||
+                       contentType.includes('image/') ||
+                       contentType.includes('video/') ||
+                       contentType.includes('audio/');
 
-    // Copy response headers
-    response.headers.forEach((value, key) => {
-      // Skip some headers that shouldn't be forwarded
-      if (
-        !['content-encoding', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())
-      ) {
-        proxyResponse.headers.set(key, value);
+      // Get response data - use arrayBuffer for binary, text for others
+      let responseData: string | ArrayBuffer;
+      if (isBinary) {
+        responseData = await response.arrayBuffer();
+        console.log('Proxy response:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          size: responseData.byteLength,
+          type: 'binary',
+        });
+      } else {
+        responseData = await response.text();
+        console.log('Proxy response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData.substring(0, 200),
+          type: 'text',
+        });
       }
-    });
 
-    return proxyResponse;
+      // Create response with appropriate headers
+      const proxyResponse = new NextResponse(responseData, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+
+      // Copy response headers
+      response.headers.forEach((value, key) => {
+        // Skip some headers that shouldn't be forwarded
+        if (
+          !['content-encoding', 'content-length', 'transfer-encoding'].includes(
+            key.toLowerCase()
+          )
+        ) {
+          proxyResponse.headers.set(key, value);
+        }
+      });
+
+      return proxyResponse;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+
+      // Handle timeout
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Request timeout',
+            message: 'The request took too long to complete',
+          },
+          { status: 504 }
+        );
+      }
+
+      // Handle fetch errors
+      throw fetchError;
+    }
   } catch (error) {
     console.error('Proxy error:', error);
+
+    // Handle specific error types
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: error.code,
+          data: error.data,
+        },
+        { status: error.status }
+      );
+    }
+
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Network error',
+          message: 'Unable to connect to the backend service',
+        },
+        { status: 503 }
+      );
+    }
+
+    // Generic error handler
     return NextResponse.json(
       {
+        success: false,
         error: 'Internal proxy error',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

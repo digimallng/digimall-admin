@@ -55,7 +55,8 @@ export const fileSchema = z.object({
 export const userStatusSchema = z.enum(['active', 'inactive', 'suspended', 'pending']);
 export const userRoleSchema = z.enum(['admin', 'staff', 'customer', 'vendor']);
 
-export const createUserSchema = z.object({
+// Base user schema without refinements (for deriving other schemas)
+const baseUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name is too long'),
   lastName: z.string().min(1, 'Last name is required').max(50, 'Last name is too long'),
   email: emailSchema,
@@ -66,12 +67,19 @@ export const createUserSchema = z.object({
   confirmPassword: z.string(),
   profileImage: z.string().url().optional(),
   notes: z.string().max(500, 'Notes are too long').optional(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
 });
 
-export const updateUserSchema = createUserSchema.partial().omit({
+// Create user schema with password confirmation refinement
+export const createUserSchema = baseUserSchema.refine(
+  data => data.password === data.confirmPassword,
+  {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  }
+);
+
+// Update user schema (all fields optional, no password fields)
+export const updateUserSchema = baseUserSchema.partial().omit({
   password: true,
   confirmPassword: true,
 });

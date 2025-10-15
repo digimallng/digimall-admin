@@ -16,11 +16,19 @@ export function SetupWrapper({ children }: SetupWrapperProps) {
 
   const isSetupPage = pathname?.startsWith('/setup');
   const isAuthPage = pathname?.startsWith('/auth');
+  const isApiTestPage = pathname?.startsWith('/api-test');
 
   const checkSetupStatus = async () => {
+    // Skip setup check for API test page
+    if (isApiTestPage) {
+      setIsLoading(false);
+      setSetupRequired(false);
+      return;
+    }
+
     // Prevent multiple simultaneous checks
     if (isChecking) return;
-    
+
     try {
       setIsChecking(true);
       setIsLoading(true);

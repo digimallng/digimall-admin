@@ -81,27 +81,7 @@ export const orderService = {
 
   // Export orders
   async exportOrders(params: OrderExport): Promise<Blob> {
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (Array.isArray(value)) {
-          value.forEach(v => queryParams.append(key, v));
-        } else {
-          queryParams.append(key, String(value));
-        }
-      }
-    });
-    
-    const response = await fetch(`${apiClient.baseURL}/orders/export?${queryParams.toString()}`, {
-      headers: await apiClient.getAuthHeaders(),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Export failed');
-    }
-    
-    return response.blob();
+    return apiClient.getBlob('/admin/orders/export', params as any);
   },
 
   // Get order statistics
@@ -236,11 +216,11 @@ export class OrderService {
   static async exportOrders(filters: any) {
     return orderService.exportOrders(filters);
   }
-  
-  static async bulkUpdateOrders(data: any) {
-    return orderService.bulkUpdateOrders(data);
+
+  static async bulkAction(data: any) {
+    return orderService.bulkAction(data);
   }
-  
+
   static async getOrderStats(filters: any) {
     return orderService.getOrderStats(filters);
   }

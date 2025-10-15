@@ -232,7 +232,12 @@ export class UserService {
     reason?: string;
     duration?: number;
   }): Promise<{ success: number; failed: number; errors: any[] }> {
-    return apiClient.post('/users/bulk-update', data);
+    return apiClient.post('/admin/users/bulk-action', {
+      userIds: data.userIds,
+      action: data.action,
+      reason: data.reason,
+      duration: data.duration,
+    });
   }
 
   // Export users

@@ -6,6 +6,16 @@ const nextConfig = {
   serverExternalPackages: ['@tanstack/react-query', 'socket.io-client'],
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'd2p2bqd74chr0p.cloudfront.net',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,

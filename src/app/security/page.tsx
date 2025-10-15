@@ -1,42 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { AnimatedCard, GlowingButton, AnimatedNumber } from '@/components/ui/AnimatedCard';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   Search,
-  Filter,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Clock,
   Eye,
-  Lock,
-  Unlock,
-  TrendingUp,
-  TrendingDown,
   User,
-  Users,
   CreditCard,
-  MapPin,
-  Smartphone,
-  Monitor,
-  Globe,
   Flag,
   Ban,
   Activity,
-  FileText,
-  Download,
   RefreshCw,
-  Zap,
-  Target,
-  Crosshair,
   AlertCircle,
+  MoreVertical,
+  Globe,
+  MapPin,
+  Monitor,
+  TrendingUp,
+  FileText,
+  Lock,
 } from 'lucide-react';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   PieChart,
@@ -47,815 +35,810 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
 } from 'recharts';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils/cn';
+import { cn } from '@/lib/utils';
 import { securityService } from '@/lib/api/services/security.service';
-import Link from 'next/link';
-
-interface SecurityAlert {
-  id: string;
-  type:
-    | 'fraud'
-    | 'suspicious_activity'
-    | 'policy_violation'
-    | 'security_breach'
-    | 'ddos'
-    | 'malware';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'active' | 'investigating' | 'resolved' | 'false_positive';
-  title: string;
-  description: string;
-  userId?: string;
-  vendorId?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  location?: string;
-  metadata: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-  resolvedAt?: Date;
-  assignedTo?: string;
-}
-
-interface FraudPattern {
-  id: string;
-  name: string;
-  description: string;
-  riskScore: number;
-  detectionCount: number;
-  successRate: number;
-  lastTriggered: Date;
-  active: boolean;
-}
-
-const mockSecurityAlerts: SecurityAlert[] = [
-  {
-    id: 'SEC-001',
-    type: 'fraud',
-    severity: 'high',
-    status: 'investigating',
-    title: 'Multiple Failed Payment Attempts',
-    description: 'User attempting multiple payments with different cards from same IP',
-    userId: 'USER-12345',
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    location: 'Lagos, Nigeria',
-    metadata: {
-      attemptCount: 15,
-      cardsUsed: 5,
-      timeSpan: '30 minutes',
-    },
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    assignedTo: 'Security Team',
-  },
-  {
-    id: 'SEC-002',
-    type: 'suspicious_activity',
-    severity: 'medium',
-    status: 'active',
-    title: 'Unusual Login Pattern',
-    description: 'Vendor account accessed from multiple countries within 1 hour',
-    vendorId: 'VEND-67890',
-    ipAddress: '203.0.113.45',
-    location: 'London, UK',
-    metadata: {
-      loginCount: 8,
-      countries: ['Nigeria', 'UK', 'US', 'Germany'],
-      timeSpan: '45 minutes',
-    },
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-  },
-  {
-    id: 'SEC-003',
-    type: 'policy_violation',
-    severity: 'medium',
-    status: 'resolved',
-    title: 'Fake Product Listings',
-    description: 'Vendor posting counterfeit products detected by AI system',
-    vendorId: 'VEND-11111',
-    metadata: {
-      productsDetected: 12,
-      categories: ['Electronics', 'Fashion'],
-      confidenceScore: 0.95,
-    },
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
-    resolvedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
-    assignedTo: 'Content Team',
-  },
-  {
-    id: 'SEC-004',
-    type: 'ddos',
-    severity: 'critical',
-    status: 'resolved',
-    title: 'DDoS Attack Detected',
-    description: 'Massive traffic spike from bot network targeting payment system',
-    ipAddress: 'Multiple IPs',
-    metadata: {
-      requestCount: 50000,
-      duration: '15 minutes',
-      targetEndpoint: '/api/payment',
-      mitigationStatus: 'Active',
-    },
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    resolvedAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    assignedTo: 'DevOps Team',
-  },
-];
-
-const mockFraudPatterns: FraudPattern[] = [
-  {
-    id: 'FP-001',
-    name: 'Card Testing',
-    description: 'Multiple small transactions with different cards',
-    riskScore: 8.5,
-    detectionCount: 45,
-    successRate: 92.3,
-    lastTriggered: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    active: true,
-  },
-  {
-    id: 'FP-002',
-    name: 'Account Takeover',
-    description: 'Unusual login patterns and password changes',
-    riskScore: 9.1,
-    detectionCount: 23,
-    successRate: 87.8,
-    lastTriggered: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    active: true,
-  },
-  {
-    id: 'FP-003',
-    name: 'Fake Reviews',
-    description: 'Coordinated review manipulation',
-    riskScore: 6.8,
-    detectionCount: 78,
-    successRate: 94.1,
-    lastTriggered: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    active: true,
-  },
-  {
-    id: 'FP-004',
-    name: 'Price Manipulation',
-    description: 'Artificial price inflation schemes',
-    riskScore: 7.2,
-    detectionCount: 34,
-    successRate: 89.5,
-    lastTriggered: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    active: true,
-  },
-];
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 export default function SecurityPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'alerts' | 'patterns' | 'monitoring'>('alerts');
+  const [activeTab, setActiveTab] = useState('events');
+  const [blockIPDialog, setBlockIPDialog] = useState(false);
+  const [blockIPForm, setBlockIPForm] = useState({
+    ipAddress: '',
+    reason: '',
+  });
 
-  const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
-    queryKey: ['security-alerts', typeFilter, severityFilter, statusFilter],
-    queryFn: () => securityService.getSecurityAlerts({
-      type: typeFilter !== 'all' ? typeFilter : undefined,
-      severity: severityFilter !== 'all' ? severityFilter : undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      limit: 20
+  const queryClient = useQueryClient();
+
+  // 1. Security Events
+  const { data: eventsData, isLoading: eventsLoading, refetch: refetchEvents } = useQuery({
+    queryKey: ['security-events', typeFilter, severityFilter],
+    queryFn: () => securityService.getEvents({
+      type: typeFilter !== 'all' ? typeFilter as any : undefined,
+      severity: severityFilter !== 'all' ? severityFilter as any : undefined,
+      page: 1,
+      limit: 20,
     }),
   });
 
-  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
-    queryKey: ['security-dashboard'],
-    queryFn: () => securityService.getSecurityDashboard(),
-    retry: 1,
-    retryOnMount: false,
+  // 2. Security Alerts
+  const { data: alertsData, isLoading: alertsLoading, refetch: refetchAlerts } = useQuery({
+    queryKey: ['security-alerts'],
+    queryFn: () => securityService.getAlerts(),
   });
 
-  const { data: securityScore, isLoading: scoreLoading } = useQuery({
-    queryKey: ['security-score'],
-    queryFn: () => securityService.getSecurityScore(),
-    retry: 1,
-    retryOnMount: false,
+  // 3. Audit Log
+  const { data: auditLogData, isLoading: auditLogLoading } = useQuery({
+    queryKey: ['audit-log'],
+    queryFn: () => securityService.getAuditLog({ days: 30 }),
   });
 
-  const { data: recentEvents, isLoading: eventsLoading } = useQuery({
-    queryKey: ['security-events', 'recent'],
-    queryFn: () => securityService.getRecentSecurityEvents(10),
-    retry: 1,
-    retryOnMount: false,
+  // 4. Fraud Detection
+  const { data: fraudData, isLoading: fraudLoading } = useQuery({
+    queryKey: ['fraud-detection'],
+    queryFn: () => securityService.getFraudDetection(),
   });
 
-  const { data: vulnerabilities, isLoading: vulnLoading } = useQuery({
-    queryKey: ['vulnerabilities'],
-    queryFn: () => securityService.getVulnerabilities(),
-    retry: 1,
-    retryOnMount: false,
+  // 5. Threat Intelligence
+  const { data: threatData, isLoading: threatLoading } = useQuery({
+    queryKey: ['threat-intelligence'],
+    queryFn: () => securityService.getThreatIntelligence(),
   });
 
-  const { data: fraudRulesData, isLoading: fraudRulesLoading } = useQuery({
-    queryKey: ['fraud-rules'],
-    queryFn: () => securityService.getFraudRules(),
-    retry: 1,
-    retryOnMount: false,
+  // 6. Login Analytics
+  const { data: loginAnalytics, isLoading: loginLoading } = useQuery({
+    queryKey: ['login-analytics'],
+    queryFn: () => securityService.getLoginAnalytics({ days: 30 }),
   });
 
-  const patterns = fraudRulesData?.items || mockFraudPatterns;
-
-  const securityMetrics = [
-    { name: 'Jan', threats: 45, blocked: 42, false_positives: 3 },
-    { name: 'Feb', threats: 52, blocked: 49, false_positives: 3 },
-    { name: 'Mar', threats: 38, blocked: 36, false_positives: 2 },
-    { name: 'Apr', threats: 67, blocked: 63, false_positives: 4 },
-    { name: 'May', threats: 59, blocked: 55, false_positives: 4 },
-    { name: 'Jun', threats: 71, blocked: 68, false_positives: 3 },
-  ];
-
-  const threatTypeData = [
-    { type: 'Fraud', count: 45, percentage: 35 },
-    { type: 'Suspicious Activity', count: 32, percentage: 25 },
-    { type: 'Policy Violation', count: 28, percentage: 22 },
-    { type: 'Security Breach', count: 15, percentage: 12 },
-    { type: 'DDoS', count: 8, percentage: 6 },
-  ];
-
-  const COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6'];
-
-  const alertsList = alerts?.items || [];
-  const filteredAlerts = alertsList.filter(alert => {
-    const matchesSearch =
-      alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      alert.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesType = typeFilter === 'all' || alert.type === typeFilter;
-    const matchesSeverity = severityFilter === 'all' || alert.severity === severityFilter;
-    const matchesStatus = statusFilter === 'all' || alert.status === statusFilter;
-
-    return matchesSearch && matchesType && matchesSeverity && matchesStatus;
+  // 7. Blocked IPs
+  const { data: blockedIPsData, isLoading: blockedIPsLoading, refetch: refetchBlockedIPs } = useQuery({
+    queryKey: ['blocked-ips'],
+    queryFn: () => securityService.getBlockedIPs(),
   });
 
+  // 8. Block IP Mutation
+  const blockIPMutation = useMutation({
+    mutationFn: (data: { ipAddress: string; reason: string }) =>
+      securityService.blockIP(data),
+    onSuccess: () => {
+      toast.success('IP address blocked successfully');
+      setBlockIPDialog(false);
+      setBlockIPForm({ ipAddress: '', reason: '' });
+      refetchBlockedIPs();
+      refetchEvents();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to block IP address');
+    },
+  });
+
+  // 9. Unblock IP Mutation
+  const unblockIPMutation = useMutation({
+    mutationFn: (ipAddress: string) => securityService.unblockIP(ipAddress),
+    onSuccess: () => {
+      toast.success('IP address unblocked successfully');
+      refetchBlockedIPs();
+      refetchEvents();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to unblock IP address');
+    },
+  });
+
+  const handleBlockIP = () => {
+    if (!blockIPForm.ipAddress || !blockIPForm.reason) {
+      toast.error('IP address and reason are required');
+      return;
+    }
+    blockIPMutation.mutate(blockIPForm);
+  };
+
+  const handleUnblockIP = (ipAddress: string) => {
+    if (confirm(`Are you sure you want to unblock ${ipAddress}?`)) {
+      unblockIPMutation.mutate(ipAddress);
+    }
+  };
+
+  const events = eventsData?.data || [];
+  const alerts = alertsData?.alerts || [];
+  const auditLogs = auditLogData?.logs || [];
+  const blockedIPs = blockedIPsData?.blocked || [];
+
+  // Statistics
   const stats = {
-    totalAlerts: alertsList.length,
-    activeAlerts: alertsList.filter(a => a.status === 'open' || a.status === 'active').length,
-    resolvedAlerts: alertsList.filter(a => a.status === 'resolved').length,
-    criticalAlerts: alertsList.filter(a => a.severity === 'critical').length,
-    avgResponseTime: 2.4, // hours
-    detectionRate: 94.8, // percentage
+    totalEvents: events.length,
+    totalAlerts: alerts.length,
+    activeAlerts: alertsData?.summary?.active || 0,
+    resolvedAlerts: alertsData?.summary?.resolved || 0,
+    criticalAlerts: alerts.filter((a: any) => a.severity === 'critical').length,
+    blockedIPs: blockedIPs.length,
+    suspiciousOrders: fraudData?.suspicious?.orders || 0,
+    suspiciousUsers: fraudData?.suspicious?.users || 0,
+    successRate: loginAnalytics?.successRate || 0,
+    failedLogins: loginAnalytics?.failed || 0,
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 hover:bg-red-100';
       case 'high':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
       case 'low':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 hover:bg-green-100';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
       case 'active':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 hover:bg-red-100';
       case 'investigating':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
       case 'resolved':
-        return 'bg-green-100 text-green-800';
-      case 'dismissed':
-      case 'false_positive':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-green-100 text-green-800 hover:bg-green-100';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'fraud':
-        return CreditCard;
-      case 'suspicious_activity':
-        return Eye;
-      case 'policy_violation':
-        return Flag;
-      case 'security_breach':
-        return Shield;
-      case 'ddos':
-        return Zap;
-      case 'malware':
-        return AlertTriangle;
-      default:
-        return AlertCircle;
-    }
-  };
+  const COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6'];
 
-  const handleStatusChange = async (alertId: string, newStatus: string) => {
-    try {
-      await securityService.resolveAlert(alertId, { 
-        status: newStatus as any,
-        resolution: `Status updated to ${newStatus}` 
-      });
-      refetchAlerts();
-    } catch (error) {
-      console.error('Failed to update alert status:', error);
-    }
-  };
-
-  if (alertsLoading || dashboardLoading || scoreLoading || eventsLoading || vulnLoading || fraudRulesLoading) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isLoading = eventsLoading || alertsLoading || auditLogLoading || fraudLoading;
 
   return (
-    <div className='space-y-8'>
+    <div className="space-y-6">
       {/* Header */}
-      <div className='relative'>
-        <div className='absolute inset-0 -z-10 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 rounded-3xl' />
-        <div className='p-8'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent'>
-                Security & Fraud Detection
-              </h1>
-              <p className='text-gray-600 mt-2 flex items-center gap-2'>
-                <Shield className='h-4 w-4' />
-                Platform security monitoring and threat detection
-              </p>
-            </div>
-            <div className='flex items-center gap-3'>
-              <GlowingButton size='sm' variant='secondary' asChild>
-                <Link href="/security/alerts">
-                  <Eye className='h-4 w-4 mr-2' />
-                  Manage Alerts
-                </Link>
-              </GlowingButton>
-              <GlowingButton size='sm' variant='primary' onClick={() => refetchAlerts()}>
-                <RefreshCw className='h-4 w-4 mr-2' />
-                Refresh
-              </GlowingButton>
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Security & Audit</h1>
+          <p className="text-muted-foreground">
+            Platform security monitoring, threat detection, and audit logging
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => {
+            refetchEvents();
+            refetchAlerts();
+            refetchBlockedIPs();
+          }} disabled={isLoading}>
+            <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
+          <Button onClick={() => setBlockIPDialog(true)}>
+            <Ban className="w-4 h-4 mr-2" />
+            Block IP
+          </Button>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-        <AnimatedCard delay={0}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-red-500 to-pink-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <AlertTriangle className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.totalAlerts}</p>
-            <p className='text-sm text-gray-600'>Total Alerts</p>
-          </div>
-        </AnimatedCard>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Events</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats.totalEvents}</div>
+                <p className="text-xs text-muted-foreground mt-1">Security events tracked</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-        <AnimatedCard delay={100}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-orange-500 to-red-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Activity className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.activeAlerts}</p>
-            <p className='text-sm text-gray-600'>Active</p>
-          </div>
-        </AnimatedCard>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-red-600">{stats.activeAlerts}</div>
+                <p className="text-xs text-muted-foreground mt-1">Requiring attention</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-        <AnimatedCard delay={200}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <CheckCircle className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.resolvedAlerts}</p>
-            <p className='text-sm text-gray-600'>Resolved</p>
-          </div>
-        </AnimatedCard>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Blocked IPs</CardTitle>
+            <Ban className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {blockedIPsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats.blockedIPs}</div>
+                <p className="text-xs text-muted-foreground mt-1">Addresses blocked</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-        <AnimatedCard delay={300}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-red-500 to-pink-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Flag className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.criticalAlerts}</p>
-            <p className='text-sm text-gray-600'>Critical</p>
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={400}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Clock className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.avgResponseTime}</p>
-            <p className='text-sm text-gray-600'>Avg Hours</p>
-          </div>
-        </AnimatedCard>
-
-        <AnimatedCard delay={500}>
-          <div className='p-4 text-center'>
-            <div className='rounded-lg bg-gradient-to-r from-green-500 to-teal-600 w-12 h-12 flex items-center justify-center mx-auto mb-3'>
-              <Target className='h-6 w-6 text-white' />
-            </div>
-            <p className='text-2xl font-bold text-gray-900'>{stats.detectionRate}%</p>
-            <p className='text-sm text-gray-600'>Detection Rate</p>
-          </div>
-        </AnimatedCard>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Login Success</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loginLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-green-600">{stats.successRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Authentication rate</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Tab Navigation */}
-      <div className='flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit'>
-        <button
-          onClick={() => setActiveTab('alerts')}
-          className={cn(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-            activeTab === 'alerts'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          )}
-        >
-          Security Alerts
-        </button>
-        <button
-          onClick={() => setActiveTab('patterns')}
-          className={cn(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-            activeTab === 'patterns'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          )}
-        >
-          Fraud Patterns
-        </button>
-        <button
-          onClick={() => setActiveTab('monitoring')}
-          className={cn(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-            activeTab === 'monitoring'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          )}
-        >
-          Real-time Monitoring
-        </button>
-      </div>
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="events">Security Events</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+          <TabsTrigger value="fraud">Fraud Detection</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
+          <TabsTrigger value="ips">Blocked IPs</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
 
-      {/* Security Alerts Tab */}
-      {activeTab === 'alerts' && (
-        <div className='space-y-6'>
-          {/* Filters */}
-          <div className='flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between'>
-            <div className='flex flex-wrap items-center gap-4'>
-              <div className='flex items-center gap-2'>
-                <Filter className='h-4 w-4 text-gray-500' />
-                <select
-                  value={typeFilter}
-                  onChange={e => setTypeFilter(e.target.value)}
-                  className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                >
-                  <option value='all'>All Types</option>
-                  <option value='fraud'>Fraud</option>
-                  <option value='suspicious_activity'>Suspicious Activity</option>
-                  <option value='policy_violation'>Policy Violation</option>
-                  <option value='security_breach'>Security Breach</option>
-                  <option value='ddos'>DDoS</option>
-                  <option value='malware'>Malware</option>
-                </select>
+        {/* Security Events Tab */}
+        <TabsContent value="events" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Filter Events</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Event Type</Label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="login">Login</SelectItem>
+                      <SelectItem value="logout">Logout</SelectItem>
+                      <SelectItem value="failed_login">Failed Login</SelectItem>
+                      <SelectItem value="permission_change">Permission Change</SelectItem>
+                      <SelectItem value="ip_blocked">IP Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Severity</Label>
+                  <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Severities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Severities</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Search</Label>
+                  <Input
+                    placeholder="Search events..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <select
-                value={severityFilter}
-                onChange={e => setSeverityFilter(e.target.value)}
-                className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-              >
-                <option value='all'>All Severities</option>
-                <option value='critical'>Critical</option>
-                <option value='high'>High</option>
-                <option value='medium'>Medium</option>
-                <option value='low'>Low</option>
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-              >
-                <option value='all'>All Status</option>
-                <option value='open'>Open</option>
-                <option value='investigating'>Investigating</option>
-                <option value='resolved'>Resolved</option>
-                <option value='dismissed'>Dismissed</option>
-              </select>
+          {eventsLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
             </div>
-
-            <div className='relative'>
-              <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-              <input
-                type='search'
-                placeholder='Search alerts...'
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className='w-64 rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-              />
-            </div>
-          </div>
-
-          {/* Alerts List */}
-          <div className='space-y-4'>
-            {filteredAlerts.map((alert, index) => {
-              const TypeIcon = getTypeIcon(alert.type);
-
-              return (
-                <AnimatedCard key={alert.id} delay={index * 50}>
-                  <div className='p-6'>
-                    <div className='flex items-start gap-4'>
-                      <div
-                        className={cn(
-                          'rounded-xl p-3 bg-gradient-to-r',
-                          alert.severity === 'critical'
-                            ? 'from-red-500 to-pink-600'
-                            : alert.severity === 'high'
-                              ? 'from-orange-500 to-red-600'
-                              : alert.severity === 'medium'
-                                ? 'from-yellow-500 to-orange-600'
-                                : 'from-green-500 to-emerald-600'
-                        )}
-                      >
-                        <TypeIcon className='h-5 w-5 text-white' />
-                      </div>
-
-                      <div className='flex-1'>
-                        <div className='flex items-start justify-between'>
-                          <div>
-                            <div className='flex items-center gap-2 mb-1'>
-                              <h3 className='font-semibold text-gray-900'>{alert.title}</h3>
-                              <span
-                                className={cn(
-                                  'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
-                                  getSeverityColor(alert.severity)
-                                )}
-                              >
-                                {alert.severity}
-                              </span>
-                              <span
-                                className={cn(
-                                  'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
-                                  getStatusColor(alert.status)
-                                )}
-                              >
-                                {alert.status.replace('_', ' ')}
-                              </span>
-                            </div>
-                            <p className='text-sm text-gray-600 mb-2'>{alert.description}</p>
-                            <div className='flex items-center gap-4 text-xs text-gray-500'>
-                              <span>ID: {alert.id}</span>
-                              {alert.ipAddress && <span>IP: {alert.ipAddress}</span>}
-                              {alert.location && <span>Location: {alert.location}</span>}
-                              <span>Created: {format(alert.createdAt, 'MMM dd, HH:mm')}</span>
-                            </div>
-                          </div>
-
-                          <div className='flex items-center gap-2'>
-                            <button className='text-blue-600 hover:text-blue-800 font-medium'>
-                              View Details
-                            </button>
-                            {(alert.status === 'active' || alert.status === 'open') && (
-                              <button
-                                onClick={() => handleStatusChange(alert.id, 'investigating')}
-                                className='text-yellow-600 hover:text-yellow-800 font-medium'
-                              >
-                                Investigate
-                              </button>
-                            )}
-                            {alert.status === 'investigating' && (
-                              <button
-                                onClick={() => handleStatusChange(alert.id, 'resolved')}
-                                className='text-green-600 hover:text-green-800 font-medium'
-                              >
-                                Resolve
-                              </button>
-                            )}
-                          </div>
+          ) : events.length > 0 ? (
+            <div className="space-y-3">
+              {events.map((event: any) => (
+                <Card key={event.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Badge className={getSeverityColor(event.severity)}>
+                            {event.severity}
+                          </Badge>
+                          <Badge variant="outline">{event.type}</Badge>
+                        </div>
+                        <p className="text-sm">{event.details?.reason || 'Security event detected'}</p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {event.email && <span>User: {event.email}</span>}
+                          {event.ipAddress && <span>IP: {event.ipAddress}</span>}
+                          <span>{format(new Date(event.timestamp), 'MMM dd, HH:mm:ss')}</span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </AnimatedCard>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Fraud Patterns Tab */}
-      {activeTab === 'patterns' && (
-        <div className='space-y-6'>
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-            {patterns.map((pattern, index) => (
-              <AnimatedCard key={pattern.id} delay={index * 100}>
-                <div className='p-6'>
-                  <div className='flex items-center justify-between mb-4'>
-                    <div className='flex items-center gap-2'>
-                      <div className='w-3 h-3 bg-red-500 rounded-full'></div>
-                      <h3 className='font-semibold text-gray-900'>{pattern.name}</h3>
-                    </div>
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
-                        pattern.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      )}
-                    >
-                      {pattern.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-
-                  <div className='space-y-3'>
-                    <p className='text-sm text-gray-600'>{pattern.description}</p>
-
-                    <div className='grid grid-cols-2 gap-4'>
-                      <div>
-                        <p className='text-xs text-gray-500'>Risk Score</p>
-                        <p className='text-lg font-bold text-red-600'>{pattern.riskScore}/10</p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-gray-500'>Success Rate</p>
-                        <p className='text-lg font-bold text-green-600'>{pattern.successRate}%</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className='text-xs text-gray-500'>Detections</p>
-                      <p className='text-sm font-medium text-gray-900'>
-                        {pattern.detectionCount} times
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className='text-xs text-gray-500'>Last Triggered</p>
-                      <p className='text-sm font-medium text-gray-900'>
-                        {format(pattern.lastTriggered, 'MMM dd, HH:mm')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </AnimatedCard>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Real-time Monitoring Tab */}
-      {activeTab === 'monitoring' && (
-        <div className='space-y-8'>
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
-            <AnimatedCard delay={0}>
-              <div className='p-6'>
-                <div className='flex items-center justify-between mb-6'>
-                  <div>
-                    <h3 className='text-lg font-semibold text-gray-900'>Threat Detection Trends</h3>
-                    <p className='text-sm text-gray-600'>Monthly security metrics</p>
-                  </div>
-                </div>
-                <ResponsiveContainer width='100%' height={300}>
-                  <AreaChart data={securityMetrics}>
-                    <defs>
-                      <linearGradient id='colorThreats' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#EF4444' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#EF4444' stopOpacity={0.05} />
-                      </linearGradient>
-                      <linearGradient id='colorBlocked' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#10B981' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#10B981' stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' />
-                    <XAxis dataKey='name' axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Area
-                      type='monotone'
-                      dataKey='threats'
-                      stroke='#EF4444'
-                      fill='url(#colorThreats)'
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type='monotone'
-                      dataKey='blocked'
-                      stroke='#10B981'
-                      fill='url(#colorBlocked)'
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </AnimatedCard>
-
-            <AnimatedCard delay={200}>
-              <div className='p-6'>
-                <div className='flex items-center justify-between mb-6'>
-                  <div>
-                    <h3 className='text-lg font-semibold text-gray-900'>Threat Types</h3>
-                    <p className='text-sm text-gray-600'>Distribution by category</p>
-                  </div>
-                </div>
-                <ResponsiveContainer width='100%' height={300}>
-                  <PieChart>
-                    <Pie
-                      data={threatTypeData}
-                      cx='50%'
-                      cy='50%'
-                      outerRadius={80}
-                      fill='#8884d8'
-                      dataKey='count'
-                      label={entry => `${entry.type}: ${entry.percentage}%`}
-                    >
-                      {threatTypeData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </AnimatedCard>
-          </div>
-
-          {/* Real-time Status */}
-          <AnimatedCard delay={400}>
-            <div className='p-6'>
-              <div className='flex items-center justify-between mb-6'>
-                <div>
-                  <h3 className='text-lg font-semibold text-gray-900'>System Status</h3>
-                  <p className='text-sm text-gray-600'>Real-time security monitoring</p>
-                </div>
-                <div className='flex items-center gap-2'>
-                  <div className='w-3 h-3 bg-green-500 rounded-full animate-pulse'></div>
-                  <span className='text-sm font-medium text-green-600'>
-                    All Systems Operational
-                  </span>
-                </div>
-              </div>
-
-              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
-                <div className='bg-green-50 p-4 rounded-lg'>
-                  <div className='flex items-center gap-2 mb-2'>
-                    <Shield className='h-5 w-5 text-green-600' />
-                    <span className='font-medium text-green-900'>Firewall</span>
-                  </div>
-                  <p className='text-sm text-green-700'>Active & Monitoring</p>
-                </div>
-
-                <div className='bg-blue-50 p-4 rounded-lg'>
-                  <div className='flex items-center gap-2 mb-2'>
-                    <Eye className='h-5 w-5 text-blue-600' />
-                    <span className='font-medium text-blue-900'>Threat Detection</span>
-                  </div>
-                  <p className='text-sm text-blue-700'>Scanning Traffic</p>
-                </div>
-
-                <div className='bg-yellow-50 p-4 rounded-lg'>
-                  <div className='flex items-center gap-2 mb-2'>
-                    <Zap className='h-5 w-5 text-yellow-600' />
-                    <span className='font-medium text-yellow-900'>DDoS Protection</span>
-                  </div>
-                  <p className='text-sm text-yellow-700'>Standby Mode</p>
-                </div>
-
-                <div className='bg-purple-50 p-4 rounded-lg'>
-                  <div className='flex items-center gap-2 mb-2'>
-                    <Activity className='h-5 w-5 text-purple-600' />
-                    <span className='font-medium text-purple-900'>API Monitoring</span>
-                  </div>
-                  <p className='text-sm text-purple-700'>Healthy</p>
-                </div>
-              </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </AnimatedCard>
-        </div>
-      )}
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Shield className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">No events found</h3>
+                <p className="text-sm text-muted-foreground">
+                  No security events match your filters
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Alerts Tab */}
+        <TabsContent value="alerts" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Total Alerts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalAlerts}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Active</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{stats.activeAlerts}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Resolved</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.resolvedAlerts}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {alertsLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : alerts.length > 0 ? (
+            <div className="space-y-3">
+              {alerts.map((alert: any) => (
+                <Card key={alert.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{alert.type.replace(/_/g, ' ')}</h3>
+                          <Badge className={getSeverityColor(alert.severity)}>
+                            {alert.severity}
+                          </Badge>
+                          <Badge className={getStatusColor(alert.status)}>
+                            {alert.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{alert.details}</p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {alert.ipAddress && <span>IP: {alert.ipAddress}</span>}
+                          <span>{format(new Date(alert.createdAt), 'MMM dd, HH:mm')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">No alerts</h3>
+                <p className="text-sm text-muted-foreground">
+                  All security alerts have been resolved
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Fraud Detection Tab */}
+        <TabsContent value="fraud" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Suspicious Orders
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {fraudData?.suspicious?.orders || 0}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Flagged Users
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {fraudData?.suspicious?.users || 0}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Flag className="h-4 w-4" />
+                  Suspicious Transactions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {fraudData?.suspicious?.transactions || 0}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Flagged Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {fraudData?.flaggedOrders && fraudData.flaggedOrders.length > 0 ? (
+                  <div className="space-y-3">
+                    {fraudData.flaggedOrders.map((order: any) => (
+                      <div key={order.orderId} className="flex items-start justify-between p-3 bg-red-50 rounded-lg">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Order #{order.orderId}</p>
+                          <p className="text-xs text-muted-foreground">{order.reason}</p>
+                        </div>
+                        <Badge variant="destructive">Risk: {order.riskScore}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No flagged orders</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Flagged Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {fraudData?.flaggedUsers && fraudData.flaggedUsers.length > 0 ? (
+                  <div className="space-y-3">
+                    {fraudData.flaggedUsers.map((user: any) => (
+                      <div key={user.userId} className="flex items-start justify-between p-3 bg-orange-50 rounded-lg">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{user.email}</p>
+                          <p className="text-xs text-muted-foreground">{user.reason}</p>
+                        </div>
+                        <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">
+                          Risk: {user.riskScore}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No flagged users</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Audit Log Tab */}
+        <TabsContent value="audit" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Admin Activity Log
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Last 30 days - {auditLogData?.meta?.total || 0} total actions
+              </p>
+            </CardHeader>
+            <CardContent>
+              {auditLogLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : auditLogs.length > 0 ? (
+                <div className="space-y-3">
+                  {auditLogs.slice(0, 10).map((log: any) => (
+                    <div key={log.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Activity className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">{log.action.replace(/_/g, ' ')}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(log.timestamp), 'MMM dd, HH:mm')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          By: {log.performedBy.staffName} ({log.performedBy.role})
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Target: {log.target.type} #{log.target.id}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No audit logs available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Blocked IPs Tab */}
+        <TabsContent value="ips" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Blocked IP Addresses
+                </CardTitle>
+                <Button onClick={() => setBlockIPDialog(true)} size="sm">
+                  <Ban className="h-4 w-4 mr-2" />
+                  Block New IP
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {blockedIPsLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : blockedIPs.length > 0 ? (
+                <div className="space-y-3">
+                  {blockedIPs.map((ip: any) => (
+                    <div key={ip.ip} className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="space-y-1 flex-1">
+                        <p className="text-sm font-medium font-mono">{ip.ip}</p>
+                        <p className="text-xs text-muted-foreground">{ip.reason}</p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>Blocked: {format(new Date(ip.blockedAt), 'MMM dd, HH:mm')}</span>
+                          {ip.expiresAt && (
+                            <span>Expires: {format(new Date(ip.expiresAt), 'MMM dd, HH:mm')}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUnblockIP(ip.ip)}
+                        disabled={unblockIPMutation.isPending}
+                      >
+                        Unblock
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No blocked IP addresses</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Login Analytics</CardTitle>
+                <p className="text-sm text-muted-foreground">{loginAnalytics?.period || 'Last 30 days'}</p>
+              </CardHeader>
+              <CardContent>
+                {loginLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : loginAnalytics ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Successful</p>
+                        <p className="text-2xl font-bold text-green-600">{loginAnalytics.successful}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Failed</p>
+                        <p className="text-2xl font-bold text-red-600">{loginAnalytics.failed}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Success Rate</p>
+                      <p className="text-3xl font-bold text-blue-600">{loginAnalytics.successRate}%</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No data available</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Threat Intelligence</CardTitle>
+                <p className="text-sm text-muted-foreground">Known threats overview</p>
+              </CardHeader>
+              <CardContent>
+                {threatLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : threatData ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Known Threats</p>
+                        <p className="text-2xl font-bold">{threatData.knownThreats}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Blocked IPs</p>
+                        <p className="text-2xl font-bold">{threatData.blockedIPs}</p>
+                      </div>
+                    </div>
+                    {threatData.recentThreats && threatData.recentThreats.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Recent Threats</p>
+                        {threatData.recentThreats.slice(0, 3).map((threat: any, idx: number) => (
+                          <div key={idx} className="p-2 bg-red-50 rounded text-xs">
+                            <p className="font-medium">{threat.type.replace(/_/g, ' ')}</p>
+                            <p className="text-muted-foreground">{threat.source} - {threat.attempts} attempts</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No data available</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {loginAnalytics?.byCountry && loginAnalytics.byCountry.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Logins by Country</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {loginAnalytics.byCountry.slice(0, 5).map((country: any) => (
+                    <div key={country.country} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{country.country}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">{country.count} logins</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Block IP Dialog */}
+      <Dialog open={blockIPDialog} onOpenChange={setBlockIPDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Block IP Address</DialogTitle>
+            <DialogDescription>
+              Block an IP address from accessing the platform
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="ipAddress">IP Address</Label>
+              <Input
+                id="ipAddress"
+                placeholder="192.168.1.100"
+                value={blockIPForm.ipAddress}
+                onChange={(e) => setBlockIPForm({ ...blockIPForm, ipAddress: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reason">Reason</Label>
+              <Textarea
+                id="reason"
+                placeholder="Reason for blocking this IP..."
+                value={blockIPForm.reason}
+                onChange={(e) => setBlockIPForm({ ...blockIPForm, reason: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlockIPDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBlockIP} disabled={blockIPMutation.isPending}>
+              {blockIPMutation.isPending ? 'Blocking...' : 'Block IP'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

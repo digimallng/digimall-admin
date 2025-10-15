@@ -1,154 +1,211 @@
-import { apiClient } from '../client';
-import { PaginatedResponse } from '../types';
+/**
+ * Users Management Service
+ */
 
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
-  emailVerified: boolean;
-  phoneVerified: boolean;
-  avatar?: string;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt?: string;
-}
+import { apiClient } from '../core';
+import { API_ENDPOINTS } from '../core/api-config';
+import type {
+  User,
+  BackendUser,
+  BackendUserListResponse,
+  UserListResponse,
+  UpdateUserRequest,
+  UpdateUserResponse,
+  UserSuspensionRequest,
+  UserSuspensionResponse,
+  DeleteUserRequest,
+  DeleteUserResponse,
+  UserStatisticsResponse,
+  GetAllUsersParams,
+  GetUserStatisticsParams,
+} from '../types';
 
-export interface UserFilters {
-  role?: string;
-  status?: string;
-  search?: string;
-  emailVerified?: boolean;
-  phoneVerified?: boolean;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
+class UsersService {
+  /**
+   * Transform backend user to frontend User type
+   */
+  private transformUser(backendUser: BackendUser): User {
+    console.log('[UsersService] Transforming backend user:', backendUser._id);
 
-export interface UserActivity {
-  id: string;
-  userId: string;
-  action: string;
-  details: any;
-  ipAddress: string;
-  userAgent: string;
-  createdAt: string;
-}
+    // Normalize status - backend returns various statuses like 'verified', 'pending_verification'
+    // Map them to our standard statuses: active, inactive, suspended, deleted
+    let normalizedStatus: 'active' | 'inactive' | 'suspended' | 'deleted' = 'active';
+    const backendStatus = backendUser.status.toLowerCase();
 
-export interface UserUpdateData {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  status?: User['status'];
-  role?: User['role'];
-}
-
-export class UsersService {
-  // Get users with pagination and filtering
-  async getUsers(filters?: UserFilters): Promise<PaginatedResponse<User>> {
-    const params = new URLSearchParams();
-    
-    if (filters?.role) params.append('role', filters.role);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.emailVerified !== undefined) params.append('emailVerified', String(filters.emailVerified));
-    if (filters?.phoneVerified !== undefined) params.append('phoneVerified', String(filters.phoneVerified));
-    if (filters?.page) params.append('page', String(filters.page));
-    if (filters?.limit) params.append('limit', String(filters.limit));
-    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
-
-    return apiClient.get<PaginatedResponse<User>>(`/users?${params.toString()}`);
-  }
-
-  // Get user by ID
-  async getUserById(id: string): Promise<User> {
-    return apiClient.get<User>(`/users/${id}`);
-  }
-
-  // Update user
-  async updateUser(id: string, data: UserUpdateData): Promise<User> {
-    return apiClient.patch<User>(`/users/${id}`, data);
-  }
-
-  // Soft delete user
-  async deleteUser(id: string): Promise<void> {
-    return apiClient.delete(`/users/${id}`);
-  }
-
-  // Get user activity
-  async getUserActivity(id: string, params?: { page?: number; limit?: number }): Promise<PaginatedResponse<UserActivity>> {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.append('page', String(params.page));
-    if (params?.limit) searchParams.append('limit', String(params.limit));
-
-    return apiClient.get<PaginatedResponse<UserActivity>>(`/users/${id}/activity?${searchParams.toString()}`);
-  }
-
-  // Get user statistics
-  async getUserStatistics(): Promise<{
-    total: number;
-    active: number;
-    inactive: number;
-    suspended: number;
-    pending: number;
-    customers: number;
-    vendors: number;
-    admins: number;
-    emailVerified: number;
-    phoneVerified: number;
-    recentUsers: User[];
-  }> {
-    try {
-      // Get comprehensive stats and user count
-      const [stats, userCount] = await Promise.all([
-        apiClient.get('/user-service/internal/analytics/statistics'),
-        apiClient.get('/user-service/analytics/count')
-      ]);
-
-      return {
-        total: userCount.count || 0,
-        active: stats.activeUsers || 0,
-        inactive: stats.inactiveUsers || 0,
-        suspended: stats.suspendedUsers || 0,
-        pending: stats.pendingUsers || 0,
-        customers: stats.customers || 0,
-        vendors: stats.vendors || 0,
-        admins: stats.admins || 0,
-        emailVerified: stats.emailVerifiedUsers || 0,
-        phoneVerified: stats.phoneVerifiedUsers || 0,
-        recentUsers: stats.recentUsers || [],
-      };
-    } catch (error) {
-      console.error('Failed to fetch user statistics:', error);
-      return {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        suspended: 0,
-        pending: 0,
-        customers: 0,
-        vendors: 0,
-        admins: 0,
-        emailVerified: 0,
-        phoneVerified: 0,
-        recentUsers: [],
-      };
+    if (backendStatus === 'verified' || backendStatus === 'active') {
+      normalizedStatus = 'active';
+    } else if (backendStatus.includes('pending') || backendStatus === 'inactive') {
+      normalizedStatus = 'inactive';
+    } else if (backendStatus === 'suspended') {
+      normalizedStatus = 'suspended';
+    } else if (backendStatus === 'deleted') {
+      normalizedStatus = 'deleted';
     }
+
+    return {
+      id: backendUser._id,
+      email: backendUser.email,
+      role: backendUser.role,
+      status: normalizedStatus,
+      profile: {
+        firstName: backendUser.firstName,
+        lastName: backendUser.lastName,
+        phone: backendUser.phone,
+        dateOfBirth: undefined,
+        gender: undefined,
+        avatar: undefined,
+      },
+      addresses: [],
+      preferences: backendUser.preferences ? {
+        language: backendUser.language || 'en',
+        currency: 'NGN',
+        notifications: backendUser.preferences.notifications,
+        marketing: backendUser.preferences.marketing,
+      } : {
+        language: 'en',
+        currency: 'NGN',
+        notifications: {
+          email: true,
+          sms: true,
+          push: true,
+        },
+        marketing: {
+          email: false,
+          sms: false,
+        },
+      },
+      statistics: {
+        totalOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        totalSpent: 0,
+        averageOrderValue: 0,
+        wishlistItems: 0,
+        cartItems: 0,
+      },
+      emailVerified: backendUser.isEmailVerified || false,
+      phoneVerified: backendUser.isPhoneVerified || false,
+      twoFactorEnabled: backendUser.is2FAEnabled || false,
+      lastLoginAt: backendUser.lastLoginAt,
+      createdAt: backendUser.createdAt,
+      updatedAt: backendUser.updatedAt,
+      deletedAt: backendUser.deletedAt || undefined,
+    };
   }
 
-  // Bulk operations
-  async bulkUpdateUsers(userIds: string[], data: Partial<UserUpdateData>): Promise<{ updated: number }> {
-    return apiClient.patch('/users/bulk', { userIds, data });
+  async getAll(params?: GetAllUsersParams): Promise<UserListResponse> {
+    console.log('[UsersService] Fetching users with params:', params);
+
+    const response = await apiClient.get<BackendUserListResponse>(
+      API_ENDPOINTS.USERS.GET_ALL,
+      { params }
+    );
+
+    console.log('[UsersService] Backend response:', response.data);
+
+    // Transform backend response { users: [], pagination: {} } to { data: [], meta: {} }
+    const backendData = response.data;
+
+    if (!backendData || !backendData.users || !backendData.pagination) {
+      console.error('[UsersService] Invalid backend response structure:', backendData);
+      throw new Error('Invalid response structure from backend');
+    }
+
+    const transformedResponse: UserListResponse = {
+      data: backendData.users.map((user) => this.transformUser(user)),
+      meta: {
+        page: backendData.pagination.page,
+        limit: backendData.pagination.limit,
+        total: backendData.pagination.total,
+        totalPages: backendData.pagination.totalPages,
+      },
+    };
+
+    console.log('[UsersService] Transformed response:', {
+      userCount: transformedResponse.data.length,
+      meta: transformedResponse.meta,
+    });
+
+    return transformedResponse;
   }
 
-  async bulkDeleteUsers(userIds: string[]): Promise<{ deleted: number }> {
-    return apiClient.delete('/users/bulk', { userIds });
+  async getById(id: string): Promise<User> {
+    console.log('[UsersService] Fetching user by ID:', id);
+
+    const response = await apiClient.get<BackendUser>(
+      API_ENDPOINTS.USERS.GET_BY_ID(id)
+    );
+
+    console.log('[UsersService] Backend user response:', response.data);
+
+    // Transform backend user response
+    const backendUser = response.data;
+    if (!backendUser) {
+      throw new Error(`User with ID ${id} not found`);
+    }
+
+    const transformedUser = this.transformUser(backendUser);
+    console.log('[UsersService] Transformed user:', transformedUser);
+
+    return transformedUser;
+  }
+
+  // Note: General user update endpoint doesn't exist in the API
+  // Use updateStatus() for status changes
+
+  async updateStatus(
+    id: string,
+    status: 'active' | 'inactive' | 'suspended'
+  ): Promise<UpdateUserResponse> {
+    const response = await apiClient.put<UpdateUserResponse>(
+      API_ENDPOINTS.USERS.UPDATE_STATUS(id),
+      { status }
+    );
+    return response.data!;
+  }
+
+  async suspendUnsuspend(
+    id: string,
+    data: UserSuspensionRequest
+  ): Promise<UserSuspensionResponse> {
+    // Use bulk action endpoint for suspend/unsuspend as per API documentation
+    // Note: Backend does not support duration parameter
+    const bulkData = {
+      userIds: [id],
+      action: data.action,
+      reason: data.reason,
+    };
+
+    const response = await apiClient.post<{ message: string; successful: number; failed: number }>(
+      API_ENDPOINTS.USERS.BULK_ACTION,
+      bulkData
+    );
+
+    // Return a compatible response
+    return {
+      message: response.data?.message || `User ${data.action}ed successfully`,
+      user: { id } as any, // The API doesn't return full user data, we'll refetch
+    };
+  }
+
+  async delete(id: string, data: DeleteUserRequest): Promise<DeleteUserResponse> {
+    const response = await apiClient.delete<DeleteUserResponse>(
+      API_ENDPOINTS.USERS.DELETE(id),
+      { data }
+    );
+    return response.data!;
+  }
+
+  async getStatistics(
+    params?: GetUserStatisticsParams
+  ): Promise<UserStatisticsResponse> {
+    const response = await apiClient.get<UserStatisticsResponse>(
+      API_ENDPOINTS.USERS.GET_STATISTICS,
+      { params }
+    );
+    return response.data!;
   }
 }
 
 export const usersService = new UsersService();
+export default usersService;

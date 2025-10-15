@@ -1,285 +1,236 @@
-import { apiClient } from '../client';
-import type { QueryParams, PaginatedResponse, BulkOperationResponse } from '../client';
+/**
+ * Security Management Service
+ *
+ * All 9 security & audit endpoints from ADMIN_API_DOCUMENTATION.md
+ */
 
-// ===== TYPES =====
+import { apiClient } from '../core';
+import { API_ENDPOINTS } from '../core/api-config';
+import type {
+  SecurityEvent,
+  SecurityAlert,
+  IPBlock,
+  SecurityEventsListResponse,
+  SecurityAlertsListResponse,
+  BlockedIPsListResponse,
+  BlockIPRequest,
+  BlockIPResponse,
+  UnblockIPResponse,
+  ResolveSecurityEventRequest,
+  UpdateSecurityAlertRequest,
+  SecurityOverviewResponse,
+  GetSecurityEventsParams,
+  GetSecurityAlertsParams,
+  GetBlockedIPsParams,
+} from '../types';
 
-export interface AuditLog {
+// Additional types from documentation
+export interface FraudDetectionData {
+  suspicious: {
+    orders: number;
+    users: number;
+    transactions: number;
+  };
+  flaggedOrders: Array<{
+    orderId: string;
+    reason: string;
+    riskScore: number;
+    timestamp: string;
+  }>;
+  flaggedUsers: Array<{
+    userId: string;
+    email: string;
+    reason: string;
+    riskScore: number;
+    timestamp: string;
+  }>;
+}
+
+export interface ThreatIntelligence {
+  knownThreats: number;
+  blockedIPs: number;
+  blockedCountries: string[];
+  recentThreats: Array<{
+    type: string;
+    source: string;
+    attempts: number;
+    lastAttempt: string;
+    status: string;
+  }>;
+}
+
+export interface LoginAnalytics {
+  period: string;
+  successful: number;
+  failed: number;
+  successRate: number;
+  byHour: Array<{
+    hour: number;
+    count: number;
+  }>;
+  byCountry: Array<{
+    country: string;
+    count: number;
+  }>;
+  topIPs: Array<{
+    ip: string;
+    count: number;
+    lastLogin: string;
+  }>;
+}
+
+export interface AuditLogEntry {
   id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
   action: string;
-  resource: string;
-  resourceId: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  ipAddress: string;
-  userAgent: string;
-  location?: string;
-  device?: string;
-  success: boolean;
-  duration?: number;
-  details: {
-    endpoint?: string;
-    method?: string;
-    requestBody?: any;
-    responseCode?: number;
-    changes?: Record<string, { from: any; to: any }>;
+  performedBy: {
+    staffId: string;
+    staffName: string;
+    role: string;
   };
-  errorMessage?: string;
-}
-
-export interface UserSession {
-  id: string;
-  userId: string;
-  userName: string;
+  target: {
+    type: string;
+    id: string;
+    email?: string;
+  };
+  details: Record<string, any>;
   ipAddress: string;
-  userAgent: string;
-  device: string;
-  browser: string;
-  location: string;
-  isActive: boolean;
-  createdAt: string;
-  lastActivity: string;
-  expiresAt: string;
-  isSuspicious: boolean;
-}
-
-export interface LoginAttempt {
-  id: string;
-  email: string;
-  ipAddress: string;
-  userAgent: string;
-  location: string;
-  successful: boolean;
-  failureReason?: string;
   timestamp: string;
-  isSuspicious: boolean;
-  riskScore: number;
-  blockedByRateLimit: boolean;
-  device: string;
 }
 
-export interface SecuritySettings {
-  authentication: {
-    passwordPolicy: {
-      minLength: number;
-      requireUppercase: boolean;
-      requireLowercase: boolean;
-      requireNumbers: boolean;
-      requireSpecialChars: boolean;
-      maxAge: number;
-      preventReuse: number;
-    };
-    twoFactorAuth: {
-      enabled: boolean;
-      required: boolean;
-      methods: string[];
-    };
-    sessionTimeout: number;
-    maxConcurrentSessions: number;
-    lockoutPolicy: {
-      maxAttempts: number;
-      lockoutDuration: number;
-    };
-  };
-  apiSecurity: {
-    rateLimiting: {
-      enabled: boolean;
-      requestsPerMinute: number;
-      requestsPerHour: number;
-    };
-    ipWhitelisting: {
-      enabled: boolean;
-      allowedIPs: string[];
-    };
-    encryption: {
-      algorithm: string;
-      keyRotationInterval: number;
-    };
-  };
-  monitoring: {
-    auditLogging: boolean;
-    realTimeAlerts: boolean;
-    suspiciousActivityDetection: boolean;
-    alertThresholds: {
-      failedLogins: number;
-      apiErrors: number;
-      dataChanges: number;
-    };
-  };
-  compliance: {
-    gdprCompliant: boolean;
-    dataRetentionPeriod: number;
-    cookiePolicy: string;
-    privacyPolicyVersion: string;
-    lastComplianceReview: string;
+export interface AuditLogResponse {
+  logs: AuditLogEntry[];
+  meta: {
+    period: string;
+    total: number;
   };
 }
 
-export interface Role {
-  id: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  userCount: number;
-  isSystem: boolean;
-  createdAt: string;
-}
-
-export interface SecurityAlert {
-  id: string;
-  title: string;
-  description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'investigating' | 'resolved' | 'dismissed';
-  type: 'suspicious_login' | 'data_breach' | 'system_error' | 'policy_violation';
-  timestamp: string;
-  affectedResources: string[];
-  source: string;
-  assignedTo?: string;
-  actions: string[];
-}
-
-export interface SecurityScore {
-  overallScore: number;
-  maxScore: number;
-  grade: string;
-  components: {
-    authentication: { score: number; maxScore: number; issues: number };
-    authorization: { score: number; maxScore: number; issues: number };
-    dataProtection: { score: number; maxScore: number; issues: number };
-    monitoring: { score: number; maxScore: number; issues: number };
-    compliance: { score: number; maxScore: number; issues: number };
+export interface SecurityAlertsResponse {
+  alerts: SecurityAlert[];
+  summary: {
+    total: number;
+    active: number;
+    investigating: number;
+    resolved: number;
   };
-  recommendations: string[];
-  lastAssessment: string;
-  nextAssessment: string;
 }
 
-// ===== SERVICE CLASS =====
-
-export class SecurityService {
-  // Security Alerts
-  async getSecurityAlerts(params?: QueryParams): Promise<PaginatedResponse<SecurityAlert>> {
-    return apiClient.get('/security/alerts', params);
+class SecurityService {
+  // 1. GET /admin/security/events - Get security events
+  async getEvents(params?: GetSecurityEventsParams): Promise<any> {
+    const response = await apiClient.get(
+      '/admin/security/events',
+      params
+    );
+    return response;
   }
 
-  async getSecurityAlert(id: string): Promise<SecurityAlert> {
-    return apiClient.get(`/security/alerts/${id}`);
+  async getEventById(id: string): Promise<SecurityEvent> {
+    const response = await apiClient.get<SecurityEvent>(
+      API_ENDPOINTS.SECURITY.GET_EVENT_BY_ID(id)
+    );
+    return response.data!;
   }
 
-  async resolveAlert(alertId: string, data: {
-    status: 'investigating' | 'resolved' | 'dismissed';
-    resolution?: string;
-    actions?: string[];
-    assignedTo?: string;
-  }): Promise<SecurityAlert> {
-    return apiClient.post(`/security/alerts/${alertId}/action`, data);
+  async resolveEvent(id: string, data: ResolveSecurityEventRequest): Promise<SecurityEvent> {
+    const response = await apiClient.patch<SecurityEvent>(
+      API_ENDPOINTS.SECURITY.RESOLVE_EVENT(id),
+      data
+    );
+    return response.data!;
   }
 
-  async bulkUpdateAlerts(alertIds: string[], updates: Partial<SecurityAlert>): Promise<void> {
-    return apiClient.post('/security/alerts/bulk-action', { alertIds, updates });
+  // 2. GET /admin/security/alerts - Get security alerts
+  async getAlerts(params?: GetSecurityAlertsParams): Promise<SecurityAlertsResponse> {
+    const response = await apiClient.get<SecurityAlertsResponse>(
+      '/admin/security/alerts',
+      params
+    );
+    return response;
   }
 
-  // Dashboard Data (REAL ENDPOINT)
-  async getSecurityDashboard(): Promise<{
-    overview: any;
-    activeAlerts: SecurityAlert[];
-    highRiskAlerts: SecurityAlert[];
-    recentIncidents: any[];
-    systemStatus: any;
-    threatLevels: any;
-    recommendations: string[];
-  }> {
-    return apiClient.get('/security/dashboard');
+  async getAlertById(id: string): Promise<SecurityAlert> {
+    const response = await apiClient.get<SecurityAlert>(
+      API_ENDPOINTS.SECURITY.GET_ALERT_BY_ID(id)
+    );
+    return response.data!;
   }
 
-  // Security Metrics (REAL ENDPOINT)
-  async getSecurityMetrics(params?: { timeframe?: string }): Promise<any> {
-    return apiClient.get('/security/metrics', params);
+  async updateAlert(id: string, data: UpdateSecurityAlertRequest): Promise<SecurityAlert> {
+    const response = await apiClient.patch<SecurityAlert>(
+      API_ENDPOINTS.SECURITY.UPDATE_ALERT(id),
+      data
+    );
+    return response.data!;
   }
 
-  // Fraud Rules (REAL ENDPOINT)
-  async getFraudRules(params?: QueryParams): Promise<PaginatedResponse<any>> {
-    return apiClient.get('/security/fraud-rules', params);
+  // 3. GET /admin/security/audit-log - Get audit log
+  async getAuditLog(params?: { days?: number }): Promise<AuditLogResponse> {
+    const response = await apiClient.get<AuditLogResponse>(
+      '/admin/security/audit-log',
+      params
+    );
+    return response;
   }
 
-  // Create Fraud Rule (REAL ENDPOINT)  
-  async createFraudRule(data: any): Promise<any> {
-    return apiClient.post('/security/fraud-rules', data);
+  // 4. GET /admin/security/fraud-detection - Get fraud detection data
+  async getFraudDetection(): Promise<FraudDetectionData> {
+    const response = await apiClient.get<FraudDetectionData>(
+      '/admin/security/fraud-detection'
+    );
+    return response;
   }
 
-  // Incidents (REAL ENDPOINT)
-  async createIncident(data: any): Promise<any> {
-    return apiClient.post('/security/incidents', data);
+  // 5. GET /admin/security/threat-intelligence - Get threat intelligence
+  async getThreatIntelligence(): Promise<ThreatIntelligence> {
+    const response = await apiClient.get<ThreatIntelligence>(
+      '/admin/security/threat-intelligence'
+    );
+    return response;
   }
 
-  // IP Blocking (REAL ENDPOINT)
-  async blockIP(data: { ipAddress: string; reason: string; duration?: number }): Promise<{ success: boolean }> {
-    return apiClient.post('/security/ip-blocks', data);
+  // 6. GET /admin/security/login-analytics - Get login analytics
+  async getLoginAnalytics(params?: { days?: number }): Promise<LoginAnalytics> {
+    const response = await apiClient.get<LoginAnalytics>(
+      '/admin/security/login-analytics',
+      params
+    );
+    return response;
   }
 
-  // Threat Intelligence (REAL ENDPOINT)
-  async getThreatIntelligence(data: any): Promise<any> {
-    return apiClient.post('/security/threat-intelligence', data);
+  // 7. GET /admin/security/blocked-ips - Get blocked IPs
+  async getBlockedIPs(params?: GetBlockedIPsParams): Promise<any> {
+    const response = await apiClient.get(
+      '/admin/security/blocked-ips',
+      params
+    );
+    return response;
   }
 
-  // Analytics (REAL ENDPOINTS)
-  async getThreatLandscapeAnalytics(params?: any): Promise<any> {
-    return apiClient.get('/security/analytics/threat-landscape', params);
+  // 8. POST /admin/security/block-ip - Block IP address
+  async blockIP(data: BlockIPRequest): Promise<BlockIPResponse> {
+    const response = await apiClient.post<BlockIPResponse>(
+      '/admin/security/block-ip',
+      data
+    );
+    return response;
   }
 
-  async getFraudDetectionAnalytics(params?: any): Promise<any> {
-    return apiClient.get('/security/analytics/fraud-detection', params);
+  // 9. DELETE /admin/security/unblock-ip/:ipAddress - Unblock IP address
+  async unblockIP(ipAddress: string): Promise<any> {
+    const response = await apiClient.delete(
+      `/admin/security/unblock-ip/${ipAddress}`
+    );
+    return response;
   }
 
-  // Reports (REAL ENDPOINTS)
-  async getSecurityPostureReport(params?: any): Promise<any> {
-    return apiClient.get('/security/reports/security-posture', params);
+  async getOverview(): Promise<SecurityOverviewResponse> {
+    const response = await apiClient.get<SecurityOverviewResponse>(
+      API_ENDPOINTS.SECURITY.GET_OVERVIEW
+    );
+    return response.data!;
   }
-
-  async getIncidentAnalysisReport(params?: any): Promise<any> {
-    return apiClient.get('/security/reports/incident-analysis', params);
-  }
-
-  // FALLBACK METHODS - Use dashboard data instead of non-existent endpoints
-  async getSecurityScore(): Promise<any> {
-    // Use dashboard data which contains systemStatus with score
-    const dashboardData = await this.getSecurityDashboard();
-    return {
-      overallScore: dashboardData.systemStatus?.score || 85,
-      maxScore: 100,
-      grade: 'B+',
-      components: {
-        authentication: { score: 88, maxScore: 100, issues: 0 },
-        authorization: { score: 82, maxScore: 100, issues: 1 },
-        dataProtection: { score: 90, maxScore: 100, issues: 0 },
-        monitoring: { score: 78, maxScore: 100, issues: 2 },
-        compliance: { score: 85, maxScore: 100, issues: 1 },
-      },
-      recommendations: dashboardData.recommendations || [
-        "Enable 2FA for all admin accounts",
-        "Update security monitoring rules",
-        "Review access permissions quarterly"
-      ],
-      lastAssessment: new Date().toISOString(),
-      nextAssessment: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-  }
-
-  async getRecentSecurityEvents(limit: number = 10): Promise<Array<any>> {
-    // Use dashboard data which contains recentIncidents
-    const dashboardData = await this.getSecurityDashboard();
-    return dashboardData.recentIncidents || [];
-  }
-
-  async getVulnerabilities(): Promise<Array<any>> {
-    // Return empty array since this endpoint doesn't exist
-    // In a real implementation, this might come from a security scanning service
-    return [];
-  }
-
 }
 
-// ===== SINGLETON INSTANCE =====
 export const securityService = new SecurityService();
+export default securityService;

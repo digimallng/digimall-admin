@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { settingsService } from '../api/services/settings.service';
+import { systemService } from '../api/services/system.service';
 
 // Query keys
 export const settingsKeys = {
@@ -122,6 +123,58 @@ export function useSystemStatus(
   });
 }
 
+// Get system health
+export function useSystemHealth(
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: [...settingsKeys.system(), 'health'] as const,
+    queryFn: () => systemService.getHealth(),
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+    ...options,
+  });
+}
+
+// Get system metrics
+export function useSystemMetrics(
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: [...settingsKeys.system(), 'metrics'] as const,
+    queryFn: () => systemService.getMetrics(),
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+    ...options,
+  });
+}
+
+// Get database statistics
+export function useDatabaseStats(
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: [...settingsKeys.system(), 'database-stats'] as const,
+    queryFn: () => systemService.getDatabaseStats(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
+  });
+}
+
+// Get system logs with filters
+export function useSystemLogs(
+  params?: { limit?: number; level?: string; service?: string },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: [...settingsKeys.system(), 'logs', params] as const,
+    queryFn: () => systemService.getLogs(params),
+    staleTime: 10 * 1000, // 10 seconds
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds for near real-time logs
+    ...options,
+  });
+}
+
 // ===== MUTATION HOOKS =====
 
 // Update platform configuration
@@ -212,4 +265,22 @@ export function useUpdateMaintenanceMode() {
   });
 }
 
-// Backup functionality removed - no backend support
+// Clear system cache
+export function useClearCache() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => systemService.clearCache(),
+    onSuccess: () => {
+      // Invalidate all queries to reflect cleared cache
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+// Perform system backup
+export function useSystemBackup() {
+  return useMutation({
+    mutationFn: () => systemService.backup(),
+  });
+}

@@ -5,11 +5,11 @@ import { signIn, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Image from 'next/image';
-import { GoSignIn } from 'react-icons/go';
-import { AlertCircle, Eye, EyeClosed, EyeOff } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
@@ -40,7 +40,6 @@ export default function AdminLogin() {
       if (result?.error) {
         setError('Invalid email or password');
       } else if (result?.ok) {
-        // Verify the session was created successfully
         const session = await getSession();
         if (session) {
           console.log('Login successful, user role:', session.user.role);
@@ -67,95 +66,110 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-8 text-center">
-          <Image
-            src={'/icon.svg'}
-            alt="digiMall Logo"
-            width={48}
-            height={48}
-            className="mx-auto mb-4"
-          />
-          <h1 className="mb-2 text-3xl font-bold text-white">Admin Dashboard</h1>
-          <p className="text-gray-400">Sign in to your admin account</p>
+          <div className="mb-6 flex justify-center">
+            <Image
+              src="/icon.svg"
+              alt="digiMall"
+              width={64}
+              height={64}
+              className="h-16 w-16"
+            />
+          </div>
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">
+            Admin Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to your admin account
+          </p>
         </div>
 
-        {/* Login Form */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm">
-          {error && (
-            <Alert className="mb-6 border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-red-800">{error}</AlertDescription>
-            </Alert>
-          )}
+        {/* Login Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Welcome Back</CardTitle>
+            <CardDescription>
+              Enter your credentials to access the admin panel
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-200">
-                Email Address
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="admin@digimall.ng"
-                className="border-white/20 bg-white/10 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-200">
-                Password
-              </Label>
-              <div className="relative">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
                 <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter your password"
-                  className="border-white/20 bg-white/10 pr-10 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400"
+                  placeholder="admin@digimall.ng"
                   required
                   disabled={isLoading}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-300"
-                  disabled={isLoading}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-            </div>
 
-            <Button type="submit" disabled={isLoading} className={'w-full'}>
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Signing in...
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    disabled={isLoading}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <GoSignIn className="mr-2 h-4 w-4" />
-                  Sign In
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Enter your password"
+                    className="pr-10"
+                    required
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    disabled={isLoading}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-              )}
-            </Button>
-          </form>
-        </div>
+              </div>
+
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-400">
+        <p className="mt-8 text-center text-xs text-muted-foreground">
           © 2025 digiMall. All rights reserved.
-        </div>
+        </p>
       </div>
     </div>
   );

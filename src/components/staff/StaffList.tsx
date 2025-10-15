@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   MoreHorizontal,
   Edit,
@@ -41,28 +42,25 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EmptyState } from '@/components/ui/empty-state';
-import { EditStaffModal } from '@/components/modals/EditStaffModal';
-import { StaffDetailsModal } from '@/components/modals/StaffDetailsModal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { 
-  useDeleteStaff, 
-  useUpdateStaff, 
+import {
+  useDeleteStaff,
+  useUpdateStaff,
   useBulkStaffAction,
   useUpdateAgentStatus,
 } from '@/lib/hooks/use-staff';
-import { Staff, StaffResponse } from '@/lib/api/services/staff.service';
+import { Staff, StaffListResponse } from '@/lib/api/types';
 import { toast } from 'sonner';
 
 interface StaffListProps {
-  data?: StaffResponse;
+  data?: StaffListResponse;
   isLoading: boolean;
   onRefresh: () => void;
 }
 
 export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
+  const router = useRouter();
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
-  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-  const [viewingStaff, setViewingStaff] = useState<Staff | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Staff | null>(null);
 
   const deleteStaff = useDeleteStaff();
@@ -72,7 +70,7 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedStaff(data?.staff.map(s => s.id) || []);
+      setSelectedStaff(data?.data.map(s => s.id) || []);
     } else {
       setSelectedStaff([]);
     }
@@ -195,7 +193,7 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
     );
   }
 
-  if (!data?.staff || data.staff.length === 0) {
+  if (!data?.data || data.data.length === 0) {
     return (
       <Card>
         <CardContent>
@@ -267,12 +265,14 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
+          {/* Desktop Table */}
+          <div className="hidden lg:block">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedStaff.length === data.staff.length}
+                    checked={selectedStaff.length === data.data.length}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
@@ -286,7 +286,7 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.staff.map((staff) => (
+              {data.data.map((staff) => (
                 <TableRow key={staff.id}>
                   <TableCell>
                     <Checkbox
@@ -354,10 +354,7 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm">
                       <Clock className="w-3 h-3" />
-                      {formatLastLogin(staff.lastLoginAt)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {staff.loginCount} total logins
+                      {formatLastLogin(staff.lastLogin ? new Date(staff.lastLogin) : undefined)}
                     </div>
                   </TableCell>
 
@@ -385,12 +382,12 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         
-                        <DropdownMenuItem onClick={() => setViewingStaff(staff)}>
+                        <DropdownMenuItem onClick={() => router.push(`/staff/${staff.id}`)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
-                        
-                        <DropdownMenuItem onClick={() => setEditingStaff(staff)}>
+
+                        <DropdownMenuItem onClick={() => router.push(`/staff/${staff.id}/edit`)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Staff
                         </DropdownMenuItem>
@@ -463,6 +460,117 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
               ))}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-4">
+            {data.data.map((staff) => (
+              <Card key={staff.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedStaff.includes(staff.id)}
+                    onCheckedChange={(checked) => handleSelectStaff(staff.id, checked as boolean)}
+                  />
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={staff.profilePicture} />
+                    <AvatarFallback>
+                      {staff.firstName[0]}{staff.lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium truncate">{staff.fullName}</div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
+                          <DropdownMenuItem onClick={() => router.push(`/staff/${staff.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => router.push(`/staff/${staff.id}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Staff
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          {staff.status === 'active' ? (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(staff, 'suspended')}
+                              className="text-orange-600"
+                            >
+                              <UserX className="mr-2 h-4 w-4" />
+                              Suspend
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(staff, 'active')}
+                              className="text-green-600"
+                            >
+                              <UserCheck className="mr-2 h-4 w-4" />
+                              Activate
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuItem
+                            onClick={() => setDeleteConfirm(staff)}
+                            className="text-red-600"
+                            disabled={staff.metadata?.cannotDelete}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="w-3 h-3" />
+                        <span className="truncate">{staff.email}</span>
+                      </div>
+
+                      {staff.phoneNumber && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="w-3 h-3" />
+                          <span>{staff.phoneNumber}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Badge className={getRoleColor(staff.role)}>
+                          <Shield className="w-3 h-3 mr-1" />
+                          {staff.role.replace('_', ' ')}
+                        </Badge>
+                        <Badge className={getStatusColor(staff.status)}>
+                          {staff.status}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="text-xs text-muted-foreground">
+                          {staff.department || 'Unassigned'}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {formatLastLogin(staff.lastLogin ? new Date(staff.lastLogin) : undefined)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
 
           {/* Pagination */}
           {data && data.totalPages > 1 && (
@@ -492,26 +600,6 @@ export function StaffList({ data, isLoading, onRefresh }: StaffListProps) {
       </Card>
 
       {/* Modals */}
-      {editingStaff && (
-        <EditStaffModal
-          staff={editingStaff}
-          isOpen={!!editingStaff}
-          onClose={() => setEditingStaff(null)}
-          onSuccess={() => {
-            setEditingStaff(null);
-            onRefresh();
-          }}
-        />
-      )}
-
-      {viewingStaff && (
-        <StaffDetailsModal
-          staff={viewingStaff}
-          isOpen={!!viewingStaff}
-          onClose={() => setViewingStaff(null)}
-        />
-      )}
-
       {deleteConfirm && (
         <ConfirmDialog
           open={!!deleteConfirm}

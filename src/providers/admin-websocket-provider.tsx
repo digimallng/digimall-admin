@@ -74,8 +74,8 @@ export function AdminWebSocketProvider({ children }: AdminWebSocketProviderProps
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.accessToken) {
-      // Initialize socket connection
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4800';
+      // Initialize socket connection to unified backend
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3000';
       const newSocket = io(`${wsUrl}/admin-ws`, {
         auth: {
           token: session.user.accessToken,

@@ -394,6 +394,23 @@ class AxiosApiClient {
     }
   }
 
+  async getBlob(
+    endpoint: string,
+    params?: QueryParams
+  ): Promise<Blob> {
+    try {
+      const response = await this.instance.get(endpoint, {
+        params,
+        responseType: 'blob',
+        timeout: 120000, // 2 minutes for downloads
+      });
+
+      return response.data;
+    } catch (error) {
+      throw this.createApiError(error);
+    }
+  }
+
   // ===== BATCH OPERATIONS =====
 
   async batch<T>(

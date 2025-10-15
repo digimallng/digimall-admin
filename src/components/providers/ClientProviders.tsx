@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { SetupWrapper } from '@/components/setup/SetupWrapper';
+import { ThemeProvider } from '@/providers/theme-provider';
 
 const AuthProvider = dynamic(
   () => import('@/lib/providers/auth-provider').then(mod => ({ default: mod.AuthProvider })),
@@ -40,13 +41,20 @@ export default function ClientProviders({ children }: { children: React.ReactNod
   }
 
   return (
-    <AuthProvider>
-      <QueryProvider>
-        <SetupWrapper>
-          <ClientLayout>{children}</ClientLayout>
-        </SetupWrapper>
-        <ToastProvider />
-      </QueryProvider>
-    </AuthProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AuthProvider>
+        <QueryProvider>
+          <SetupWrapper>
+            <ClientLayout>{children}</ClientLayout>
+          </SetupWrapper>
+          <ToastProvider />
+        </QueryProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

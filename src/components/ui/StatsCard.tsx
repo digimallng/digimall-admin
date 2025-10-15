@@ -73,7 +73,7 @@ export function StatsCard({
         </div>
         <div className='space-y-2'>
           <p className='text-sm font-medium text-gray-600'>{title}</p>
-          <p className='text-3xl font-bold text-gray-900'>
+          <div className='text-3xl font-bold text-gray-900'>
             {isLoading ? (
               <div className='animate-pulse bg-gray-200 h-8 w-16 rounded' />
             ) : typeof value === 'number' && format !== 'currency' ? (
@@ -85,7 +85,7 @@ export function StatsCard({
             ) : (
               formatValue(value)
             )}
-          </p>
+          </div>
           {changeLabel && <p className='text-xs text-gray-500'>{changeLabel}</p>}
         </div>
       </div>

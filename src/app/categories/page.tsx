@@ -1,11 +1,40 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { GlowingButton } from '@/components/ui/AnimatedCard';
-import { Modal, ModalBody, ModalFooter } from '@/components/ui/Modal';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { StatsCard } from '@/components/ui/StatsCard';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { ImageUploader } from '@/components/uploads/ImageUploader';
 import {
   Plus,
   Search,
@@ -21,10 +50,14 @@ import {
   List,
   Star,
   DollarSign,
-  Loader2,
+  MoreVertical,
+  Image as ImageIcon,
+  TrendingUp,
+  Activity,
+  FileText,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils/cn';
+import { cn } from '@/lib/utils';
 import {
   useCategories,
   useCategoryStatistics,
@@ -33,20 +66,14 @@ import {
   useDeleteCategory,
   useToggleCategoryStatus,
   useExportCategories,
-  useUploadImage,
-  useUploadCategoryImage,
-
 } from '@/lib/hooks/use-categories';
-import { Category, CategoryFilters} from '@/lib/api/types';
+import { Category, CategoryFilters } from '@/lib/api/types';
 import { toast } from 'sonner';
-import { useSession } from 'next-auth/react';
+import { Card } from '@/components';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Textarea } from '@/components/ui/Textarea';
 
 export default function CategoriesPage() {
-  const { data: session, status } = useSession();
-
-  // Debug session
-  console.log('Session status:', status);
-  console.log('Session data:', session);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -54,21 +81,19 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Debug modal state
-  console.log('Modal state:', { showModal, editingCategory });
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     description: '',
     parentId: undefined as string | undefined,
-    isActive: true,
-    featured: false,
+    isEnabled: true,
+    isFeatured: false,
     sortOrder: 0,
-    icon: '',
     image: '',
+    bannerImage: '',
+    seoTitle: '',
+    seoDescription: '',
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // API filters
   const filters: CategoryFilters = useMemo(
@@ -86,56 +111,44 @@ export default function CategoriesPage() {
     data: categoriesData,
     isLoading: loadingCategories,
     error: categoriesError,
+    refetch,
   } = useCategories(filters);
-  
-  const {
-    data: statsData,
-    isLoading: loadingStats,
-    error: statsError,
-  } = useCategoryStatistics();
+
+  const { data: statsData } = useCategoryStatistics();
 
   const createCategoryMutation = useCreateCategory();
   const updateCategoryMutation = useUpdateCategory();
   const deleteCategoryMutation = useDeleteCategory();
   const toggleStatusMutation = useToggleCategoryStatus();
   const exportCategoriesMutation = useExportCategories();
-  const uploadImageMutation = useUploadImage();
-  const uploadCategoryImageMutation = useUploadCategoryImage();
 
-  const categories = categoriesData?.data || categoriesData?.categories || [];
+  const categories = categoriesData?.data || [];
   const totalPages = categoriesData?.totalPages || 0;
-  
-  // Handle stats with proper typing
+
   const stats = {
-    total: statsData?.total || 0,
-    active: statsData?.active || 0,
-    inactive: statsData?.inactive || 0,
-    featured: statsData?.featured || 0,
-    totalProducts: statsData?.totalProducts || 0,
+    total: statsData?.totalCategories || statsData?.total || 0,
+    active: statsData?.activeCategories || statsData?.active || 0,
+    inactive: statsData?.inactiveCategories || statsData?.inactive || 0,
+    featured: statsData?.topCategories?.length || statsData?.featured || 0,
+    totalProducts: statsData?.categoriesWithProducts || statsData?.totalProducts || 0,
     totalSales: statsData?.totalSales || 0,
   };
 
   const handleAddCategory = () => {
-    console.log('Add Category button clicked');
-    console.log('Current modal state before reset:', { showModal, editingCategory });
-
-    // Open modal for new category
     setEditingCategory(null);
     setFormData({
       name: '',
       slug: '',
       description: '',
       parentId: undefined,
-      isActive: true,
-      featured: false,
+      isEnabled: true,
+      isFeatured: false,
       sortOrder: 0,
-      icon: '',
       image: '',
+      bannerImage: '',
+      seoTitle: '',
+      seoDescription: '',
     });
-    setImageFile(null);
-    setImagePreview(null);
-
-    console.log('Form data reset, setting showModal to true');
     setShowModal(true);
   };
 
@@ -146,119 +159,73 @@ export default function CategoriesPage() {
       slug: category.slug,
       description: category.description || '',
       parentId: category.parentId,
-      isActive: category.isActive,
-      featured: category.isFeatured || false, // Map isFeatured to featured
-      sortOrder: category.sortOrder,
-      icon: category.icon || '',
-      image: category.image || '',
+      isEnabled: category.isEnabled !== undefined ? category.isEnabled : true,
+      isFeatured: category.isFeatured || false,
+      sortOrder: category.sortOrder || 0,
+      image: typeof category.image === 'string' ? category.image : '',
+      bannerImage: category.bannerImage || '',
+      seoTitle: category.seoTitle || '',
+      seoDescription: category.seoDescription || '',
     });
-    setImageFile(null);
-    setImagePreview(category.image || null);
     setShowModal(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
-        return;
-      }
-
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
-        return;
-      }
-
-      setImageFile(file);
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleImageChange = (url: string) => {
+    setFormData((prev) => ({ ...prev, image: url }));
   };
 
   const handleSaveCategory = async () => {
-    console.log('=== CATEGORY SAVE DEBUG ===');
-    console.log('Form data:', formData);
-    console.log('Editing category:', editingCategory);
-    console.log('Session:', session);
-    console.log('Is creating:', !editingCategory);
-
-    // Basic validation
     if (!formData.name.trim()) {
       toast.error('Category name is required');
       return;
     }
 
-    if (!formData.slug.trim()) {
-      toast.error('Category slug is required');
-      return;
-    }
-
     try {
-      let imageUrl = formData.image; // Keep existing image URL if no new file
-      
-      // Upload image first if a new file was selected
-      if (imageFile) {
-        console.log('Uploading image to S3...');
-        const uploadResult = await uploadImageMutation.mutateAsync(imageFile);
-        imageUrl = uploadResult.url; // Get CloudFront URL
-        console.log('Image uploaded successfully:', imageUrl);
-      }
-      
-      // Prepare data for API with image URL (map frontend 'featured' to backend 'isFeatured')
-      const { featured, ...formDataWithoutFeatured } = formData;
-      const apiData = {
-        ...formDataWithoutFeatured,
-        image: imageUrl,
-        parentId: formData.parentId || undefined,
-        isFeatured: featured,
+      // Prepare API data - only send fields with values
+      const apiData: any = {
+        name: formData.name.trim(),
       };
 
-      let categoryId: string;
+      // Optional fields - only add if they have values
+      if (formData.description?.trim()) {
+        apiData.description = formData.description.trim();
+      }
+      if (formData.parentId) {
+        apiData.parentId = formData.parentId;
+      }
+      if (formData.image) {
+        apiData.image = formData.image;
+      }
+      if (formData.bannerImage?.trim()) {
+        apiData.bannerImage = formData.bannerImage.trim();
+      }
+      if (formData.seoTitle?.trim()) {
+        apiData.seoTitle = formData.seoTitle.trim();
+      }
+      if (formData.seoDescription?.trim()) {
+        apiData.seoDescription = formData.seoDescription.trim();
+      }
+
+      // Always send boolean and number fields
+      apiData.isEnabled = formData.isEnabled;
+      apiData.isFeatured = formData.isFeatured;
+      apiData.sortOrder = formData.sortOrder || 0;
+
+      // Note: slug is auto-generated by backend, don't send it
 
       if (editingCategory) {
-        console.log('Updating category...');
-        // Update existing category
         await updateCategoryMutation.mutateAsync({
           id: editingCategory.id,
           data: apiData,
         });
-        categoryId = editingCategory.id;
       } else {
-        console.log('Creating new category...');
-        console.log('Mutation function available:', !!createCategoryMutation.mutateAsync);
-        console.log('Mutation state:', {
-          isPending: createCategoryMutation.isPending,
-          isError: createCategoryMutation.isError,
-          error: createCategoryMutation.error,
-        });
-
-        // Add new category
-        const result = await createCategoryMutation.mutateAsync(apiData);
-        console.log('Category creation result:', result);
-        categoryId = result.id;
+        await createCategoryMutation.mutateAsync(apiData);
       }
 
       setShowModal(false);
-      setImageFile(null);
-      setImagePreview(null);
     } catch (error: any) {
-      // Error is handled by the mutation hooks
-      console.error('Error saving category (caught):', error);
-      console.error('Error details:', {
-        message: error?.message,
-        status: error?.status,
-        data: error?.data,
-        response: error?.response,
-      });
+      console.error('Error saving category:', error);
+      toast.error(error?.message || 'Failed to save category');
     }
   };
 
@@ -267,7 +234,6 @@ export default function CategoriesPage() {
       try {
         await deleteCategoryMutation.mutateAsync(categoryId);
       } catch (error) {
-        // Error is handled by the mutation hook
         console.error('Error deleting category:', error);
       }
     }
@@ -277,7 +243,6 @@ export default function CategoriesPage() {
     try {
       await toggleStatusMutation.mutateAsync(categoryId);
     } catch (error) {
-      // Error is handled by the mutation hook
       console.error('Error toggling category status:', error);
     }
   };
@@ -290,811 +255,501 @@ export default function CategoriesPage() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  // Show loading state
-  if (loadingCategories || loadingStats) {
+  if (loadingCategories) {
     return (
-      <div className='flex items-center justify-center min-h-96'>
-        <div className='flex items-center gap-2'>
-          <Loader2 className='h-6 w-6 animate-spin' />
-          <span>Loading categories...</span>
-        </div>
+      <div className='min-h-screen flex items-center justify-center'>
+        <LoadingSpinner size='lg' />
       </div>
     );
   }
 
-  // Show error state
   if (categoriesError) {
     return (
-      <div className='space-y-8'>
-        <PageHeader
-          title='Categories Management'
-          description='Organize and manage product categories'
-          icon={Tag}
+      <div className='min-h-screen flex items-center justify-center'>
+        <ErrorMessage
+          title='Failed to load categories'
+          message='There was an error loading the categories data.'
+          onRetry={refetch}
         />
-        <div className='flex items-center justify-center min-h-96'>
-          <div className='text-center'>
-            <AlertCircle className='h-12 w-12 text-red-500 mx-auto mb-4' />
-            <h3 className='text-lg font-semibold text-gray-900 mb-2'>Failed to load categories</h3>
-            <p className='text-gray-600 mb-4'>
-              {categoriesError instanceof Error
-                ? categoriesError.message
-                : 'There was an error loading the categories data.'}
-            </p>
-            {/* Debug info */}
-            <details className='text-left bg-gray-100 p-4 rounded-lg mb-4 max-w-md mx-auto'>
-              <summary className='cursor-pointer font-medium'>Debug Info</summary>
-              <pre className='text-xs mt-2 whitespace-pre-wrap'>
-                {JSON.stringify(categoriesError, null, 2)}
-              </pre>
-            </details>
-            <GlowingButton variant='primary' onClick={() => window.location.reload()}>
-              Try Again
-            </GlowingButton>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show empty state (but still show stats and header)
-  if (!loadingCategories && categories.length === 0) {
-    return (
-      <div className='space-y-8'>
-        {/* Header */}
-        <PageHeader
-          title='Categories Management'
-          description='Organize and manage product categories'
-          icon={Tag}
-          actions={[
-            {
-              label: 'Export',
-              icon: Download,
-              variant: 'secondary',
-              onClick: handleExport,
-              loading: exportCategoriesMutation.isPending,
-            },
-            {
-              label: 'Add Category',
-              icon: Plus,
-              variant: 'primary',
-              onClick: handleAddCategory,
-            },
-          ]}
-        />
-
-        {/* Stats Cards */}
-        <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-6'>
-          <StatsCard
-            title='Total Categories'
-            value={stats.total}
-            icon={Tag}
-            gradient='from-blue-500 to-purple-600'
-            delay={0}
-          />
-          <StatsCard
-            title='Active'
-            value={stats.active}
-            icon={Check}
-            gradient='from-green-500 to-emerald-600'
-            delay={100}
-          />
-          <StatsCard
-            title='Inactive'
-            value={stats.inactive}
-            icon={X}
-            gradient='from-red-500 to-pink-600'
-            delay={200}
-          />
-          <StatsCard
-            title='Featured'
-            value={stats.featured}
-            icon={Star}
-            gradient='from-yellow-500 to-orange-600'
-            delay={300}
-          />
-          <StatsCard
-            title='Total Products'
-            value={stats.totalProducts}
-            icon={Package}
-            gradient='from-purple-500 to-pink-600'
-            delay={400}
-          />
-          <StatsCard
-            title='Total Sales'
-            value={stats.totalSales}
-            icon={DollarSign}
-            gradient='from-green-500 to-emerald-600'
-            format='currency'
-            delay={500}
-          />
-        </div>
-
-        {/* Empty State */}
-        <Card className='border-dashed border-2 border-gray-300 bg-gray-50/50'>
-          <CardContent className='p-12'>
-            <div className='text-center'>
-              <div className='mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-purple-100 mb-6'>
-                <Tag className='h-10 w-10 text-blue-600' />
-              </div>
-              <h3 className='text-xl font-semibold text-gray-900 mb-2'>No categories found</h3>
-              <p className='text-gray-600 mb-8 max-w-md mx-auto'>
-                Categories help organize your products and make them easier for customers to find.
-                Get started by creating your first category.
-              </p>
-              <div className='flex flex-col sm:flex-row gap-3 justify-center'>
-                <GlowingButton variant='primary' onClick={handleAddCategory} size='lg'>
-                  <Plus className='h-5 w-5 mr-2' />
-                  Create Your First Category
-                </GlowingButton>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Category Modal - Empty State */}
-        <Modal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setImageFile(null);
-            setImagePreview(null);
-          }}
-          title={editingCategory ? 'Edit Category' : 'Add New Category'}
-          size='lg'
-        >
-          <ModalBody>
-            <div className='space-y-6'>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Category Name *
-                  </label>
-                  <input
-                    type='text'
-                    value={formData.name}
-                    onChange={e => {
-                      const name = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        name,
-                        // Auto-generate slug if it's empty or matches the previous name's slug
-                        slug:
-                          !prev.slug ||
-                          prev.slug ===
-                            prev.name
-                              .toLowerCase()
-                              .replace(/[^a-z0-9]+/g, '-')
-                              .replace(/^-|-$/g, '')
-                            ? name
-                                .toLowerCase()
-                                .replace(/[^a-z0-9]+/g, '-')
-                                .replace(/^-|-$/g, '')
-                            : prev.slug,
-                      }));
-                    }}
-                    className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                    placeholder='Enter category name'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>Slug *</label>
-                  <input
-                    type='text'
-                    value={formData.slug}
-                    onChange={e => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                    className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                    placeholder='category-slug'
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                  placeholder='Enter category description'
-                />
-              </div>
-
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Icon (optional)
-                  </label>
-                  <input
-                    type='text'
-                    value={formData.icon}
-                    onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                    className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                    placeholder='e.g. fas fa-home'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>Sort Order</label>
-                  <input
-                    type='number'
-                    value={formData.sortOrder}
-                    onChange={e =>
-                      setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))
-                    }
-                    className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                    min='0'
-                  />
-                </div>
-              </div>
-
-              {/* Image Upload */}
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>
-                  Category Image
-                </label>
-                <div className='space-y-2'>
-                  {imagePreview && (
-                    <div className='relative w-32 h-32'>
-                      <img
-                        src={imagePreview}
-                        alt='Category preview'
-                        className='w-full h-full object-cover rounded-lg'
-                      />
-                      <button
-                        type='button'
-                        onClick={() => {
-                          setImageFile(null);
-                          setImagePreview(null);
-                        }}
-                        className='absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
-                      >
-                        <X className='h-4 w-4' />
-                      </button>
-                    </div>
-                  )}
-                  <input
-                    type='file'
-                    accept='image/jpeg,image/png,image/gif,image/webp'
-                    onChange={handleImageChange}
-                    className='w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
-                  />
-                  <p className='text-xs text-gray-500'>
-                    Supported formats: JPEG, PNG, GIF, WebP. Max size: 5MB
-                  </p>
-                </div>
-              </div>
-
-              <div className='flex items-center gap-2'>
-                <input
-                  type='checkbox'
-                  id='isActive'
-                  checked={formData.isActive}
-                  onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                />
-                <label htmlFor='isActive' className='text-sm text-gray-700'>
-                  Active (visible to customers)
-                </label>
-              </div>
-              <div className='flex items-center gap-2'>
-                <input
-                  type='checkbox'
-                  id='featured'
-                  checked={formData.featured}
-                  onChange={e => setFormData(prev => ({ ...prev, featured: e.target.checked }))}
-                />
-                <label htmlFor='featured' className='text-sm text-gray-700'>
-                  Featured category
-                </label>
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <GlowingButton
-              variant='secondary'
-              onClick={() => {
-                setShowModal(false);
-                setImageFile(null);
-                setImagePreview(null);
-              }}
-            >
-              Cancel
-            </GlowingButton>
-            <GlowingButton
-              variant='primary'
-              onClick={handleSaveCategory}
-              loading={createCategoryMutation.isPending || updateCategoryMutation.isPending || uploadImageMutation.isPending}
-            >
-              {editingCategory ? 'Update Category' : 'Create Category'}
-            </GlowingButton>
-          </ModalFooter>
-        </Modal>
       </div>
     );
   }
 
   return (
-    <div className='space-y-8'>
+    <div className='space-y-6'>
       {/* Header */}
-      <PageHeader
-        title='Categories Management'
-        description='Organize and manage product categories'
-        icon={Tag}
-        actions={[
-          {
-            label: 'Export',
-            icon: Download,
-            variant: 'secondary',
-            onClick: handleExport,
-            loading: exportCategoriesMutation.isPending,
-          },
-          {
-            label: 'Add Category',
-            icon: Plus,
-            variant: 'primary',
-            onClick: handleAddCategory,
-          },
-        ]}
-      />
-
-      {/* Stats Cards */}
-      <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-6'>
-        <StatsCard
-          title='Total Categories'
-          value={stats.total}
-          icon={Tag}
-          gradient='from-blue-500 to-purple-600'
-          delay={0}
-        />
-        <StatsCard
-          title='Active'
-          value={stats.active}
-          icon={Check}
-          gradient='from-green-500 to-emerald-600'
-          delay={100}
-        />
-        <StatsCard
-          title='Inactive'
-          value={stats.inactive}
-          icon={X}
-          gradient='from-red-500 to-pink-600'
-          delay={200}
-        />
-        <StatsCard
-          title='Featured'
-          value={stats.featured}
-          icon={Star}
-          gradient='from-yellow-500 to-orange-600'
-          delay={300}
-        />
-        <StatsCard
-          title='Total Products'
-          value={stats.totalProducts}
-          icon={Package}
-          gradient='from-purple-500 to-pink-600'
-          delay={400}
-        />
-        <StatsCard
-          title='Total Sales'
-          value={stats.totalSales}
-          icon={DollarSign}
-          gradient='from-green-500 to-emerald-600'
-          format='currency'
-          delay={500}
-        />
+      <div className='flex items-center justify-between'>
+        <div>
+          <h1 className='text-3xl font-bold tracking-tight'>Categories Management</h1>
+          <p className='text-muted-foreground mt-1'>
+            Organize and manage product categories
+          </p>
+        </div>
+        <div className='flex items-center gap-2'>
+          <Button onClick={handleExport} variant='outline' disabled={exportCategoriesMutation.isPending}>
+            <Download className='h-4 w-4 mr-2' />
+            Export
+          </Button>
+          <Button onClick={handleAddCategory}>
+            <Plus className='h-4 w-4 mr-2' />
+            Add Category
+          </Button>
+        </div>
       </div>
 
-      {/* Filters and Controls */}
+      {/* Statistics Cards */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-6'>
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Total Categories
+            </CardTitle>
+            <Tag className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.total}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              All categories
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Active
+            </CardTitle>
+            <Activity className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.active}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Currently active
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Inactive
+            </CardTitle>
+            <AlertCircle className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.inactive}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Not active
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Featured
+            </CardTitle>
+            <Star className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.featured}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Featured items
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Total Products
+            </CardTitle>
+            <Package className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.totalProducts}</div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Products listed
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between pb-2'>
+            <CardTitle className='text-sm font-medium text-muted-foreground'>
+              Total Sales
+            </CardTitle>
+            <DollarSign className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              ₦{stats.totalSales.toLocaleString()}
+            </div>
+            <p className='text-xs text-muted-foreground mt-1'>
+              Revenue generated
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and Content */}
       <Card>
         <CardHeader>
-          <div className='flex items-center justify-between'>
-            <CardTitle>All Categories</CardTitle>
-            <div className='flex items-center gap-4'>
-              <div className='relative'>
-                <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400' />
-                <input
-                  type='search'
+          <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='flex flex-1 items-center gap-4'>
+              <div className='relative flex-1 max-w-sm'>
+                <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                <Input
                   placeholder='Search categories...'
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className='w-64 rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className='pl-10'
                 />
               </div>
 
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as any)}
-                className='rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-              >
-                <option value='all'>All Status</option>
-                <option value='active'>Active</option>
-                <option value='inactive'>Inactive</option>
-              </select>
+              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+                <SelectTrigger className='w-[140px]'>
+                  <SelectValue placeholder='All Status' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>All Status</SelectItem>
+                  <SelectItem value='active'>Active</SelectItem>
+                  <SelectItem value='inactive'>Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className='flex items-center gap-2'>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    'p-2 rounded-lg',
-                    viewMode === 'grid'
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  )}
-                >
-                  <Grid className='h-4 w-4' />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    'p-2 rounded-lg',
-                    viewMode === 'list'
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  )}
-                >
-                  <List className='h-4 w-4' />
-                </button>
-              </div>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size='icon'
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid className='h-4 w-4' />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size='icon'
+                onClick={() => setViewMode('list')}
+              >
+                <List className='h-4 w-4' />
+              </Button>
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
-          {viewMode === 'grid' ? (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-              {categories.map(category => (
-                <div
-                  key={category.id}
-                  className='bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow'
-                >
-                  <div className='flex items-start justify-between mb-4'>
-                    <div className='flex items-center gap-3'>
-                      {category.image ? (
-                        <img
-                          src={category.image}
-                          alt={category.name}
-                          className='w-12 h-12 rounded-lg object-cover'
-                        />
-                      ) : (
-                        <div
-                          className='w-12 h-12 rounded-lg flex items-center justify-center text-white font-semibold'
-                          style={{ backgroundColor: category.color || '#3B82F6' }}
-                        >
-                          {category.name.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className='font-semibold text-gray-900'>{category.name}</h3>
-                        <p className='text-sm text-gray-600'>
-                          {category.productCount || 0} products
-                        </p>
-                      </div>
-                    </div>
-                    <div className='flex items-center gap-2'>
-                      {category.isFeatured && (
-                        <Star className='h-4 w-4 text-yellow-500 fill-current' />
-                      )}
-                      <span
-                        className={cn(
-                          'px-2 py-1 text-xs rounded-full',
-                          category.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        )}
-                      >
-                        {category.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className='text-sm text-gray-600 mb-4'>
-                    {category.description || 'No description'}
-                  </p>
-
-                  <div className='flex items-center justify-between text-sm text-gray-500 mb-4'>
-                    <span>Products: {category.productCount || 0}</span>
-                    <span>Level: {category.level || 0}</span>
-                  </div>
-
-                  <div className='flex items-center gap-2'>
-                    <button
-                      onClick={() => handleEditCategory(category)}
-                      className='flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded'
-                    >
-                      <Edit className='h-3 w-3' />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatus(category.id)}
-                      className={cn(
-                        'flex items-center gap-1 px-3 py-1 text-sm rounded',
-                        category.isActive
-                          ? 'text-red-600 hover:bg-red-50'
-                          : 'text-green-600 hover:bg-green-50'
-                      )}
-                    >
-                      {category.isActive ? (
-                        <>
-                          <X className='h-3 w-3' />
-                          Deactivate
-                        </>
-                      ) : (
-                        <>
-                          <Check className='h-3 w-3' />
-                          Activate
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(category.id)}
-                      className='flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded'
-                    >
-                      <Trash2 className='h-3 w-3' />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {categories.length === 0 ? (
+            <div className='text-center py-12'>
+              <Tag className='mx-auto h-12 w-12 text-muted-foreground mb-4' />
+              <h3 className='text-lg font-semibold mb-2'>No categories found</h3>
+              <p className='text-muted-foreground mb-4'>
+                Create your first category to get started
+              </p>
+              <Button onClick={handleAddCategory}>
+                <Plus className='h-4 w-4 mr-2' />
+                Add Category
+              </Button>
             </div>
           ) : (
-            <div className='overflow-x-auto'>
-              <table className='w-full text-sm'>
-                <thead>
-                  <tr className='border-b'>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Category</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Products</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Level</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Featured</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Status</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Updated</th>
-                    <th className='pb-3 text-left font-medium text-gray-600'>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y'>
-                  {categories.map(category => (
-                    <tr key={category.id} className='hover:bg-gray-50'>
-                      <td className='py-4'>
-                        <div className='flex items-center gap-3'>
-                          {category.image ? (
-                            <img
-                              src={category.image}
-                              alt={category.name}
-                              className='w-8 h-8 rounded-lg object-cover'
-                            />
-                          ) : (
-                            <div
-                              className='w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm'
-                              style={{ backgroundColor: category.color || '#3B82F6' }}
-                            >
-                              {category.name.charAt(0)}
+            <Tabs value={viewMode} className='space-y-4'>
+              <TabsContent value='grid'>
+                <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+                  {categories.map((category) => (
+                    <Card key={category.id} className='overflow-hidden'>
+                      <CardContent className='p-6'>
+                        <div className='flex items-start justify-between mb-4'>
+                          <div className='flex items-center gap-3'>
+                            {category.image ? (
+                              <img
+                                src={category.image}
+                                alt={category.name}
+                                className='w-12 h-12 rounded-lg object-cover'
+                              />
+                            ) : (
+                              <div className='w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center'>
+                                <Tag className='h-6 w-6 text-primary' />
+                              </div>
+                            )}
+                            <div>
+                              <h3 className='font-semibold'>{category.name}</h3>
+                              <p className='text-sm text-muted-foreground'>
+                                {category.productCount || 0} products
+                              </p>
                             </div>
-                          )}
-                          <div>
-                            <p className='font-medium text-gray-900'>{category.name}</p>
-                            <p className='text-xs text-gray-500'>{category.slug}</p>
                           </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant='ghost' size='icon'>
+                                <MoreVertical className='h-4 w-4' />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align='end'>
+                              <DropdownMenuItem onClick={() => handleEditCategory(category)}>
+                                <Edit className='h-4 w-4 mr-2' />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleStatus(category.id)}>
+                                {category.isActive ? (
+                                  <>
+                                    <X className='h-4 w-4 mr-2' />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className='h-4 w-4 mr-2' />
+                                    Activate
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteCategory(category.id)}
+                                className='text-red-600'
+                              >
+                                <Trash2 className='h-4 w-4 mr-2' />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </td>
-                      <td className='py-4 text-gray-600'>{category.productCount || 0}</td>
-                      <td className='py-4 text-gray-600'>
-                        Level {category.level || 0}
-                      </td>
-                      <td className='py-4 text-gray-600'>
-                        {category.isFeatured ? 'Yes' : 'No'}
-                      </td>
-                      <td className='py-4'>
-                        <span
-                          className={cn(
-                            'px-2 py-1 text-xs rounded-full',
-                            category.isActive
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+
+                        <p className='text-sm text-muted-foreground mb-4 line-clamp-2'>
+                          {category.description || 'No description'}
+                        </p>
+
+                        <div className='flex items-center gap-2 flex-wrap'>
+                          <Badge variant={category.isActive ? 'default' : 'secondary'}>
+                            {category.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {category.isFeatured && (
+                            <Badge variant='outline' className='gap-1'>
+                              <Star className='h-3 w-3 fill-current' />
+                              Featured
+                            </Badge>
                           )}
-                        >
-                          {category.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className='py-4 text-gray-600'>
-                        {format(new Date(category.updatedAt), 'MMM dd, yyyy')}
-                      </td>
-                      <td className='py-4'>
-                        <div className='flex items-center gap-2'>
-                          <button
-                            onClick={() => handleEditCategory(category)}
-                            className='p-1 text-blue-600 hover:bg-blue-50 rounded'
-                          >
-                            <Edit className='h-4 w-4' />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className='p-1 text-red-600 hover:bg-red-50 rounded'
-                          >
-                            <Trash2 className='h-4 w-4' />
-                          </button>
                         </div>
-                      </td>
-                    </tr>
+                      </CardContent>
+                    </Card>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value='list'>
+                <div className='border rounded-lg'>
+                  <table className='w-full'>
+                    <thead>
+                      <tr className='border-b bg-muted/50'>
+                        <th className='px-4 py-3 text-left text-sm font-medium'>Category</th>
+                        <th className='px-4 py-3 text-left text-sm font-medium'>Products</th>
+                        <th className='px-4 py-3 text-left text-sm font-medium'>Status</th>
+                        <th className='px-4 py-3 text-left text-sm font-medium'>Featured</th>
+                        <th className='px-4 py-3 text-left text-sm font-medium'>Updated</th>
+                        <th className='px-4 py-3 text-right text-sm font-medium'>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y'>
+                      {categories.map((category) => (
+                        <tr key={category.id} className='hover:bg-muted/50'>
+                          <td className='px-4 py-3'>
+                            <div className='flex items-center gap-3'>
+                              {category.image ? (
+                                <img
+                                  src={category.image}
+                                  alt={category.name}
+                                  className='w-8 h-8 rounded-lg object-cover'
+                                />
+                              ) : (
+                                <div className='w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center'>
+                                  <Tag className='h-4 w-4 text-primary' />
+                                </div>
+                              )}
+                              <div>
+                                <p className='font-medium'>{category.name}</p>
+                                <p className='text-xs text-muted-foreground'>{category.slug}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className='px-4 py-3 text-sm'>{category.productCount || 0}</td>
+                          <td className='px-4 py-3'>
+                            <Badge variant={category.isActive ? 'default' : 'secondary'}>
+                              {category.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td className='px-4 py-3 text-sm'>
+                            {category.isFeatured ? 'Yes' : 'No'}
+                          </td>
+                          <td className='px-4 py-3 text-sm text-muted-foreground'>
+                            {format(new Date(category.updatedAt), 'MMM dd, yyyy')}
+                          </td>
+                          <td className='px-4 py-3'>
+                            <div className='flex items-center justify-end gap-2'>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                onClick={() => handleEditCategory(category)}
+                              >
+                                <Edit className='h-4 w-4' />
+                              </Button>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                onClick={() => handleDeleteCategory(category.id)}
+                              >
+                                <Trash2 className='h-4 w-4' />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
 
       {/* Category Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setImageFile(null);
-          setImagePreview(null);
-        }}
-        title={editingCategory ? 'Edit Category' : 'Add New Category'}
-        size='lg'
-      >
-        <ModalBody>
-          <div className='space-y-6'>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>
-                  Category Name *
-                </label>
-                <input
-                  type='text'
-                  value={formData.name}
-                  onChange={e => {
-                    const name = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      name,
-                      // Auto-generate slug if it's empty or matches the previous name's slug
-                      slug:
-                        !prev.slug ||
-                        prev.slug ===
-                          prev.name
-                            .toLowerCase()
-                            .replace(/[^a-z0-9]+/g, '-')
-                            .replace(/^-|-$/g, '')
-                          ? name
-                              .toLowerCase()
-                              .replace(/[^a-z0-9]+/g, '-')
-                              .replace(/^-|-$/g, '')
-                          : prev.slug,
-                    }));
-                  }}
-                  className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                  placeholder='Enter category name'
-                />
-              </div>
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Slug *</label>
-                <input
-                  type='text'
-                  value={formData.slug}
-                  onChange={e => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                  className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                  placeholder='category-slug'
-                />
-              </div>
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className='max-w-2xl max-h-[90vh] flex flex-col'>
+          <DialogHeader>
+            <DialogTitle>
+              {editingCategory ? 'Edit Category' : 'Add New Category'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCategory
+                ? 'Update category information'
+                : 'Create a new category for your products'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='space-y-6 py-4 overflow-y-auto flex-1'>
+            {/* Image Upload */}
+            <div className='space-y-3'>
+              <label className='text-sm font-medium'>Category Image</label>
+              <ImageUploader
+                mode="single"
+                folder="categories"
+                value={formData.image}
+                onChange={handleImageChange}
+                placeholder="Upload category image"
+                aspectRatio="1/1"
+                showPreview={true}
+              />
+              <p className='text-xs text-muted-foreground'>
+                Recommended size: 400x400px (1:1 aspect ratio)
+              </p>
             </div>
 
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>Description</label>
-              <textarea
+            {/* Basic Info */}
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>
+                Category Name <span className='text-red-500'>*</span>
+              </label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder='e.g., Electronics'
+              />
+              <p className='text-xs text-muted-foreground'>
+                Slug will be auto-generated from the category name
+              </p>
+            </div>
+
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>Description</label>
+              <Textarea
                 value={formData.description}
-                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder='Describe this category...'
                 rows={3}
-                className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                placeholder='Enter category description'
               />
             </div>
 
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>
-                  Icon (optional)
-                </label>
-                <input
-                  type='text'
-                  value={formData.icon}
-                  onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                  className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-                  placeholder='e.g. fas fa-home'
+            {/* SEO Fields */}
+            <div className='grid gap-4 md:grid-cols-2'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>SEO Title (optional)</label>
+                <Input
+                  value={formData.seoTitle}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, seoTitle: e.target.value }))}
+                  placeholder='e.g., Electronics - Shop Online'
+                  maxLength={200}
                 />
               </div>
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Sort Order</label>
-                <input
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>Sort Order</label>
+                <Input
                   type='number'
                   value={formData.sortOrder}
-                  onChange={e =>
-                    setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))
                   }
-                  className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
                   min='0'
+                  placeholder='0'
                 />
               </div>
             </div>
 
-            {/* Image Upload */}
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>Category Image</label>
-              <div className='space-y-2'>
-                {imagePreview && (
-                  <div className='relative w-32 h-32'>
-                    <img
-                      src={imagePreview}
-                      alt='Category preview'
-                      className='w-full h-full object-cover rounded-lg'
-                    />
-                    <button
-                      type='button'
-                      onClick={() => {
-                        setImageFile(null);
-                        setImagePreview(null);
-                      }}
-                      className='absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
-                    >
-                      <X className='h-4 w-4' />
-                    </button>
-                  </div>
-                )}
-                <input
-                  type='file'
-                  accept='image/jpeg,image/png,image/gif,image/webp'
-                  onChange={handleImageChange}
-                  className='w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
-                />
-                <p className='text-xs text-gray-500'>
-                  Supported formats: JPEG, PNG, GIF, WebP. Max size: 5MB
-                </p>
-              </div>
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>SEO Description (optional)</label>
+              <Textarea
+                value={formData.seoDescription}
+                onChange={(e) => setFormData((prev) => ({ ...prev, seoDescription: e.target.value }))}
+                placeholder='SEO meta description...'
+                rows={2}
+                maxLength={300}
+              />
+              <p className='text-xs text-muted-foreground'>
+                {formData.seoDescription.length}/300 characters
+              </p>
             </div>
 
-            <div className='flex items-center gap-2'>
-              <input
-                type='checkbox'
-                id='isActiveMain'
-                checked={formData.isActive}
-                onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              />
-              <label htmlFor='isActiveMain' className='text-sm text-gray-700'>
-                Active (visible to customers)
-              </label>
-            </div>
-            <div className='flex items-center gap-2'>
-              <input
-                type='checkbox'
-                id='featuredMain'
-                checked={formData.featured}
-                onChange={e => setFormData(prev => ({ ...prev, featured: e.target.checked }))}
-              />
-              <label htmlFor='featuredMain' className='text-sm text-gray-700'>
-                Featured category
-              </label>
+            <div className='flex items-center gap-6'>
+              <div className='flex items-center space-x-2'>
+                <Checkbox
+                  id='isEnabled'
+                  checked={formData.isEnabled}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, isEnabled: checked as boolean }))
+                  }
+                />
+                <label htmlFor='isEnabled' className='text-sm font-medium cursor-pointer'>
+                  Enabled (visible to customers)
+                </label>
+              </div>
+              <div className='flex items-center space-x-2'>
+                <Checkbox
+                  id='isFeatured'
+                  checked={formData.isFeatured}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, isFeatured: checked as boolean }))
+                  }
+                />
+                <label htmlFor='isFeatured' className='text-sm font-medium cursor-pointer'>
+                  Featured category
+                </label>
+              </div>
             </div>
           </div>
-        </ModalBody>
-        <ModalFooter>
-          <GlowingButton variant='secondary' onClick={() => setShowModal(false)}>
-            Cancel
-          </GlowingButton>
-          <GlowingButton
-            variant='primary'
-            onClick={handleSaveCategory}
-            loading={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-          >
-            {editingCategory ? 'Update Category' : 'Create Category'}
-          </GlowingButton>
-        </ModalFooter>
-      </Modal>
+
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={
+                createCategoryMutation.isPending ||
+                updateCategoryMutation.isPending
+              }
+            >
+              {editingCategory ? 'Update Category' : 'Create Category'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

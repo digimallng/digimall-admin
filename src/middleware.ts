@@ -21,11 +21,12 @@ async function checkSetupRequired(baseUrl: string): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Allow API routes, static files, and setup pages to pass through
+  // Allow API routes, static files, setup pages, and test pages to pass through
   if (
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/setup') ||
+    pathname.startsWith('/api-test') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();

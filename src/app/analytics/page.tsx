@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { StatsCard } from '@/components/ui/StatsCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   useDashboardAnalytics,
   useRevenueData,
@@ -24,8 +30,6 @@ import {
   useOrderAnalytics,
   useSystemMetrics,
 } from '@/lib/hooks/use-analytics';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import {
   LineChart,
   Line,
@@ -93,12 +97,12 @@ export default function AnalyticsPage() {
     isLoading: analyticsLoading,
     error: analyticsError,
   } = useDashboardAnalytics();
-  const { data: revenueData, isLoading: revenueLoading } = useRevenueData({ period });
-  const { data: categoryData, isLoading: categoryLoading } = useCategoryStats({ limit: 6, period });
-  const { data: userAnalytics } = useUserAnalytics({ period });
-  const { data: vendorAnalytics } = useVendorAnalytics({ period });
-  const { data: productAnalytics } = useProductAnalytics({ period });
-  const { data: orderAnalytics } = useOrderAnalytics({ period });
+  const { data: revenueData, isLoading: revenueLoading } = useRevenueData();
+  const { data: categoryData, isLoading: categoryLoading } = useCategoryStats();
+  const { data: userAnalytics } = useUserAnalytics();
+  const { data: vendorAnalytics } = useVendorAnalytics();
+  const { data: productAnalytics } = useProductAnalytics();
+  const { data: orderAnalytics } = useOrderAnalytics();
   const { data: systemMetrics } = useSystemMetrics();
 
   useEffect(() => {
@@ -174,8 +178,20 @@ export default function AnalyticsPage() {
   // Handle loading states
   if (analyticsLoading || revenueLoading || categoryLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <LoadingSpinner />
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -183,9 +199,17 @@ export default function AnalyticsPage() {
   // Handle error states
   if (analyticsError) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <ErrorMessage title="Failed to load analytics" message={analyticsError.message} />
-      </div>
+      <Card className="mt-6">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <BarChart3 className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load analytics</h3>
+          <p className="text-sm text-gray-600 mb-4">{analyticsError.message}</p>
+          <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -285,39 +309,48 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Analytics & Reports"
-        description="Comprehensive platform insights and performance metrics"
-        icon={BarChart3}
-        actions={[
-          {
-            label: 'Export Report',
-            icon: Download,
-            variant: 'secondary',
-            onClick: () => handleExport('csv'),
-          },
-          {
-            label: 'Refresh Data',
-            icon: RefreshCw,
-            variant: 'secondary',
-          },
-        ]}
-      />
-
-      {/* Time Range Selector */}
-      <div className="flex items-center justify-between">
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-            <SelectItem value="365">Last year</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
+          <p className="text-muted-foreground">
+            Comprehensive platform insights and performance metrics
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="365">Last year</SelectItem>
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                Export as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -462,41 +495,54 @@ export default function AnalyticsPage() {
 
         <TabsContent value="revenue" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <StatsCard
-              title="Total Revenue"
-              value={analytics?.totalRevenue || 0}
-              change={analytics?.revenueGrowth || 0}
-              icon={DollarSign}
-              prefix="₦"
-            />
-            <StatsCard
-              title="Monthly Revenue"
-              value={
-                revenueData && Array.isArray(revenueData) 
-                  ? revenueData.reduce((sum, item) => sum + (item.revenue || 0), 0)
-                  : 0
-              }
-              change={
-                revenueData && Array.isArray(revenueData) && revenueData.length >= 2
-                  ? Math.round(((revenueData[revenueData.length - 1]?.revenue || 0) - (revenueData[revenueData.length - 2]?.revenue || 0)) / (revenueData[revenueData.length - 2]?.revenue || 1) * 100)
-                  : 0
-              }
-              icon={TrendingUp}
-              prefix="₦"
-            />
-            <StatsCard
-              title="Avg Order Value"
-              value={
-                orderAnalytics?.averageOrderValue || 
-                (analytics?.totalRevenue && analytics?.totalOrders 
-                  ? Math.round(analytics.totalRevenue / analytics.totalOrders)
-                  : 0
-                )
-              }
-              change={orderAnalytics?.avgOrderValueGrowth || 0}
-              icon={Award}
-              prefix="₦"
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₦{formatNumber(analytics?.totalRevenue || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <Badge className={cn("text-xs", (analytics?.revenueGrowth || 0) > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}>
+                    {(analytics?.revenueGrowth || 0) > 0 ? '+' : ''}{analytics?.revenueGrowth || 0}%
+                  </Badge>
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Revenue</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ₦{formatNumber(
+                    revenueData && Array.isArray(revenueData)
+                      ? revenueData.reduce((sum, item) => sum + (item.revenue || 0), 0)
+                      : 0
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Current period</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Order Value</CardTitle>
+                <Award className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ₦{formatNumber(
+                    orderAnalytics?.averageOrderValue ||
+                    (analytics?.totalRevenue && analytics?.totalOrders
+                      ? Math.round(analytics.totalRevenue / analytics.totalOrders)
+                      : 0
+                    )
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Per order</p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
@@ -520,31 +566,46 @@ export default function AnalyticsPage() {
 
         <TabsContent value="users" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            <StatsCard 
-              title="Total Users" 
-              value={analytics?.totalUsers || 0} 
-              change={userAnalytics?.growthRate || 0} 
-              icon={Users} 
-            />
-            <StatsCard 
-              title="New Users" 
-              value={analytics?.newUsersToday || 0} 
-              change={userAnalytics?.newUserGrowth || 0} 
-              icon={Users} 
-            />
-            <StatsCard 
-              title="Active Users" 
-              value={analytics?.activeUsers || 0} 
-              change={userAnalytics?.activeUserGrowth || 0} 
-              icon={Activity} 
-            />
-            <StatsCard 
-              title="Retention Rate" 
-              value={userAnalytics?.retentionRate || 0} 
-              change={userAnalytics?.retentionGrowth || 0} 
-              icon={Target} 
-              suffix="%" 
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(analytics?.totalUsers || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">All users</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">New Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(analytics?.newUsersToday || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Today</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Users</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(analytics?.activeUsers || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Currently active</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Retention Rate</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{userAnalytics?.retentionRate || 0}%</div>
+                <p className="text-xs text-muted-foreground mt-1">User retention</p>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -614,25 +675,36 @@ export default function AnalyticsPage() {
 
         <TabsContent value="vendors" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <StatsCard 
-              title="Total Vendors" 
-              value={analytics?.totalVendors || 0} 
-              change={vendorAnalytics?.growthRate || 0} 
-              icon={Store} 
-            />
-            <StatsCard 
-              title="Active Vendors" 
-              value={vendorAnalytics?.activeVendors || 0} 
-              change={vendorAnalytics?.activeVendorGrowth || 0} 
-              icon={Activity} 
-            />
-            <StatsCard 
-              title="Avg Rating" 
-              value={vendorAnalytics?.averageRating || 0} 
-              change={vendorAnalytics?.ratingGrowth || 0} 
-              icon={Star} 
-              suffix="/5" 
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Vendors</CardTitle>
+                <Store className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(analytics?.totalVendors || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">All vendors</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Vendors</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(vendorAnalytics?.activeVendors || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Currently active</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Rating</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{vendorAnalytics?.averageRating || 0}/5</div>
+                <p className="text-xs text-muted-foreground mt-1">Vendor ratings</p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
@@ -669,24 +741,36 @@ export default function AnalyticsPage() {
 
         <TabsContent value="products" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <StatsCard 
-              title="Total Products" 
-              value={analytics?.totalProducts || 0} 
-              change={productAnalytics?.growthRate || 0} 
-              icon={Package} 
-            />
-            <StatsCard 
-              title="Best Sellers" 
-              value={productAnalytics?.bestSellers?.length || 0} 
-              change={productAnalytics?.bestSellerGrowth || 0} 
-              icon={TrendingUp} 
-            />
-            <StatsCard 
-              title="Out of Stock" 
-              value={productAnalytics?.outOfStock || 0} 
-              change={productAnalytics?.outOfStockChange || 0} 
-              icon={Package} 
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Products</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(analytics?.totalProducts || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">All products</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Best Sellers</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(productAnalytics?.bestSellers?.length || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Top products</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Out of Stock</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(productAnalytics?.outOfStock || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Need restock</p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
@@ -723,33 +807,46 @@ export default function AnalyticsPage() {
 
         <TabsContent value="bargaining" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            <StatsCard 
-              title="Total Sessions" 
-              value={orderAnalytics?.bargainSessions || 0} 
-              change={orderAnalytics?.bargainSessionGrowth || 0} 
-              icon={MessageSquare} 
-            />
-            <StatsCard 
-              title="Success Rate" 
-              value={orderAnalytics?.bargainSuccessRate || 0} 
-              change={orderAnalytics?.successRateChange || 0} 
-              icon={Target} 
-              suffix="%" 
-            />
-            <StatsCard 
-              title="Avg Discount" 
-              value={orderAnalytics?.averageDiscount || 0} 
-              change={orderAnalytics?.discountChange || 0} 
-              icon={Percent} 
-              suffix="%" 
-            />
-            <StatsCard
-              title="Savings Generated"
-              value={orderAnalytics?.totalSavings || 0}
-              change={orderAnalytics?.savingsGrowth || 0}
-              icon={DollarSign}
-              prefix="₦"
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Sessions</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(orderAnalytics?.bargainSessions || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Bargaining sessions</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Success Rate</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{orderAnalytics?.bargainSuccessRate || 0}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Successful deals</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Discount</CardTitle>
+                <Percent className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{orderAnalytics?.averageDiscount || 0}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Average discount</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Savings Generated</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₦{formatNumber(orderAnalytics?.totalSavings || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Total savings</p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>

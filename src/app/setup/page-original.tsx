@@ -70,12 +70,12 @@ export default function SetupPage() {
     setError(null);
 
     try {
-      // Call admin service directly for setup endpoints
+      // Call unified backend directly for setup endpoints
       const apiUrl = process.env.NODE_ENV === 'production'
-        ? 'https://admin.digimall.ng/api/v1'
-        : 'http://localhost:4800/api/v1';
+        ? 'https://api.digimall.ng'
+        : 'http://localhost:3000';
 
-      const response = await fetch(`${apiUrl}/setup/create-super-admin`, {
+      const response = await fetch(`${apiUrl}/api/v1/staff/setup/create-super-admin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
