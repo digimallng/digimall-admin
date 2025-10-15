@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get unified backend URL
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://api.digimall.ng'
+      : process.env.NEXT_PUBLIC_BACKEND_URL
+        ? process.env.NEXT_PUBLIC_BACKEND_URL
+        : 'http://localhost:3000';
 
     console.log('Creating super admin via unified backend:', backendUrl);
     console.log('Setup request data:', {

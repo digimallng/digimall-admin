@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if super admin exists by querying the unified backend
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+    const backendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://api.digimall.ng'
+      : process.env.NEXT_PUBLIC_BACKEND_URL
+        ? process.env.NEXT_PUBLIC_BACKEND_URL
+        : 'http://localhost:3000';
 
     console.log('Checking setup status with unified backend:', backendUrl);
 
