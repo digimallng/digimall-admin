@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportsCompleteService } from '@/lib/api/services/reports-complete.service';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,

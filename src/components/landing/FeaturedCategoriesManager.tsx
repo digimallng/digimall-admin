@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { landingService } from '@/lib/api/services';
 import { categoryService } from '@/lib/api/services/category.service';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, Loader2, GripVertical, Search, CheckSquare, Square } from 'lucide-react';

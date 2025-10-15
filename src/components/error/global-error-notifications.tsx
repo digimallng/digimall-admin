@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useErrorContext } from '@/providers/error-provider';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {

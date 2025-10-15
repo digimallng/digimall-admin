@@ -70,8 +70,8 @@ import {
 import { Category, CategoryFilters } from '@/lib/api/types';
 import { toast } from 'sonner';
 import { Card } from '@/components';
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Textarea } from '@/components/ui/Textarea';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function CategoriesPage() {
   const [searchTerm, setSearchTerm] = useState('');

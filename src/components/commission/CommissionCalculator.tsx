@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GlowingButton } from '@/components/ui/AnimatedCard';
 import { Calculator, Loader2, TrendingUp, Percent } from 'lucide-react';
 import { commissionService } from '@/services/commission.service';

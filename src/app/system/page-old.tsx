@@ -31,7 +31,7 @@ import { CacheManager } from '@/components/system/CacheManager';
 import { BackupManager } from '@/components/system/BackupManager';
 import { SystemLogsViewer } from '@/components/system/SystemLogsViewer';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

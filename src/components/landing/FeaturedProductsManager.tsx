@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { landingService } from '@/lib/api/services';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Loader2, GripVertical, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';

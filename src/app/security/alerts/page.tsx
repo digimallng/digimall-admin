@@ -48,7 +48,7 @@ import { securityService, SecurityAlert } from '@/lib/api/services/security.serv
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Card } from '@/components';
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SecurityAlertsPage() {
   const [searchTerm, setSearchTerm] = useState('');

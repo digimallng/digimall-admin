@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Home, Image, Star, Package } from 'lucide-react';
 import { HeroSectionManager } from '@/components/landing/HeroSectionManager';
 import { BannerManager } from '@/components/landing/BannerManager';

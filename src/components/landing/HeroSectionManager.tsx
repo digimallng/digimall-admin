@@ -15,7 +15,7 @@ import {
   useDeleteHeroSlide,
 } from '@/lib/hooks/use-landing';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Loader2, Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { HeroSlide } from '@/lib/api/types/landing.types';

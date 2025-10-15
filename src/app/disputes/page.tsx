@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useDisputedEscrows, useEscrowStatistics, useResolveDispute } from '@/lib/hooks/use-escrow';
 import type { EscrowAccount, ResolveDisputeRequest } from '@/lib/api/types/escrow.types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/Textarea';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

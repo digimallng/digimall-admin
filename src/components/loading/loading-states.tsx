@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Loader2, RefreshCw, Database, Wifi, AlertCircle, Clock } from 'lucide-react';
 
 // Basic loading spinner

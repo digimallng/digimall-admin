@@ -1,5 +1,5 @@
 import { EscrowStatistics } from '@/lib/api/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Shield, 
   TrendingUp, 

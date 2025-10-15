@@ -5,7 +5,7 @@ import { useCreateSupportTicket } from '@/lib/hooks/use-support';
 import { TicketPriority, TicketCategory, SupportChannel } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/Textarea';
+import { Textarea } from '@/components/ui/textarea';
 import { SimpleSelect as Select } from '@/components/ui/SimpleSelect';
 import { Modal } from '@/components/ui/Modal';
 import { X, Send, AlertCircle } from 'lucide-react';

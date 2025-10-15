@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AnimatedCard, AnimatedNumber, GlowingButton } from '@/components/ui/AnimatedCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

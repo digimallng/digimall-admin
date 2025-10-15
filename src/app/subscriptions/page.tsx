@@ -35,7 +35,7 @@ import {
   useSyncPlanWithPaystack,
   useCancelVendorSubscription,
 } from '@/lib/api/hooks/use-subscriptions';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,7 @@ import type {
   PlanDuration,
   PlanStatus,
 } from '@/lib/api/types/subscription.types';
-import { Textarea } from '@/components/ui/Textarea';
+import { Textarea } from '@/components/ui/textarea';
 
 // Helper function to convert kobo to Naira
 const koboToNaira = (kobo: number): number => kobo / 100;

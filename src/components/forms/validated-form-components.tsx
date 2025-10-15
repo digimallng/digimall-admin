@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { 
   Eye, 
   EyeOff, 

@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useAddTicketResponse } from '@/lib/hooks/use-support';
 import { SupportTicket } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/Textarea';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Send, 
   Paperclip, 

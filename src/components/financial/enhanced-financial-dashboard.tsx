@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { Button } from '@/components/ui/button';
 import { useFinancialStats, useFinancialAnalytics } from '@/lib/hooks/useFinancial';

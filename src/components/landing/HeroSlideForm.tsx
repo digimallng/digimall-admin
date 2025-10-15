@@ -11,7 +11,7 @@ import { useCreateHeroSlide, useUpdateHeroSlide } from '@/lib/hooks/use-landing'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/Textarea';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select } from '@/components/ui/select';
 import { ImageUploader } from '@/components/uploads/ImageUploader';
