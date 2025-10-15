@@ -4,7 +4,12 @@ import { withAuth } from 'next-auth/middleware';
 // Function to check if setup is required
 async function checkSetupRequired(baseUrl: string): Promise<boolean> {
   try {
-    const response = await fetch(`${baseUrl}/api/setup/check`, {
+    // Use localhost in production to avoid DNS resolution issues in Docker
+    const checkUrl = process.env.NODE_ENV === 'production'
+      ? 'http://localhost:4300/api/setup/check'
+      : `${baseUrl}/api/setup/check`;
+    
+    const response = await fetch(checkUrl, {
       headers: { 'Cache-Control': 'no-cache' }
     });
     if (response.ok) {
