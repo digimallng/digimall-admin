@@ -9,13 +9,14 @@ function isSetupRequired(): boolean {
     return false;
   }
   
-  // In production, assume setup is complete unless explicitly marked incomplete
-  // This prevents the middleware from blocking access due to fetch failures
-  if (process.env.NODE_ENV === 'production') {
-    return process.env.SETUP_REQUIRED === 'true';
+  // If SETUP_REQUIRED is explicitly set to 'true', setup is required
+  if (process.env.SETUP_REQUIRED === 'true') {
+    return true;
   }
   
-  // In development, default to setup not required
+  // Default: In production and development, assume setup is NOT required
+  // This allows normal operation unless explicitly configured otherwise
+  // The /api/setup/check endpoint will verify with backend if needed
   return false;
 }
 
