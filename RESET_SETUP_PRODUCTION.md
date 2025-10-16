@@ -2,7 +2,7 @@
 
 ## What Was Changed
 
-Modified `docker-compose.prod.yml` to **remove** `SETUP_COMPLETED=true`, allowing the admin dashboard to go through the initial setup process.
+Modified `docker-compose.prod.yml` to **add** `SETUP_REQUIRED=true`, which explicitly forces the admin dashboard to show the setup page and require initial configuration.
 
 ## Before Deployment
 
@@ -82,28 +82,30 @@ curl -X POST https://api.digimall.ng/api/v1/staff/setup/verify-setup \
 # {"setupRequired": false, "message": "Setup complete"}
 ```
 
-## Re-enabling Setup Bypass (After Setup is Complete)
+## After Setup is Complete - Disable Setup Mode
 
-If you want to skip setup checks in the future (after you've created the admin):
+Once you've successfully created your admin account:
 
 1. **Edit docker-compose.prod.yml**:
 ```yaml
 environment:
   - NODE_ENV=production
   - PORT=4300
-  - SETUP_COMPLETED=true  # Uncomment this line
+  # - SETUP_REQUIRED=true  # Comment out or remove this line
+  - SETUP_COMPLETED=true   # Add this line
 ```
 
 2. **OR add to server's .env.admin**:
 ```bash
 SETUP_COMPLETED=true
+# Make sure SETUP_REQUIRED is NOT set or is set to false
 ```
 
 3. **Redeploy**:
 ```bash
 # Your pipeline will pick up the change
 git add docker-compose.prod.yml
-git commit -m "chore: mark setup as completed"
+git commit -m "chore: disable setup mode after completion"
 git push origin main
 ```
 
