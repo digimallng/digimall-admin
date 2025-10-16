@@ -81,6 +81,74 @@ export default function DashboardPage() {
     enabled: !!session?.accessToken,
   });
 
+  // Memoize formatters to avoid recreating them on every render
+  // IMPORTANT: All hooks must be called before any conditional returns
+  const formatCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }, []);
+
+  const formatNumber = useCallback((value: number) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  }, []);
+
+  // Memoize refetch handler
+  const handleRefresh = useCallback(() => {
+    refetchAnalytics();
+  }, [refetchAnalytics]);
+
+  // Memoize chart data transformation
+  const chartData = useMemo(() => {
+    return revenueData?.monthlyBreakdown?.map((item) => ({
+      date: item.month,
+      revenue: item.revenue,
+    })) || [];
+  }, [revenueData?.monthlyBreakdown]);
+
+  // Memoize metrics array to prevent recreation on every render
+  const metrics = useMemo(() => [
+    {
+      title: 'Total Revenue',
+      value: dashboardData?.totalRevenue || 0,
+      change: dashboardData?.revenueGrowth || 0,
+      icon: DollarSign,
+      gradient: 'from-blue-500 to-cyan-500',
+      iconBg: 'bg-blue-500',
+      formatter: formatCurrency,
+    },
+    {
+      title: 'Total Orders',
+      value: dashboardData?.totalOrders || 0,
+      change: dashboardData?.orderGrowth || 0,
+      icon: ShoppingCart,
+      gradient: 'from-green-500 to-emerald-500',
+      iconBg: 'bg-green-500',
+      formatter: formatNumber,
+    },
+    {
+      title: 'Total Users',
+      value: dashboardData?.totalUsers || 0,
+      change: dashboardData?.userGrowth || 0,
+      icon: Users,
+      gradient: 'from-purple-500 to-pink-500',
+      iconBg: 'bg-purple-500',
+      formatter: formatNumber,
+    },
+    {
+      title: 'Total Vendors',
+      value: dashboardData?.totalVendors || 0,
+      change: dashboardData?.vendorGrowth || 0,
+      icon: Store,
+      gradient: 'from-orange-500 to-red-500',
+      iconBg: 'bg-orange-500',
+      formatter: formatNumber,
+    },
+  ], [dashboardData, formatCurrency, formatNumber]);
+
   // Show skeleton only on initial load, not on background refetch
   const isInitialLoading = analyticsLoading && !dashboardData;
 
@@ -123,73 +191,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  // Memoize formatters to avoid recreating them on every render
-  const formatCurrency = useCallback((value: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  }, []);
-
-  const formatNumber = useCallback((value: number) => {
-    return new Intl.NumberFormat('en-US').format(value);
-  }, []);
-
-  // Memoize refetch handler
-  const handleRefresh = useCallback(() => {
-    refetchAnalytics();
-  }, [refetchAnalytics]);
-
-  // Memoize chart data transformation
-  const chartData = useMemo(() => {
-    return revenueData?.monthlyBreakdown?.map((item) => ({
-      date: item.month,
-      revenue: item.revenue,
-    })) || [];
-  }, [revenueData?.monthlyBreakdown]);
-
-  // Memoize metrics array to prevent recreation on every render
-  const metrics = useMemo(() => [
-    {
-      title: 'Total Revenue',
-      value: dashboardData.totalRevenue || 0,
-      change: dashboardData.revenueGrowth || 0,
-      icon: DollarSign,
-      gradient: 'from-blue-500 to-cyan-500',
-      iconBg: 'bg-blue-500',
-      formatter: formatCurrency,
-    },
-    {
-      title: 'Total Orders',
-      value: dashboardData.totalOrders || 0,
-      change: dashboardData.orderGrowth || 0,
-      icon: ShoppingCart,
-      gradient: 'from-green-500 to-emerald-500',
-      iconBg: 'bg-green-500',
-      formatter: formatNumber,
-    },
-    {
-      title: 'Total Users',
-      value: dashboardData.totalUsers || 0,
-      change: dashboardData.userGrowth || 0,
-      icon: Users,
-      gradient: 'from-purple-500 to-pink-500',
-      iconBg: 'bg-purple-500',
-      formatter: formatNumber,
-    },
-    {
-      title: 'Total Vendors',
-      value: dashboardData.totalVendors || 0,
-      change: dashboardData.vendorGrowth || 0,
-      icon: Store,
-      gradient: 'from-orange-500 to-red-500',
-      iconBg: 'bg-orange-500',
-      formatter: formatNumber,
-    },
-  ], [dashboardData, formatCurrency, formatNumber]);
 
   return (
     <div className='space-y-6'>

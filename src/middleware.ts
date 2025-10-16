@@ -1,26 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from 'next-auth/middleware';
 
-// Function to check if setup is required
-async function checkSetupRequired(baseUrl: string): Promise<boolean> {
-  try {
-    // Use localhost in production to avoid DNS resolution issues in Docker
-    const checkUrl = process.env.NODE_ENV === 'production'
-      ? 'http://localhost:4300/api/setup/check'
-      : `${baseUrl}/api/setup/check`;
-    
-    const response = await fetch(checkUrl, {
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return data.setupRequired || false;
-    }
-  } catch (error) {
-    console.error('Middleware setup check failed:', error);
+// Check if setup is required using environment variable
+// This avoids fetch calls in Edge Runtime which can fail in production
+function isSetupRequired(): boolean {
+  // If SETUP_COMPLETED is explicitly set to 'true', setup is not required
+  if (process.env.SETUP_COMPLETED === 'true') {
+    return false;
   }
-  // Default to setup required on error for safety
-  return true;
+  
+  // In production, assume setup is complete unless explicitly marked incomplete
+  // This prevents the middleware from blocking access due to fetch failures
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.SETUP_REQUIRED === 'true';
+  }
+  
+  // In development, default to setup not required
+  return false;
 }
 
 export async function middleware(request: NextRequest) {
@@ -38,8 +34,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if setup is required for all other routes
-  const baseUrl = request.nextUrl.origin;
-  const setupRequired = await checkSetupRequired(baseUrl);
+  const setupRequired = isSetupRequired();
   
   if (setupRequired) {
     // If setup is required, redirect to setup page
@@ -48,6 +43,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If setup is complete, use NextAuth middleware for authentication
+  // @ts-ignore - withAuth types can be inconsistent
   return withAuth(
     function middleware(req) {
       const token = req.nextauth.token;
