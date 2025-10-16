@@ -20,7 +20,8 @@ export interface AdminLoginResponse {
 // Environment-aware API base URL - now pointing to unified backend
 const getApiBaseUrl = () => {
   if (process.env.NODE_ENV === 'production') {
-    return 'https://admin.digimall.ng/api/v1';
+    // In production, always use the backend API, not the admin frontend
+    return 'https://api.digimall.ng/api/v1';
   }
   return process.env.NEXT_PUBLIC_BACKEND_URL
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1`
