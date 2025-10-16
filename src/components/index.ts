@@ -57,7 +57,7 @@ export {
 // Layout Components
 export { ClientLayout } from './layout/ClientLayout';
 export { Header } from './layout/Header';
-export { Sidebar } from './layout/Sidebar';
+export { AppSidebar as Sidebar } from './layout/Sidebar';
 
 // UI Components
 export { AnimatedCard } from './ui/AnimatedCard';

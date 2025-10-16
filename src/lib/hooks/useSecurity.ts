@@ -159,3 +159,6 @@ export function useBlockIP() {
     },
   });
 }
+
+// Alias for backward compatibility
+export const useRecentSecurityEvents = useSecurityAlerts;

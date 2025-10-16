@@ -144,3 +144,8 @@ export function useGenerateFinancialReport() {
     },
   });
 }
+
+// Aliases for backward compatibility
+export const useFinancialStats = useFinancialOverview;
+export const useFinancialAnalytics = useFinancialTransactions;
+export const usePayments = useFinancialTransactions;

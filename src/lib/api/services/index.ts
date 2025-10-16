@@ -27,6 +27,7 @@ export { disputeService } from './dispute.service';
 export { escrowService } from './escrow.service';
 export { notificationsService } from './notifications.service';
 export { auditService } from './audit.service';
+export { supportService } from './support.service';
 
 // Re-export types
 export * from '../types';

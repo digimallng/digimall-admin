@@ -186,3 +186,7 @@ export function useClearCache() {
     },
   });
 }
+
+// Aliases for backward compatibility
+export const useQueueStatus = useSystemServices;
+export const useSystemStatusSummary = useSystemStatus;
