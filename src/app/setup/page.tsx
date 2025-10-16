@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react';
@@ -33,6 +33,32 @@ export default function SetupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  // Check if setup is already completed on page load
+  useEffect(() => {
+    const checkSetupStatus = async () => {
+      try {
+        const response = await fetch('/api/setup/check');
+        const data = await response.json();
+        
+        // If setup is already completed, redirect to login
+        if (!data.setupRequired) {
+          console.log('Setup already completed, redirecting to login...');
+          router.push('/auth/login');
+          return;
+        }
+        
+        setCheckingSetup(false);
+      } catch (error) {
+        console.error('Error checking setup status:', error);
+        // If check fails, allow access to setup page
+        setCheckingSetup(false);
+      }
+    };
+
+    checkSetupStatus();
+  }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,6 +88,20 @@ export default function SetupPage() {
   };
 
   const passwordStrength = getPasswordStrength();
+
+  // Show loading state while checking setup status
+  if (checkingSetup) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          </div>
+          <p className="text-sm text-muted-foreground">Checking setup status...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

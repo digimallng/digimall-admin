@@ -11,8 +11,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4300
-      - SETUP_REQUIRED=true  # Force setup mode - remove after completing setup
-      # - SETUP_COMPLETED=true  # Uncomment after setup is complete
+      # - SETUP_REQUIRED=true  # Commented out - setup is complete
+      - SETUP_COMPLETED=true  # Setup is complete, bypass setup checks
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4300/"]
